@@ -1,0 +1,1257 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Dashboard Vendedor - Abas</title>
+
+  <!-- Bootstrap 5 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet"><!-- [web:22] -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script><!-- [web:22] -->
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script><!-- [web:9] -->
+
+  <!-- Leaflet Heatmap (heat layer) -->
+  <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script><!-- [web:40] -->
+
+  <style>
+    body {
+      background-color: #f5f6fa;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    .page-title { margin: 20px 0; }
+    .card {
+      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+      border-radius: 10px;
+      border: 0;
+    }
+    .metric-label {
+      font-size: 0.85rem;
+      color: #6c757d;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .metric-value {
+      font-size: 1.4rem;
+      font-weight: 600;
+    }
+    .metric-sub {
+      font-size: 0.85rem;
+      color: #6c757d;
+    }
+    .table thead th {
+      background-color: #f1f3f5;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+    }
+    .conversion-high { color: #0f9d58; font-weight: 600; }
+    .conversion-low { color: #d93025; font-weight: 600; }
+    .chart-container { width: 100%; height: 260px; }
+    #map { width: 100%; height: 420px; border-radius: 10px; }
+    .badge-visit { background-color: #0d6efd; }
+    .badge-track { background-color: #6f42c1; }
+    .form-select, .form-control { font-size: 0.9rem; }
+    .small { font-size: 0.8rem; }
+    .pill {
+      border-radius: 999px;
+      padding: 0.18rem 0.6rem;
+      font-size: 0.75rem;
+    }
+    .table-nowrap td, .table-nowrap th { white-space: nowrap; }
+  </style>
+</head>
+<body>
+
+<div class="container-fluid py-3">
+  <!-- Cabeçalho + filtros -->
+  <div class="row align-items-center">
+    <div class="col-lg-6">
+      <h3 class="page-title mb-0">Dashboard de Vendas por Vendedor</h3>
+      <p class="text-muted mb-0 small">
+        Carteira, conversão, mapas e custos por vendedor.
+      </p>
+    </div>
+    <div class="col-lg-6 mt-3 mt-lg-0">
+      <div class="d-flex flex-wrap justify-content-lg-end gap-2">
+
+        <!-- Vendedor -->
+        <select id="sellerSelect" class="form-select form-select-sm" style="max-width: 180px;"></select>
+
+        <!-- Tipo de período -->
+        <select id="periodType" class="form-select form-select-sm" style="max-width: 120px;">
+          <option value="month">Mês</option>
+          <option value="day">Dia</option>
+          <option value="year">Ano</option>
+        </select>
+
+        <!-- Inputs de período -->
+        <input id="periodInputMonth" type="month" class="form-control form-control-sm" style="max-width: 140px;" />
+        <input id="periodInputDay" type="date" class="form-control form-control-sm d-none" style="max-width: 140px;" />
+        <input id="periodInputYear" type="number" class="form-control form-control-sm d-none" style="max-width: 90px;" placeholder="Ano" />
+
+        <!-- Consumo médio (km/L) e preço combustível -->
+        <input id="avgConsumptionInput" type="number" step="0.1" min="0"
+               class="form-control form-control-sm" style="max-width: 110px;"
+               placeholder="km/L" />
+        <input id="fuelPriceInput" type="number" step="0.01" min="0"
+               class="form-control form-control-sm" style="max-width: 110px;"
+               placeholder="R$/L" />
+
+        <!-- Cliente (para aba Carteira) -->
+        <select id="clientSelect" class="form-select form-select-sm" style="max-width: 180px;"></select>
+      </div>
+      <div class="small text-muted text-lg-end mt-1">
+        Consumo médio e preço do combustível usados para estimar custo de combustível.
+      </div>
+    </div>
+  </div>
+
+  <hr class="my-3">
+
+  <!-- Abas principais -->
+  <ul class="nav nav-tabs" id="dashboardTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active" id="tab-conversao-tab" data-bs-toggle="tab"
+              data-bs-target="#tab-conversao" type="button" role="tab"
+              aria-controls="tab-conversao" aria-selected="true">
+        Conversão / Nível Dia & Mês
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="tab-carteira-tab" data-bs-toggle="tab"
+              data-bs-target="#tab-carteira" type="button" role="tab"
+              aria-controls="tab-carteira" aria-selected="false">
+        Carteira / Clientes
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="tab-mapas-tab" data-bs-toggle="tab"
+              data-bs-target="#tab-mapas" type="button" role="tab"
+              aria-controls="tab-mapas" aria-selected="false">
+        Mapas / Rotas
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="tab-custo-tab" data-bs-toggle="tab"
+              data-bs-target="#tab-custo" type="button" role="tab"
+              aria-controls="tab-custo" aria-selected="false">
+        Custo Vendedor
+      </button>
+    </li>
+  </ul>
+
+  <div class="tab-content mt-3" id="dashboardTabsContent">
+    <!-- ABA 1: Conversão -->
+    <div class="tab-pane fade show active" id="tab-conversao" role="tabpanel"
+         aria-labelledby="tab-conversao-tab">
+
+      <!-- Cards nível mês (faturamento, pedidos, visitas, conversão) -->
+      <div class="row g-3">
+        <div class="col-6 col-xl-3">
+          <div class="card p-3">
+            <div class="metric-label">Faturamento mês</div>
+            <div id="monthRevenue" class="metric-value">R$ 0,00</div>
+            <div id="monthRevenueAvg" class="metric-sub">Média dia: R$ 0,00</div>
+          </div>
+        </div>
+        <div class="col-6 col-xl-3">
+          <div class="card p-3">
+            <div class="metric-label">Pedidos mês</div>
+            <div id="monthOrders" class="metric-value">0</div>
+            <div id="monthOrdersPerVisit" class="metric-sub">Pedidos / visita: 0,00</div>
+          </div>
+        </div>
+        <div class="col-6 col-xl-3">
+          <div class="card p-3">
+            <div class="metric-label">Visitas mês</div>
+            <div id="monthVisits" class="metric-value">0</div>
+            <div id="monthVisitsPerDay" class="metric-sub">Média dia: 0,00 visitas</div>
+          </div>
+        </div>
+        <div class="col-6 col-xl-3">
+          <div class="card p-3">
+            <div class="metric-label">Taxa conversão mês</div>
+            <div id="monthConversion" class="metric-value">0,0%</div>
+            <div id="monthBestDay" class="metric-sub">Melhor dia: -</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Gráfico + ranking -->
+      <div class="row mt-3 g-3">
+        <div class="col-lg-8">
+          <div class="card p-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="metric-label mb-0">Evolução diária - faturamento</span>
+              <span class="small text-muted" id="chartSubtitle">Período atual</span>
+            </div>
+            <div id="dailyChart" class="chart-container"></div>
+          </div>
+        </div>
+        <div class="col-lg-4">
+          <div class="card p-3">
+            <ul class="nav nav-pills nav-justified mb-2">
+              <li class="nav-item">
+                <button class="nav-link active py-1 small" id="tabRankRevenue">Top dias faturamento</button>
+              </li>
+              <li class="nav-item">
+                <button class="nav-link py-1 small" id="tabRankConversion">Top dias conversão</button>
+              </li>
+            </ul>
+            <div>
+              <table class="table table-sm mb-0 table-nowrap">
+                <thead>
+                  <tr>
+                    <th>Dia</th>
+                    <th class="text-end">Fat. (R$)</th>
+                    <th class="text-end">Conv.</th>
+                  </tr>
+                </thead>
+                <tbody id="rankingBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Nível dia -->
+      <div class="row mt-3 g-3">
+        <div class="col-12">
+          <div class="card p-3">
+            <div class="d-flex justify-content-between mb-2">
+              <span class="metric-label">Nível dia (vendedor / período)</span>
+              <span class="small text-muted">
+                Clique numa linha para ver o mapa na aba "Mapas / Rotas".
+              </span>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-sm table-hover table-nowrap mb-0">
+                <thead>
+                  <tr>
+                    <th>Data</th>
+                    <th class="text-end">Fat. (R$)</th>
+                    <th class="text-end">Pedidos</th>
+                    <th class="text-end">Visitas</th>
+                    <th class="text-end">Conv.</th>
+                    <th class="text-end">KM</th>
+                    <th class="text-end">Despesa (R$)</th>
+                    <th class="text-end">Combustível (R$)</th>
+                  </tr>
+                </thead>
+                <tbody id="dailyTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ABA 2: Carteira -->
+    <div class="tab-pane fade" id="tab-carteira" role="tabpanel"
+         aria-labelledby="tab-carteira-tab">
+      <div class="row g-3">
+        <div class="col-lg-5">
+          <div class="card p-3">
+            <div class="d-flex justify-content-between mb-2">
+              <span class="metric-label">Carteira de clientes</span>
+              <span class="small text-muted">Visitas, pedidos, conversão, valor vendido.</span>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-sm table-hover table-nowrap mb-2">
+                <thead>
+                  <tr>
+                    <th>Cliente</th>
+                    <th class="text-end">Total visitas</th>
+                    <th class="text-end">Total pedidos</th>
+                    <th class="text-end">Taxa conversão</th>
+                    <th class="text-end">Valor vendido (R$)</th>
+                  </tr>
+                </thead>
+                <tbody id="clientTableBody"></tbody>
+              </table>
+            </div>
+            <div class="small text-muted">
+              Use o seletor de cliente no topo para travar o detalhe ao lado.
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-7">
+          <div class="card p-3">
+            <div class="d-flex justify-content-between mb-2">
+              <span class="metric-label">Detalhe de visitas do cliente no período</span>
+              <span id="clientDetailTitle" class="small text-muted">Cliente: -</span>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-sm table-hover table-nowrap mb-0">
+                <thead>
+                  <tr>
+                    <th>Data</th>
+                    <th>Tipo visita</th>
+                    <th class="text-end">Valor pedido (R$)</th>
+                    <th class="text-center">Teve pedido?</th>
+                  </tr>
+                </thead>
+                <tbody id="clientVisitBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ABA 3: Mapas -->
+    <div class="tab-pane fade" id="tab-mapas" role="tabpanel"
+         aria-labelledby="tab-mapas-tab">
+
+      <!-- Filtros da aba Mapas -->
+      <div class="card p-3 mb-3">
+        <div class="row g-2 align-items-end">
+          <div class="col-md-4">
+            <label class="form-label small mb-1">Período mapa</label>
+            <select id="mapPeriodFilter" class="form-select form-select-sm">
+              <option value="month">Período carregado</option>
+              <option value="day">Somente dia selecionado</option>
+              <option value="all">Todos dias (heat)</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small mb-1">Modo visualização</label>
+            <select id="mapMode" class="form-select form-select-sm">
+              <option value="points">Pontos / rota</option>
+              <option value="heat">Mapa de calor</option>
+            </select>
+          </div>
+          <div class="col-md-4 text-md-end">
+            <button id="btnRefreshMap" class="btn btn-sm btn-outline-primary mt-3 mt-md-0">
+              Atualizar mapa
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="row g-3">
+        <div class="col-lg-4">
+          <div class="card p-3">
+            <div class="metric-label mb-2">Dias do período</div>
+            <div class="small text-muted mb-2">
+              Clique em um dia para centralizar o mapa.
+            </div>
+            <div class="table-responsive" style="max-height: 350px; overflow-y: auto;">
+              <table class="table table-sm table-hover table-nowrap mb-0">
+                <thead>
+                  <tr>
+                    <th>Data</th>
+                    <th class="text-end">Fat. (R$)</th>
+                    <th class="text-end">Visitas</th>
+                  </tr>
+                </thead>
+                <tbody id="mapDayTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-8">
+          <div class="card p-3">
+            <div class="d-flex justify-content-between mb-2">
+              <span class="metric-label">Mapa estratégico</span>
+              <span class="small text-muted" id="mapDayLabel">
+                Pontos de visita e rastreio do dia selecionado.
+              </span>
+            </div>
+            <div id="map"></div>
+            <div class="mt-2 small">
+              <span class="badge pill badge-visit text-white me-1">Visitas</span>
+              <span class="badge pill badge-track text-white me-1">Rastreio</span>
+              <span class="text-muted">Use o mapa para analisar rota, cobertura e concentração.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ABA 4: Custo Vendedor -->
+    <div class="tab-pane fade" id="tab-custo" role="tabpanel"
+         aria-labelledby="tab-custo-tab">
+      <div class="row g-3">
+        <div class="col-xl-4 col-lg-6">
+          <div class="card p-3">
+            <div class="metric-label">Resumo de custos do período</div>
+            <div class="mt-2">
+              <div class="d-flex justify-content-between">
+                <span class="small text-muted">Despesas (RDV):</span>
+                <span id="monthExpenses" class="metric-value fs-6">R$ 0,00</span>
+              </div>
+              <div class="d-flex justify-content-between">
+                <span class="small text-muted">Combustível (estimado):</span>
+                <span id="monthFuelCost" class="metric-value fs-6">R$ 0,00</span>
+              </div>
+              <div class="d-flex justify-content-between">
+                <span class="small text-muted">KM rodados:</span>
+                <span id="monthKm" class="metric-value fs-6">0 km</span>
+              </div>
+              <hr class="my-2">
+              <div class="d-flex justify-content-between">
+                <span class="small text-muted">Custo médio por dia:</span>
+                <span id="monthCostPerDay">R$ 0,00</span>
+              </div>
+              <div class="small text-muted" id="monthFuelInfo">
+                Consumo: - km/L | Preço: R$ -/L
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-xl-8 col-lg-6">
+          <div class="card p-3">
+            <div class="d-flex justify-content-between mb-2">
+              <span class="metric-label">Custo diário detalhado</span>
+              <span class="small text-muted">Despesas + combustível por dia.</span>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-sm table-hover table-nowrap mb-0">
+                <thead>
+                  <tr>
+                    <th>Data</th>
+                    <th class="text-end">KM</th>
+                    <th class="text-end">Despesa (R$)</th>
+                    <th class="text-end">Combustível (R$)</th>
+                    <th class="text-end">Total (R$)</th>
+                  </tr>
+                </thead>
+                <tbody id="costTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- tab-content -->
+</div><!-- container -->
+
+<script>
+  // ===== DADOS MOCKADOS (exemplo; troque depois pela API) =====
+  const mockData = {
+    vendedores: [
+      {
+        id: 1,
+        nome: "João Silva",
+        mes: "2026-03",
+        dias: [
+          {
+            data: "2026-03-01",
+            faturamento: 3500.0,
+            pedidos: 5,
+            visitas: 8,
+            km: 120,
+            despesa: 260.0,
+            rastreio: [
+              { lat: -20.325, lng: -40.3, hora: "09:10" },
+              { lat: -20.335, lng: -40.29, hora: "10:05" },
+              { lat: -20.34, lng: -40.28, hora: "11:30" }
+            ],
+            clientes: [
+              {
+                id: 101,
+                nome: "Cliente Alfa",
+                visitas: [
+                  {
+                    data: "2026-03-01",
+                    tipo: "Presencial",
+                    valorPedido: 1500.0,
+                    coord: { lat: -20.33, lng: -40.29 }
+                  },
+                  {
+                    data: "2026-03-01",
+                    tipo: "Reunião",
+                    valorPedido: 0.0,
+                    coord: { lat: -20.32, lng: -40.3 }
+                  }
+                ]
+              },
+              {
+                id: 102,
+                nome: "Cliente Beta",
+                visitas: [
+                  {
+                    data: "2026-03-01",
+                    tipo: "Follow-up",
+                    valorPedido: 2000.0,
+                    coord: { lat: -20.34, lng: -40.28 }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            data: "2026-03-02",
+            faturamento: 1800.0,
+            pedidos: 3,
+            visitas: 10,
+            km: 90,
+            despesa: 180.0,
+            rastreio: [
+              { lat: -20.34, lng: -40.29, hora: "08:50" },
+              { lat: -20.35, lng: -40.27, hora: "10:00" },
+              { lat: -20.36, lng: -40.25, hora: "11:15" }
+            ],
+            clientes: [
+              {
+                id: 101,
+                nome: "Cliente Alfa",
+                visitas: [
+                  {
+                    data: "2026-03-02",
+                    tipo: "Presencial",
+                    valorPedido: 800.0,
+                    coord: { lat: -20.35, lng: -40.27 }
+                  }
+                ]
+              },
+              {
+                id: 103,
+                nome: "Cliente Gama",
+                visitas: [
+                  {
+                    data: "2026-03-02",
+                    tipo: "Visita técnica",
+                    valorPedido: 1000.0,
+                    coord: { lat: -20.36, lng: -40.26 }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            data: "2026-03-03",
+            faturamento: 0.0,
+            pedidos: 0,
+            visitas: 4,
+            km: 60,
+            despesa: 80.0,
+            rastreio: [
+              { lat: -20.33, lng: -40.31, hora: "09:00" },
+              { lat: -20.32, lng: -40.33, hora: "10:10" }
+            ],
+            clientes: [
+              {
+                id: 102,
+                nome: "Cliente Beta",
+                visitas: [
+                  {
+                    data: "2026-03-03",
+                    tipo: "Cortesia",
+                    valorPedido: 0.0,
+                    coord: { lat: -20.32, lng: -40.33 }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: 2,
+        nome: "Maria Souza",
+        mes: "2026-03",
+        dias: [
+          {
+            data: "2026-03-01",
+            faturamento: 4200.0,
+            pedidos: 6,
+            visitas: 9,
+            km: 100,
+            despesa: 200.0,
+            rastreio: [
+              { lat: -20.4, lng: -40.32, hora: "09:00" },
+              { lat: -20.41, lng: -40.31, hora: "10:10" }
+            ],
+            clientes: [
+              {
+                id: 201,
+                nome: "Cliente Delta",
+                visitas: [
+                  {
+                    data: "2026-03-01",
+                    tipo: "Presencial",
+                    valorPedido: 2500.0,
+                    coord: { lat: -20.405, lng: -40.315 }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  };
+
+  // ===== FUNÇÕES UTIL =====
+  function formatCurrency(value) {
+    return value.toLocaleString("pt-BR", {
+      style: "currency",
+      currency: "BRL"
+    });
+  }
+
+  function formatPercent(value) {
+    if (isNaN(value)) return "0,0%";
+    return (value * 100).toFixed(1).replace(".", ",") + "%";
+  }
+
+  function formatDateLabel(isoDate) {
+    const d = new Date(isoDate);
+    const day = String(d.getDate()).padStart(2, "0");
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    return `${day}/${month}`;
+  }
+
+  function getSellerById(id) {
+    // neste exemplo simples, só usa o mês fixo "2026-03"
+    return mockData.vendedores.find(v => v.id === id);
+  }
+
+  function aggregateMonth(seller) {
+    const days = seller.dias;
+    let revenue = 0;
+    let orders = 0;
+    let visits = 0;
+    let expenses = 0;
+    let kmTotal = 0;
+
+    days.forEach(d => {
+      revenue += d.faturamento;
+      orders += d.pedidos;
+      visits += d.visitas;
+      expenses += d.despesa || 0;
+      kmTotal += d.km || 0;
+    });
+
+    const daysCount = days.length || 1;
+    const conversion = visits > 0 ? orders / visits : 0;
+    const bestDayByRevenue = [...days].sort((a, b) => b.faturamento - a.faturamento)[0];
+
+    return {
+      revenue,
+      orders,
+      visits,
+      expenses,
+      kmTotal,
+      daysCount,
+      conversion,
+      bestDayByRevenue
+    };
+  }
+
+  function buildClientAggregation(seller) {
+    const clientMap = new Map();
+
+    seller.dias.forEach(day => {
+      day.clientes.forEach(c => {
+        if (!clientMap.has(c.id)) {
+          clientMap.set(c.id, {
+            id: c.id,
+            nome: c.nome,
+            visitas: 0,
+            pedidos: 0,
+            faturamento: 0,
+            visitasDetalhe: []
+          });
+        }
+        const agg = clientMap.get(c.id);
+        c.visitas.forEach(v => {
+          agg.visitas += 1;
+          if (v.valorPedido > 0) agg.pedidos += 1;
+          agg.faturamento += v.valorPedido;
+          agg.visitasDetalhe.push({
+            data: v.data,
+            tipo: v.tipo,
+            valorPedido: v.valorPedido,
+            coord: v.coord
+          });
+        });
+      });
+    });
+
+    const result = [];
+    clientMap.forEach(agg => {
+      agg.conversao = agg.visitas > 0 ? agg.pedidos / agg.visitas : 0;
+      result.push(agg);
+    });
+    result.sort((a, b) => b.faturamento - a.faturamento);
+    return result;
+  }
+
+  // ===== ELEMENTOS DOM =====
+  const sellerSelect = document.getElementById("sellerSelect");
+  const periodType = document.getElementById("periodType");
+  const periodInputMonth = document.getElementById("periodInputMonth");
+  const periodInputDay = document.getElementById("periodInputDay");
+  const periodInputYear = document.getElementById("periodInputYear");
+  const clientSelect = document.getElementById("clientSelect");
+  const avgConsumptionInput = document.getElementById("avgConsumptionInput");
+  const fuelPriceInput = document.getElementById("fuelPriceInput");
+
+  const monthRevenueEl = document.getElementById("monthRevenue");
+  const monthRevenueAvgEl = document.getElementById("monthRevenueAvg");
+  const monthOrdersEl = document.getElementById("monthOrders");
+  const monthOrdersPerVisitEl = document.getElementById("monthOrdersPerVisit");
+  const monthVisitsEl = document.getElementById("monthVisits");
+  const monthVisitsPerDayEl = document.getElementById("monthVisitsPerDay");
+  const monthConversionEl = document.getElementById("monthConversion");
+  const monthBestDayEl = document.getElementById("monthBestDay");
+
+  const monthExpensesEl = document.getElementById("monthExpenses");
+  const monthKmEl = document.getElementById("monthKm");
+  const monthFuelCostEl = document.getElementById("monthFuelCost");
+  const monthCostPerDayEl = document.getElementById("monthCostPerDay");
+  const monthFuelInfoEl = document.getElementById("monthFuelInfo");
+
+  const chartSubtitleEl = document.getElementById("chartSubtitle");
+  const dailyTableBody = document.getElementById("dailyTableBody");
+  const clientTableBody = document.getElementById("clientTableBody");
+  const clientVisitBody = document.getElementById("clientVisitBody");
+  const rankingBody = document.getElementById("rankingBody");
+  const clientDetailTitle = document.getElementById("clientDetailTitle");
+
+  const tabRankRevenue = document.getElementById("tabRankRevenue");
+  const tabRankConversion = document.getElementById("tabRankConversion");
+
+  const mapDayTableBody = document.getElementById("mapDayTableBody");
+  const mapDayLabel = document.getElementById("mapDayLabel");
+  const mapPeriodFilter = document.getElementById("mapPeriodFilter");
+  const mapModeSelect = document.getElementById("mapMode");
+  const btnRefreshMap = document.getElementById("btnRefreshMap");
+  const costTableBody = document.getElementById("costTableBody");
+
+  let currentSeller = null;
+  let currentClientsAgg = [];
+  let currentClientId = null;
+  let currentRankMode = "revenue";
+  let currentDayForMap = null;
+
+  // ===== MAPA LEAFLET =====
+  let map = null;
+  let visitLayerGroup = null;
+  let trackLayerGroup = null;
+  let heatLayer = null;
+
+  function initMap() {
+    map = L.map("map").setView([-20.33, -40.3], 11);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: "© OpenStreetMap"
+    }).addTo(map); // [web:9]
+    visitLayerGroup = L.layerGroup().addTo(map);
+    trackLayerGroup = L.layerGroup().addTo(map);
+  }
+
+  function updateMapForDay(day) {
+    if (!map || !day) return;
+    visitLayerGroup.clearLayers();
+    trackLayerGroup.clearLayers();
+    if (heatLayer) {
+      map.removeLayer(heatLayer);
+      heatLayer = null;
+    }
+
+    const bounds = [];
+
+    day.clientes.forEach(c => {
+      c.visitas.forEach(v => {
+        if (!v.coord) return;
+        const marker = L.marker([v.coord.lat, v.coord.lng], {
+          title: `${c.nome} - ${v.tipo}`
+        }).addTo(visitLayerGroup);
+        marker.bindPopup(
+          `<strong>${c.nome}</strong><br>${v.tipo}<br>Valor pedido: ${formatCurrency(
+            v.valorPedido
+          )}<br>Data: ${v.data}`
+        );
+        bounds.push([v.coord.lat, v.coord.lng]);
+      });
+    });
+
+    if (day.rastreio && day.rastreio.length > 0) {
+      const latlngs = day.rastreio.map(p => [p.lat, p.lng]);
+      L.polyline(latlngs, {
+        color: "#6f42c1",
+        weight: 3
+      }).addTo(trackLayerGroup);
+      latlngs.forEach(ll => bounds.push(ll));
+    }
+
+    if (bounds.length > 0) {
+      map.fitBounds(bounds, { padding: [20, 20] });
+    }
+
+    mapDayLabel.textContent =
+      "Dia selecionado: " + formatDateLabel(day.data) + " | Visitas e rota do vendedor.";
+  }
+
+  function getAllVisitPoints(seller) {
+    const points = [];
+    seller.dias.forEach(d => {
+      d.clientes.forEach(c => {
+        c.visitas.forEach(v => {
+          if (v.coord) {
+            points.push([v.coord.lat, v.coord.lng, 1]);
+          }
+        });
+      });
+    });
+    return points;
+  }
+
+  function updateMapMode() {
+    const mode = mapModeSelect.value;
+    if (!currentSeller || !map) return;
+
+    visitLayerGroup.clearLayers();
+    trackLayerGroup.clearLayers();
+    if (heatLayer) {
+      map.removeLayer(heatLayer);
+      heatLayer = null;
+    }
+
+    if (mode === "points") {
+      if (currentDayForMap) updateMapForDay(currentDayForMap);
+    } else if (mode === "heat") {
+      const points = getAllVisitPoints(currentSeller);
+      if (points.length === 0) return;
+      heatLayer = L.heatLayer(points, {
+        radius: 25,
+        blur: 15,
+        maxZoom: 17
+      }).addTo(map);
+      const bounds = points.map(p => [p[0], p[1]]);
+      map.fitBounds(bounds, { padding: [20, 20] });
+      mapDayLabel.textContent =
+        "Mapa de calor de visitas no período selecionado.";
+    }
+  }
+
+  // ===== GRÁFICO DIÁRIO =====
+  function renderDailyChart(seller) {
+    const container = document.getElementById("dailyChart");
+    container.innerHTML = "";
+    const canvas = document.createElement("canvas");
+    canvas.width = container.clientWidth;
+    canvas.height = container.clientHeight;
+    container.appendChild(canvas);
+
+    const ctx = canvas.getContext("2d");
+    const days = seller.dias;
+    if (!days || days.length === 0) return;
+
+    const labels = days.map(d => formatDateLabel(d.data));
+    const values = days.map(d => d.faturamento);
+    const maxValue = Math.max(...values, 1);
+    const padding = { left: 40, right: 20, top: 20, bottom: 30 };
+    const chartWidth = canvas.width - padding.left - padding.right;
+    const chartHeight = canvas.height - padding.top - padding.bottom;
+
+    ctx.strokeStyle = "#ddd";
+    ctx.beginPath();
+    ctx.moveTo(padding.left, padding.top);
+    ctx.lineTo(padding.left, padding.top + chartHeight);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(padding.left, padding.top + chartHeight);
+    ctx.lineTo(padding.left + chartWidth, padding.top + chartHeight);
+    ctx.stroke();
+
+    ctx.fillStyle = "#6c757d";
+    ctx.font = "10px sans-serif";
+    const stepX = chartWidth / Math.max(days.length - 1, 1);
+    labels.forEach((label, idx) => {
+      const x = padding.left + idx * stepX;
+      const y = padding.top + chartHeight + 12;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(-Math.PI / 4);
+      ctx.fillText(label, 0, 0);
+      ctx.restore();
+    });
+
+    ctx.strokeStyle = "#0d6efd";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    values.forEach((val, idx) => {
+      const x = padding.left + idx * stepX;
+      const y =
+        padding.top + chartHeight - (val / maxValue) * chartHeight;
+      if (idx === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+
+    ctx.fillStyle = "#0d6efd";
+    values.forEach((val, idx) => {
+      const x = padding.left + idx * stepX;
+      const y =
+        padding.top + chartHeight - (val / maxValue) * chartHeight;
+      ctx.beginPath();
+      ctx.arc(x, y, 3, 0, 2 * Math.PI);
+      ctx.fill();
+    });
+  }
+
+  // ===== RANKING DIAS =====
+  function renderRanking(seller) {
+    const days = seller.dias.map(d => {
+      const conv = d.visitas > 0 ? d.pedidos / d.visitas : 0;
+      return { ...d, conversao: conv };
+    });
+
+    let sorted;
+    if (currentRankMode === "revenue") {
+      sorted = days.sort((a, b) => b.faturamento - a.faturamento);
+    } else {
+      sorted = days.sort((a, b) => b.conversao - a.conversao);
+    }
+
+    const top = sorted.slice(0, 7);
+    rankingBody.innerHTML = "";
+    top.forEach(d => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${formatDateLabel(d.data)}</td>
+        <td class="text-end">${formatCurrency(d.faturamento)}</td>
+        <td class="text-end ${
+          d.conversao >= 0.5 ? "conversion-high" : "conversion-low"
+        }">${formatPercent(d.conversao)}</td>
+      `;
+      rankingBody.appendChild(tr);
+    });
+  }
+
+  // ===== TABELA DIÁRIA (aba Conversão) =====
+  function renderDailyTable(seller) {
+    const cons = parseFloat(avgConsumptionInput.value) || 0; // km/L
+    const price = parseFloat(fuelPriceInput.value) || 0;      // R$/L
+
+    dailyTableBody.innerHTML = "";
+    seller.dias.forEach(d => {
+      const conv = d.visitas > 0 ? d.pedidos / d.visitas : 0;
+
+      let fuelCostDay = 0;
+      if (cons > 0 && price > 0) {
+        const litersDay = d.km / cons;
+        fuelCostDay = litersDay * price;
+      }
+
+      const tr = document.createElement("tr");
+      tr.style.cursor = "pointer";
+      tr.addEventListener("click", () => {
+        currentDayForMap = d;
+        updateMapForDay(d);
+        highlightMapDayRow(d.data);
+      });
+
+      tr.innerHTML = `
+        <td>${formatDateLabel(d.data)}</td>
+        <td class="text-end">${formatCurrency(d.faturamento)}</td>
+        <td class="text-end">${d.pedidos}</td>
+        <td class="text-end">${d.visitas}</td>
+        <td class="text-end ${
+          conv >= 0.5 ? "conversion-high" : "conversion-low"
+        }">${formatPercent(conv)}</td>
+        <td class="text-end">${d.km}</td>
+        <td class="text-end">${formatCurrency(d.despesa || 0)}</td>
+        <td class="text-end">${formatCurrency(fuelCostDay)}</td>
+      `;
+      dailyTableBody.appendChild(tr);
+    });
+  }
+
+  // ===== TABELA CLIENTES (aba Carteira) =====
+  function renderClientTable() {
+    clientTableBody.innerHTML = "";
+    currentClientsAgg.forEach(c => {
+      const tr = document.createElement("tr");
+      tr.style.cursor = "pointer";
+      tr.addEventListener("click", () => {
+        clientSelect.value = String(c.id);
+        currentClientId = c.id;
+        renderClientDetail();
+      });
+
+      tr.innerHTML = `
+        <td>${c.nome}</td>
+        <td class="text-end">${c.visitas}</td>
+        <td class="text-end">${c.pedidos}</td>
+        <td class="text-end ${
+          c.conversao >= 0.5 ? "conversion-high" : "conversion-low"
+        }">${formatPercent(c.conversao)}</td>
+        <td class="text-end">${formatCurrency(c.faturamento)}</td>
+      `;
+      clientTableBody.appendChild(tr);
+    });
+  }
+
+  function renderClientDetail() {
+    clientVisitBody.innerHTML = "";
+    const client = currentClientsAgg.find(c => c.id === Number(currentClientId));
+    if (!client) {
+      clientDetailTitle.textContent = "Cliente: -";
+      return;
+    }
+
+    clientDetailTitle.textContent = `Cliente: ${client.nome}`;
+    const sortedVisits = [...client.visitasDetalhe].sort(
+      (a, b) => new Date(a.data) - new Date(b.data)
+    );
+
+    sortedVisits.forEach(v => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${formatDateLabel(v.data)}</td>
+        <td>${v.tipo}</td>
+        <td class="text-end">${formatCurrency(v.valorPedido)}</td>
+        <td class="text-center">
+          <span class="badge ${
+            v.valorPedido > 0 ? "bg-success" : "bg-secondary"
+          } pill">
+            ${v.valorPedido > 0 ? "Sim" : "Não"}
+          </span>
+        </td>
+      `;
+      clientVisitBody.appendChild(tr);
+    });
+  }
+
+  // ===== TABELA DIAS (aba Mapas) =====
+  function renderMapDayTable(seller) {
+    mapDayTableBody.innerHTML = "";
+    seller.dias.forEach(d => {
+      const tr = document.createElement("tr");
+      tr.style.cursor = "pointer";
+      tr.dataset.date = d.data;
+      tr.addEventListener("click", () => {
+        currentDayForMap = d;
+        updateMapForDay(d);
+        highlightMapDayRow(d.data);
+      });
+
+      tr.innerHTML = `
+        <td>${formatDateLabel(d.data)}</td>
+        <td class="text-end">${formatCurrency(d.faturamento)}</td>
+        <td class="text-end">${d.visitas}</td>
+      `;
+      mapDayTableBody.appendChild(tr);
+    });
+  }
+
+  function highlightMapDayRow(isoDate) {
+    Array.from(mapDayTableBody.querySelectorAll("tr")).forEach(tr => {
+      if (tr.dataset.date === isoDate) {
+        tr.classList.add("table-primary");
+      } else {
+        tr.classList.remove("table-primary");
+      }
+    });
+  }
+
+  // ===== TABELA CUSTO DIÁRIO (aba Custo Vendedor) =====
+  function renderCostTable(seller) {
+    const cons = parseFloat(avgConsumptionInput.value) || 0;
+    const price = parseFloat(fuelPriceInput.value) || 0;
+
+    costTableBody.innerHTML = "";
+    seller.dias.forEach(d => {
+      let fuelCostDay = 0;
+      if (cons > 0 && price > 0) {
+        const litersDay = d.km / cons;
+        fuelCostDay = litersDay * price;
+      }
+      const totalDay = (d.despesa || 0) + fuelCostDay;
+
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${formatDateLabel(d.data)}</td>
+        <td class="text-end">${d.km}</td>
+        <td class="text-end">${formatCurrency(d.despesa || 0)}</td>
+        <td class="text-end">${formatCurrency(fuelCostDay)}</td>
+        <td class="text-end">${formatCurrency(totalDay)}</td>
+      `;
+      costTableBody.appendChild(tr);
+    });
+  }
+
+  function updateCostSummary(m) {
+    const cons = parseFloat(avgConsumptionInput.value) || 0;
+    const price = parseFloat(fuelPriceInput.value) || 0;
+
+    let fuelCost = 0;
+    if (cons > 0 && price > 0) {
+      const liters = m.kmTotal / cons;
+      fuelCost = liters * price;
+    }
+
+    const totalCost = m.expenses + fuelCost;
+    const costPerDay = totalCost / m.daysCount;
+
+    monthExpensesEl.textContent = formatCurrency(m.expenses);
+    monthKmEl.textContent = `${m.kmTotal.toFixed(0)} km`;
+    monthFuelCostEl.textContent = formatCurrency(fuelCost);
+    monthCostPerDayEl.textContent = formatCurrency(costPerDay);
+    monthFuelInfoEl.textContent =
+      `Consumo: ${cons > 0 ? cons.toFixed(1).replace(".", ",") : "-"} km/L | ` +
+      `Preço: ${price > 0 ? formatCurrency(price).replace("R$", "R$ ") + "/L" : "R$ -/L"}`;
+  }
+
+  // ===== INICIALIZAÇÃO =====
+  function initFilters() {
+    mockData.vendedores.forEach(v => {
+      const opt = document.createElement("option");
+      opt.value = v.id;
+      opt.textContent = v.nome;
+      sellerSelect.appendChild(opt);
+    });
+
+    // período padrão: tipo mês, mês atual do mock
+    periodType.value = "month";
+    periodInputMonth.value = "2026-03";
+
+    avgConsumptionInput.value = 10; // km/L
+    fuelPriceInput.value = 6.0;     // R$/L
+
+    periodType.addEventListener("change", () => {
+      periodInputMonth.classList.add("d-none");
+      periodInputDay.classList.add("d-none");
+      periodInputYear.classList.add("d-none");
+
+      if (periodType.value === "month") periodInputMonth.classList.remove("d-none");
+      if (periodType.value === "day") periodInputDay.classList.remove("d-none");
+      if (periodType.value === "year") periodInputYear.classList.remove("d-none");
+      reloadDashboard();
+    });
+
+    sellerSelect.addEventListener("change", reloadDashboard);
+    periodInputMonth.addEventListener("change", reloadDashboard);
+    periodInputDay.addEventListener("change", reloadDashboard);
+    periodInputYear.addEventListener("input", reloadDashboard);
+
+    clientSelect.addEventListener("change", () => {
+      currentClientId = Number(clientSelect.value) || null;
+      renderClientDetail();
+    });
+
+    avgConsumptionInput.addEventListener("input", reloadDashboard);
+    fuelPriceInput.addEventListener("input", reloadDashboard);
+
+    tabRankRevenue.addEventListener("click", () => {
+      currentRankMode = "revenue";
+      tabRankRevenue.classList.add("active");
+      tabRankConversion.classList.remove("active");
+      if (currentSeller) renderRanking(currentSeller);
+    });
+    tabRankConversion.addEventListener("click", () => {
+      currentRankMode = "conversion";
+      tabRankConversion.classList.add("active");
+      tabRankRevenue.classList.remove("active");
+      if (currentSeller) renderRanking(currentSeller);
+    });
+
+    mapModeSelect.addEventListener("change", updateMapMode);
+    btnRefreshMap.addEventListener("click", updateMapMode);
+
+    mapPeriodFilter.addEventListener("change", () => {
+      // simplificação: só usamos seller.dias completo neste exemplo
+      updateMapMode();
+    });
+
+    sellerSelect.value = mockData.vendedores[0].id;
+  }
+
+  function reloadDashboard() {
+    const sellerId = Number(sellerSelect.value);
+    if (!sellerId) return;
+
+    const seller = getSellerById(sellerId);
+    if (!seller) return;
+
+    currentSeller = seller;
+
+    // Aqui você pode aplicar filtro real por dia/ano, etc.
+    // Neste exemplo simples usamos seller.dias como está.
+    const filteredSeller = { ...seller, dias: [...seller.dias] };
+
+    const m = aggregateMonth(filteredSeller);
+
+    // Nível mês - vendas
+    monthRevenueEl.textContent = formatCurrency(m.revenue);
+    monthRevenueAvgEl.textContent =
+      "Média dia: " + formatCurrency(m.revenue / m.daysCount);
+    monthOrdersEl.textContent = m.orders;
+    monthOrdersPerVisitEl.textContent =
+      "Pedidos / visita: " + (m.visits > 0 ? (m.orders / m.visits).toFixed(2).replace(".", ",") : "0,00");
+    monthVisitsEl.textContent = m.visits;
+    monthVisitsPerDayEl.textContent =
+      "Média dia: " + (m.visits / m.daysCount).toFixed(2).replace(".", ",") + " visitas";
+    monthConversionEl.textContent = formatPercent(m.conversion);
+    monthBestDayEl.textContent =
+      "Melhor dia: " +
+      (m.bestDayByRevenue
+        ? formatDateLabel(m.bestDayByRevenue.data) +
+          " (" +
+          formatCurrency(m.bestDayByRevenue.faturamento) +
+          ")"
+        : "-");
+
+    chartSubtitleEl.textContent = "Período carregado";
+
+    // Custos
+    updateCostSummary(m);
+
+    // Conversão / Nível dia
+    renderDailyTable(filteredSeller);
+    renderDailyChart(filteredSeller);
+    renderRanking(filteredSeller);
+
+    // Carteira
+    currentClientsAgg = buildClientAggregation(filteredSeller);
+    clientSelect.innerHTML = "<option value=''>Todos os clientes</option>";
+    currentClientsAgg.forEach(c => {
+      const opt = document.createElement("option");
+      opt.value = c.id;
+      opt.textContent = c.nome;
+      clientSelect.appendChild(opt);
+    });
+    renderClientTable();
+
+    if (currentClientsAgg.length > 0) {
+      currentClientId = currentClientsAgg[0].id;
+      clientSelect.value = String(currentClientId);
+      renderClientDetail();
+    } else {
+      currentClientId = null;
+      clientVisitBody.innerHTML = "";
+      clientDetailTitle.textContent = "Cliente: -";
+    }
+
+    // Mapas
+    renderMapDayTable(filteredSeller);
+    if (filteredSeller.dias.length > 0) {
+      currentDayForMap = filteredSeller.dias[0];
+      updateMapForDay(currentDayForMap);
+      highlightMapDayRow(currentDayForMap.data);
+    }
+
+    // Custo vendedor
+    renderCostTable(filteredSeller);
+
+    // Atualiza modo mapa conforme seleção
+    updateMapMode();
+  }
+
+  window.addEventListener("load", () => {
+    initMap();
+    initFilters();
+    reloadDashboard();
+  });
+</script>
+
+</body>
+</html>

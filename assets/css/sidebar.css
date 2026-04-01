@@ -1,0 +1,397 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Montserrat", sans-serif;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+}
+
+body {
+  min-height: 100vh;
+  background-color: transparent;
+  color: #000000;
+  overflow: hidden;
+}
+
+/* ===== SIDEBAR ===== */
+
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 10;
+  width: 260px;
+  height: 100vh;
+  background: #000000;
+  transition: width 0.35s ease;
+  color: #ffffff;
+  overflow: hidden;
+}
+
+.sidebar.collapsed {
+  width: 80px;
+}
+
+/* header: logo + seta */
+.sidebar .sidebar-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 22px 18px 18px;
+}
+
+.header-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.header-logo img {
+  display: block;
+  object-fit: contain;
+}
+
+#sidebarLogoIcon,
+#sidebarLogoText {
+  height: auto;
+}
+
+#sidebarLogoIcon {
+  width: 38px;
+  height: 38px;
+}
+
+#sidebarLogoText {
+  height: 24px;
+}
+
+.sidebar.collapsed #sidebarLogoText {
+  display: none;
+}
+
+.sidebar-header .sidebar-toggler {
+  height: 34px;
+  width: 34px;
+  color: #000000;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  background: #ffffff;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  transition: 0.3s ease;
+}
+
+.sidebar-header .sidebar-toggler span {
+  font-size: 1.6rem;
+  transition: 0.3s ease;
+}
+
+.sidebar.collapsed .sidebar-header .sidebar-toggler {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  top: 70px;
+}
+
+.sidebar.collapsed .sidebar-header .sidebar-toggler span {
+  transform: rotate(180deg);
+}
+
+.sidebar-header .sidebar-toggler:hover {
+  background: #f2f2f2;
+}
+
+/* navegação */
+
+.sidebar-nav .nav-list {
+  list-style: none;
+  display: flex;
+  gap: 0;
+  padding: 0 14px;
+  flex-direction: column;
+  transform: translateY(10px);
+  transition: 0.3s ease;
+}
+
+.sidebar .sidebar-nav .primary-nav {
+  overflow-y: auto;
+  scrollbar-width: thin;
+  padding-bottom: 20px;
+  height: calc(100vh - 210px);
+  scrollbar-color: transparent transparent;
+}
+
+.sidebar .sidebar-nav .primary-nav:hover {
+  scrollbar-color: #ffffff transparent;
+}
+
+.sidebar.collapsed .sidebar-nav .primary-nav {
+  overflow: unset;
+  transform: translateY(60px);
+}
+
+/* menos espaço entre itens */
+.sidebar-nav .nav-item {
+  position: relative;
+  margin-bottom: 4px; /* era 10px */
+}
+
+.sidebar-nav .nav-item .nav-link {
+  color: #ffffff;
+  display: flex;
+  gap: 8px;
+  white-space: nowrap;
+  border-radius: 14px;
+  padding: 6px 12px 8px; /* um pouco mais compacto */
+  align-items: center;
+  text-decoration: none;
+  border: 1px solid transparent;
+  background: transparent;
+  transition: 0.25s ease;
+  font-weight: 400;
+  cursor: pointer;
+}
+
+.sidebar-nav .nav-item .nav-link span.material-symbols-rounded {
+  font-size: 1.4rem;
+}
+
+.sidebar-nav .nav-item:is(:hover, .open) > .nav-link:not(.dropdown-title) {
+  color: #000000;
+  background: #ffffff;
+  border-color: #ffffff;
+}
+
+.sidebar .nav-link .nav-label {
+  transition: opacity 0.25s ease;
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  font-weight: 400;
+}
+
+.sidebar.collapsed .nav-link :where(.nav-label, .dropdown-icon) {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* nav secundário (rodapé) */
+
+.sidebar-nav .secondary-nav {
+  position: absolute;
+  bottom: 24px;
+  width: 100%;
+  background: #000000;
+}
+
+/* CARD PERFIL (sempre branco, sem sombra) */
+.profile-container .nav-link {
+  background: #ffffff;
+  color: #000000;
+  border-radius: 18px;
+  padding: 8px 12px;
+  box-shadow: none;
+}
+
+.profile-container .nav-link .nav-label {
+  font-weight: 500;
+}
+
+/* ícone do perfil herda cor do texto */
+
+/* seta do perfil */
+.profile-container .dropdown-icon {
+  margin-left: auto;
+  color: #000000;
+}
+
+.sidebar.collapsed .profile-container .nav-link {
+  justify-content: center;
+  border-radius: 999px;
+  padding: 8px;
+}
+
+.sidebar.collapsed .profile-container .nav-link .nav-label,
+.sidebar.collapsed .profile-container .nav-link .dropdown-icon {
+  display: none;
+}
+
+.sidebar-nav .dropdown-container .dropdown-icon {
+  margin-left: auto;
+  transition: transform 0.3s ease, opacity 0.3s 0.2s ease;
+}
+
+.sidebar-nav .dropdown-container.open .dropdown-icon {
+  transform: rotate(180deg);
+}
+
+/* submenu padrão (sidebar aberta) */
+.sidebar-nav .dropdown-menu {
+  height: 0;
+  overflow-y: hidden;
+  list-style: none;
+  padding-left: 14px;
+  margin-top: 4px;
+  transition: height 0.3s ease;
+}
+
+/* submenu quando sidebar está colapsada (flutuando ao lado) */
+.sidebar.collapsed .dropdown-menu {
+  position: absolute;
+  top: -8px;
+  left: 100%;
+  opacity: 0;
+  height: auto !important;
+  padding-right: 10px;
+  overflow-y: unset;
+  pointer-events: none;
+  border-radius: 0 10px 10px 0;
+  background: #000000;
+  transition: 0s;
+}
+
+.sidebar.collapsed .dropdown-menu:has(.dropdown-link) {
+  padding: 6px 10px 6px 20px;
+}
+
+.sidebar.sidebar.collapsed .nav-item:hover > .dropdown-menu {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(10px);
+  transition: all 0.3s ease;
+}
+
+.sidebar.sidebar.collapsed .nav-item:hover > .dropdown-menu:has(.dropdown-link) {
+  transform: translateY(8px);
+}
+
+.dropdown-menu .nav-item .nav-link {
+  color: #f5f5f5;
+  padding: 4px 10px 6px;
+  border-radius: 6px;
+  border-color: transparent;
+  font-size: 0.82rem;
+  font-weight: 400;
+}
+
+.sidebar.collapsed .dropdown-menu .nav-link {
+  padding: 4px 10px;
+}
+
+.dropdown-menu .nav-item .nav-link.dropdown-title {
+  display: none;
+  color: #ffffff;
+  padding: 6px 10px;
+  font-weight: 400;
+}
+
+.dropdown-menu:has(.dropdown-link) .nav-item .dropdown-title {
+  font-weight: 400;
+  padding: 4px 10px;
+}
+
+.sidebar.collapsed .dropdown-menu .nav-item .dropdown-title {
+  display: block;
+}
+
+/* ÍCONE MUDAR TEMA – botão + hover */
+
+.theme-toggle-btn {
+  box-shadow: none;
+  background: transparent;
+  border-radius: 14px;
+  padding: 6px 12px 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid transparent;
+  color: #ffffff;
+  cursor: pointer;
+  transition: 0.25s ease;
+}
+
+/* ícone segue a cor do texto */
+.theme-toggle-btn .material-symbols-rounded {
+  font-size: 1.4rem;
+  color: inherit;
+}
+
+/* hover no tema escuro (igual aos outros itens) */
+.theme-toggle-btn:hover {
+  background: #ffffff;
+  color: #000000;
+  border-color: #ffffff;
+}
+
+/* ===== TEMA CLARO ===== */
+
+.sidebar.light-theme {
+  background: #ffffff;
+  color: #000000;
+}
+
+.sidebar.light-theme .sidebar-header .sidebar-toggler {
+  background: #000000;
+  color: #ffffff;
+}
+
+.sidebar.light-theme .sidebar-header .sidebar-toggler:hover {
+  background: #222222;
+}
+
+.sidebar.light-theme .sidebar-nav .primary-nav:hover {
+  scrollbar-color: #000000 transparent;
+}
+
+.sidebar.light-theme .sidebar-nav .secondary-nav {
+  background: #ffffff;
+}
+
+.sidebar.light-theme .nav-item .nav-link {
+  color: #000000;
+  border-color: #ffffff;
+  background: transparent;
+}
+
+.sidebar.light-theme .nav-item:is(:hover, .open) > .nav-link:not(.dropdown-title) {
+  color: #ffffff;
+  background: #000000;
+  border-color: #000000;
+}
+
+.sidebar.light-theme .dropdown-menu {
+  background: #ffffff;
+}
+
+.sidebar.light-theme .dropdown-menu .nav-item .nav-link {
+  color: #000000;
+}
+
+.sidebar.light-theme .dropdown-menu .nav-item .nav-link.dropdown-title {
+  color: #000000;
+}
+
+/* botão mudar tema no tema claro */
+.sidebar.light-theme .theme-toggle-btn {
+  color: #000000;
+}
+
+/* hover no tema claro (inverte) */
+.sidebar.light-theme .theme-toggle-btn:hover {
+  background: #000000;
+  color: #ffffff;
+  border-color: #000000;
+}
+
+/* card de perfil continua branco mesmo no tema claro */
+.sidebar.light-theme .profile-container .nav-link {
+  background: #ffffff;
+  color: #000000;
+}

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Visya - Login</title>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" type="image/x-icon" href="assets/logo/favicon.ico" />
+  <!-- IMPORTMAP THREE PARA O FUNDO 3D DO LOGIN -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js",
+        "jsm/": "https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/"
+      }
+    }
+  </script>
+
+  <!-- CSS da tela de login (em assets/css) -->
+  <!-- Caminho RELATIVO, funciona bem em ambiente local e em subpastas -->
+  <link rel="stylesheet" href="assets/css/login.css" />
+
+  <!-- JS global com API_BASE, loginSistema, getUsuarioAtual, apiGet/Post/etc -->
+  <script src="assets/js/global.js" defer></script>
+</head>
+<body>
+  <!-- TEXTO VISYA + FORM -->
+  <div class="title">
+    <h1>
+      <span>VI</span>
+      <span>SY</span>
+      <span>A</span>
+    </h1>
+
+    <form class="login-form" id="visyaLoginForm" autocomplete="on">
+      <input
+        type="text"
+        class="login-line-input"
+        id="loginUser"
+        name="username"
+        placeholder="Login"
+        autocomplete="username"
+      />
+      <input
+        type="password"
+        class="login-line-input"
+        id="loginPass"
+        name="current-password"
+        placeholder="Senha"
+        autocomplete="current-password"
+      />
+
+      <button type="submit" class="uiverse" id="loginButton">
+        <div class="wrapper">
+          <span>LOGIN</span>
+          <div class="circle circle-12"></div>
+          <div class="circle circle-11"></div>
+          <div class="circle circle-10"></div>
+          <div class="circle circle-9"></div>
+          <div class="circle circle-8"></div>
+          <div class="circle circle-7"></div>
+          <div class="circle circle-6"></div>
+          <div class="circle circle-5"></div>
+          <div class="circle circle-4"></div>
+          <div class="circle circle-3"></div>
+          <div class="circle circle-2"></div>
+          <div class="circle circle-1"></div>
+        </div>
+      </button>
+    </form>
+  </div>
+
+  <!-- OVERLAY COM IFRAME DO LOADER -->
+  <div class="loader-overlay" id="loaderOverlay" aria-hidden="true">
+    <iframe
+      src="assets/html/loader.html"
+      class="loader-frame"
+      frameborder="0"
+      scrolling="no"
+      title="Carregando..."
+    ></iframe>
+  </div>
+
+  <!-- JS da tela de login (three + lógica de submit) em assets/js -->
+  <script type="module" src="assets/js/login.js"></script>
+</body>
+</html>

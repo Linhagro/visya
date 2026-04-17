@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>VISYA - Relatório de Treinamento</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" />
+  <link rel="stylesheet" href="../css/rh_relatorio_treinamento.css" />
+  <link rel="stylesheet" href="../css/loader.css" />
+
+  <script src="../js/global.js" defer></script>
+  <script src="../js/rh_relatorio_treinamento.js" defer></script>
+</head>
+<body>
+  <main class="rh-page">
+    <!-- HEADER -->
+    <header class="rh-header">
+      <div class="rh-header-left">
+        <h1 class="rh-titulo">Relatório de Treinamento</h1>
+        <p class="rh-subtitulo">
+          Inserção de novo formulário de treinamento por profissional.
+        </p>
+      </div>
+      <div class="rh-header-right">
+        <div class="rh-user-info">
+          <span id="rhUserNome" class="rh-user-nome">Carregando...</span>
+          <span id="rhUserEmail" class="rh-user-email"></span>
+        </div>
+      </div>
+    </header>
+
+    <!-- DADOS DO PROFISSIONAL -->
+    <section class="rh-form-section">
+      <h2 class="section-title">Dados do Profissional</h2>
+      <div class="form-grid">
+        <div class="filtro-campo">
+          <label for="nomeProfissional">Profissional <span class="obrigatorio">*</span></label>
+          <input type="text" id="nomeProfissional" placeholder="Nome completo" autocomplete="off" />
+        </div>
+        <div class="filtro-campo">
+          <label for="setor">Setor <span class="obrigatorio">*</span></label>
+          <input type="text" id="setor" placeholder="ex: LOGISTICA" autocomplete="off" />
+        </div>
+        <div class="filtro-campo">
+          <label for="responsavelSetor">Responsável pelo Setor</label>
+          <input type="text" id="responsavelSetor" placeholder="Nome do responsável" autocomplete="off" />
+        </div>
+        <div class="filtro-campo">
+          <label for="dataInicioPeriodo">Início do Período</label>
+          <input type="date" id="dataInicioPeriodo" />
+        </div>
+        <div class="filtro-campo">
+          <label for="dataFimPeriodo">Fim do Período</label>
+          <input type="date" id="dataFimPeriodo" />
+        </div>
+        <div class="filtro-campo">
+          <label for="statusTreinamento">Status</label>
+          <select id="statusTreinamento">
+            <option value="1">Pendente</option>
+            <option value="2">Em andamento</option>
+            <option value="3">Concluído</option>
+            <option value="4">Cancelado</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <!-- ATIVIDADES -->
+    <section class="rh-form-section rh-atividades-section">
+      <div class="atividades-header">
+        <h2 class="section-title">Atividades <span class="obrigatorio">*</span></h2>
+        <button type="button" class="btn-filtro btn-filtro-primario" id="btnAdicionarLinha">
+          <span>＋</span> Adicionar linha
+        </button>
+      </div>
+
+      <div class="rh-table-wrapper">
+        <table class="rh-table">
+          <colgroup>
+            <col style="width:12%" />
+            <col style="width:38%" />
+            <col style="width:11%" />
+            <col style="width:11%" />
+            <col style="width:22%" />
+            <col style="width:6%" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>Data Atividade <span class="obrigatorio">*</span></th>
+              <th>Atividade <span class="obrigatorio">*</span></th>
+              <th>Recebeu Trein.</th>
+              <th>Tem Domínio</th>
+              <th>Observações</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="tbodyAtividades">
+            <!-- linhas dinâmicas -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- RODAPÉ -->
+    <section class="rh-form-footer">
+      <p class="form-erro" id="formErro"></p>
+      <div class="form-footer-actions">
+        <button type="button" class="btn-filtro btn-filtro-secundario" id="btnLimparForm">
+          <span>✕</span> Limpar tudo
+        </button>
+        <button type="button" class="btn-filtro btn-filtro-primario" id="btnSalvar">
+          <span>✔</span> Salvar Treinamentos
+        </button>
+      </div>
+    </section>
+  </main>
+
+  <!-- LOADER -->
+  <div class="loader-overlay" id="loaderOverlay" aria-hidden="true">
+    <iframe
+      src="loader.html"
+      class="loader-frame"
+      frameborder="0"
+      scrolling="no"
+      title="Carregando..."
+    ></iframe>
+  </div>
+
+  <!-- Tema -->
+  <script>
+    const THEME_KEY = "visya-sidebar-theme";
+    function applyLocalTheme() {
+      let saved = null;
+      try {
+        saved = localStorage.getItem(THEME_KEY);
+      } catch (e) {}
+      const theme = saved === "light" || saved === "dark" ? saved : "dark";
+      document.body.classList.toggle("light-theme", theme === "light");
+    }
+    applyLocalTheme();
+    window.addEventListener("message", (event) => {
+      if (!event.data || event.data.type !== "visya-theme") return;
+      document.body.classList.toggle(
+        "light-theme",
+        event.data.theme === "light"
+      );
+      try {
+        localStorage.setItem(THEME_KEY, event.data.theme);
+      } catch (e) {}
+    });
+  </script>
+</body>
+</html>

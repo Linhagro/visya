@@ -127,7 +127,7 @@ body.light-theme .rotas-main-card {
 .logistica-grid {
   flex: 1 1 auto;
   min-height: 0;
-  height: 100%;           /* força ocupar o card */
+  height: 100%;            /* força ocupar o card */
   margin-top: 4px;
   border-radius: 10px;
   border: 1px solid var(--border-soft-dark);
@@ -206,7 +206,7 @@ body.light-theme #sidebar-logistica {
 }
 
 /* ==========================================================
-   BLOCOS DA SIDEBAR (clientes, link, alertas)
+   BLOCOS DA SIDEBAR (clientes, carregamento, link, alertas)
    ========================================================== */
 
 #sidebar-logistica .sidebar-section {
@@ -1222,6 +1222,44 @@ body.light-theme .rota-resumo {
   background: #e3324d;
   border-radius: 50%;
   transform: translate(-50%, -50%);
+}
+
+/* ==========================================================
+   BLOCO CARREGAMENTO MANUAL (novo)
+   ========================================================== */
+
+.resumo-carga-manual {
+  margin-top: 2px;
+  font-size: 11px;
+  min-height: 32px;
+}
+
+.toolbar-row-carregamento {
+  margin-top: 4px;
+}
+
+#selectCaminhaoCarga {
+  width: 100%;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-light-dark);
+  background: var(--bg-section-dark);
+  padding: 5px 8px;
+  font-size: 11px;
+  color: var(--text-main-dark);
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+body.light-theme #selectCaminhaoCarga {
+  border-color: var(--border-light-light);
+  background: var(--bg-section-light);
+  color: var(--text-main-light);
+}
+
+#selectCaminhaoCarga:focus {
+  border-color: #22c55e;
+  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.35);
 }
 
 /* ==========================================================

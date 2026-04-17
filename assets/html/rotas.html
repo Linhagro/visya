@@ -5,37 +5,35 @@
   <title>VISYA - Mapeamento de Rotas</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <!-- Fonte igual ao estoque -->
   <link
     rel="stylesheet"
     href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap"
   />
 
-  <!-- CSS específico Rotas -->
   <link rel="stylesheet" href="../css/rotas.css" />
+  <link rel="stylesheet" href="../rotas/css/planejamento-rotas.css" />
+  <link rel="stylesheet" href="../rotas/css/viewer3d.css" />
 
-  <!-- Leaflet CSS -->
   <link
     rel="stylesheet"
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
     crossorigin=""
   />
-  <!-- Leaflet Routing Machine CSS -->
   <link
     rel="stylesheet"
     href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css"
   />
 
-  <!-- JS global -->
   <script src="../js/global.js" defer></script>
-  <!-- JS Rotas -->
   <script src="../js/rotas.js" defer></script>
+  <script src="../rotas/js/planejamento-rotas.js" defer></script>
+
+  <!-- three.js para o viewer 3D aberto em nova aba -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r152/three.min.js"></script>
 </head>
 <body>
-  <!-- CONTEÚDO ROTAS DENTRO DO IFRAME -->
   <main class="rotas-page">
-    <!-- TOPO VISÍVEL (padrão estoque) -->
     <header class="rotas-header">
       <div class="rotas-header-left">
         <h1 class="rotas-titulo">Mapeamento de Rotas</h1>
@@ -45,14 +43,12 @@
       </div>
     </header>
 
-    <!-- BLOCO PRINCIPAL -->
     <section class="rotas-main-card">
       <section class="logistica-grid" id="logistica-app">
-        <!-- SIDEBAR DE CLIENTES / FILTROS -->
         <div id="sidebar-wrapper">
           <div id="sidebar-logistica">
             <div class="sidebar-scroll">
-              <!-- Clientes / fontes de dados -->
+              <!-- ========= BLOCO CLIENTES (original) ========= -->
               <div class="sidebar-section">
                 <h2>Clientes</h2>
 
@@ -130,7 +126,50 @@
                 <div class="clientes-lista" id="listaClientes"></div>
               </div>
 
-              <!-- Link Google Maps -->
+              <!-- ========= NOVO BLOCO: CARREGAMENTO MANUAL ========= -->
+              <div class="sidebar-section">
+                <h2>Carregamento manual</h2>
+
+                <div class="field-group">
+                  <label>Resumo da carga selecionada:</label>
+                  <div
+                    id="resumoCargaSelecionada"
+                    class="resumo-selecionados resumo-carga-manual"
+                  >
+                    Nenhum pedido selecionado para carregamento.
+                  </div>
+                </div>
+
+                <div class="field-group">
+                  <label for="selectCaminhaoCarga">Caminhão sugerido / escolhido:</label>
+                  <select id="selectCaminhaoCarga">
+                    <option value="">Sugestão será carregada ao realizar carregamento...</option>
+                  </select>
+                </div>
+
+                <div class="toolbar-row toolbar-row-carregamento">
+                  <button
+                    id="btnRealizarCarregamento"
+                    type="button"
+                    class="uni-btn uni-btn-secondary uni-btn-sm uni-btn-full"
+                  >
+                    Realizar carregamento
+                  </button>
+                </div>
+
+                <div class="toolbar-row toolbar-row-carregamento">
+                  <button
+                    id="btnMontarCarga3D"
+                    type="button"
+                    class="uni-btn uni-btn-primary uni-btn-sm uni-btn-full"
+                    disabled
+                  >
+                    Montar carga 3D
+                  </button>
+                </div>
+              </div>
+
+              <!-- ========= BLOCO LINK MAPS (original) ========= -->
               <div class="sidebar-section">
                 <h2>Link Google Maps</h2>
                 <button
@@ -155,7 +194,6 @@
                 </div>
               </div>
 
-              <!-- Alertas -->
               <div class="sidebar-section">
                 <h2>Alertas da rota</h2>
                 <div id="alertasRotaSidebar" class="alertas-rota">
@@ -166,10 +204,8 @@
           </div>
         </div>
 
-        <!-- RESIZER -->
         <div id="sidebar-resizer"></div>
 
-        <!-- MAPA + PAINEL DE ROTA -->
         <div id="map-container">
           <div id="map"></div>
 
@@ -187,7 +223,6 @@
             </div>
 
             <div class="rota-body">
-              <!-- Origem -->
               <div class="rota-section rota-section-origem">
                 <div class="rota-section-label">Origem</div>
                 <div class="rota-origem-chip">
@@ -198,14 +233,11 @@
                 </div>
               </div>
 
-              <!-- Paradas -->
               <div class="rota-section rota-section-pontos">
                 <div class="rota-section-label">Paradas</div>
 
                 <div class="rota-lista-wrapper">
-                  <ul id="rotaListaPontos" class="rota-lista" aria-label="Lista de pontos da rota">
-                    <!-- itens via JS -->
-                  </ul>
+                  <ul id="rotaListaPontos" class="rota-lista" aria-label="Lista de pontos da rota"></ul>
                 </div>
 
                 <div class="rota-add">
@@ -228,7 +260,7 @@
                       <path
                         d="M7 18C7 18.5523 7.44772 19 8 19C8.55228 19 9 18.5523 9 18H7ZM8.70711 0.292893C8.31658 -0.0976311 7.68342 -0.0976311 7.29289 0.292893L0.928932 6.65685C0.538408 7.04738 0.538408 7.68054 0.928932 8.07107C1.31946 8.46159 1.95262 8.46159 2.34315 8.07107L8 2.41421L13.6569 8.07107C14.0474 8.46159 14.6805 8.46159 15.0711 8.07107C15.4616 7.68054 15.4616 7.04738 15.0711 6.65685L8.70711 0.292893ZM9 18L9 1H7L7 18H9Z"
                       ></path>
-                      </svg>
+                    </svg>
                   </button>
                 </div>
 
@@ -282,7 +314,6 @@
                 </div>
               </div>
 
-              <!-- Destino -->
               <div class="rota-section rota-section-destino">
                 <div class="rota-section-label">Destino</div>
                 <input
@@ -293,7 +324,6 @@
                 />
               </div>
 
-              <!-- Ações -->
               <div class="rota-section rota-section-acoes">
                 <button
                   id="btnOtimizarRota"
@@ -330,6 +360,23 @@
                 </button>
 
                 <button
+                  id="btnPlanejarIA"
+                  type="button"
+                  class="uni-btn uni-btn-secondary uni-btn-full"
+                >
+                  Planejar com IA
+                  <svg
+                    class="uni-btn-icon"
+                    viewBox="0 0 16 19"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M7 18C7 18.5523 7.44772 19 8 19C8.55228 19 9 18.5523 9 18H7ZM8.70711 0.292893C8.31658 -0.0976311 7.68342 -0.0976311 7.29289 0.292893L0.928932 6.65685C0.538408 7.04738 0.538408 7.68054 0.928932 8.07107C1.31946 8.46159 1.95262 8.46159 2.34315 8.07107L8 2.41421L13.6569 8.07107C14.0474 8.46159 14.6805 8.46159 15.0711 8.07107C15.4616 7.68054 15.4616 7.04738 15.0711 6.65685L8.70711 0.292893ZM9 18L9 1H7L7 18H9Z"
+                    ></path>
+                  </svg>
+                </button>
+
+                <button
                   id="btnGerarLinkMaps"
                   type="button"
                   class="uni-btn uni-btn-secondary uni-btn-full"
@@ -348,7 +395,6 @@
                 </button>
               </div>
 
-              <!-- Resumo -->
               <div class="rota-section rota-section-resumo">
                 <div class="rota-resumo" id="alertasRota">
                   Nenhuma rota analisada ainda.
@@ -361,28 +407,25 @@
     </section>
   </main>
 
-  <!-- TOAST LINK COPIADO -->
   <div id="toast-copiar-link" class="toast-copiar-link" style="display:none;">
     Link copiado para a área de transferência.
   </div>
 
-  <!-- LOADER GLOBAL (overlay; seu JS do loader vai manipular) -->
   <div id="rotas-loader-overlay" class="rotas-loader-overlay" style="display:none;">
     <div class="rotas-loader-spinner">
       Carregando rota...
     </div>
   </div>
 
-  <!-- Leaflet JS -->
+  <div id="loaderOverlay" style="display:none;"></div>
+
   <script
     src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
     crossorigin=""
   ></script>
-  <!-- Leaflet Routing Machine JS -->
   <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.min.js"></script>
 
-  <!-- Sincroniza tema com sidebar (igual estoque) -->
   <script>
     const THEME_KEY = 'visya-sidebar-theme';
 

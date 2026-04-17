@@ -2,16 +2,78 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <title>Loader 3D</title>
-  <link rel="stylesheet" href="/assets/css/loader.css" />
+  <title>Loader Draw</title>
+
+  <!-- Loader CSS -->
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      background: transparent;
+    }
+
+    body {
+      background: transparent;
+      height: 100%;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* container do SVG */
+    .loader {
+      width: 130px;
+      height: 130px;
+    }
+
+    /* SVG ocupa todo o container */
+    .loader svg {
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+    }
+
+    /* base do path */
+    .loader .p {
+      fill: none;
+      stroke-width: 10;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+
+      /* cor padrão: branca, pois o tema default é dark */
+      stroke: #ffffff;
+
+      /* animação draw simples (sem JS de comprimento) */
+      stroke-dasharray: 4000;
+      stroke-dashoffset: 4000;
+      animation: draw 2.5s ease-in-out infinite;
+    }
+
+    /* quando o body recebe light-theme (tela branca), troca para preto */
+    body.light-theme .loader .p {
+      stroke: #000000;
+    }
+
+    @keyframes draw {
+      0%   { stroke-dashoffset: 4000; opacity: 0.2; }
+      50%  { stroke-dashoffset: 0;    opacity: 1; }
+      100% { stroke-dashoffset: -4000; opacity: 0.2; }
+    }
+  </style>
 </head>
 <body>
-  <div class="loader">
-    <div class="inner one"></div>
-    <div class="inner two"></div>
-    <div class="inner three"></div>
+  <div class="loader" id="v1">
+    <svg viewBox="0 0 1500 1067.66" xmlns="http://www.w3.org/2000/svg">
+      <path class="p" d="M771.69,944.01c-29.55-17.73-49.39,7.48-88.66,28.1-73.57,38.63-162.36,21.98-215.5-40.61-30.54-35.97-40.23-79.57-29.06-125.24,16.19-66.19-22.79-134.12-88.1-152.59-32.88-9.3-59.79-27.32-78.12-56.33-51.99-82.32-24.91-191.95,59.95-239.9l46.91-26.51c10.34-5.84,16.39-16.82,16.71-28.85.62-23.85-1.11-47.72,1-71.25,8.38-93.18,88.72-156.15,180.14-156.22l348.62-.27c90.83-.07,168.9,66.53,176.43,157.8,1.93,23.38.59,46.44,1.09,70.27.26,12.35,6.6,23.26,17.24,29.28l49.24,27.84c89.32,50.5,107.26,159.45,57,246.14l-175.31,302.33c-48.02,82.81-156.39,109.89-238.01,60.93l-41.57-24.94ZM720.42,878.01c7.53,12.73,17.82,19.09,30.8,18.83,12.6-.25,23.02-6.78,29.98-18.71l77.22-132.51,104.56-181.48,110.69-192.37c6.22-10.82,3.92-24.89-2.14-33.92-5.82-8.68-15.69-14.86-28.54-14.87l-585.81-.18c-14.17,0-24.38,6.02-30.62,15.62-6.46,9.94-7.06,23.34-.98,33.87l60.21,104.33c16.56,28.7,44.56,45.57,75.26,53.45,72.44,18.61,111.47,90.82,91.68,161.41-9.35,33.35-2.25,68.29,14.82,97.15l52.88,89.39Z"/>
+    </svg>
   </div>
 
+  <!-- JS de tema: lê localStorage e ouve postMessage do sidebar -->
   <script>
     const THEME_KEY = 'visya-sidebar-theme';
 
@@ -27,10 +89,10 @@
       document.body.classList.toggle('light-theme', isLight);
     }
 
-    // 1) aplica o tema salvo na carga
+    // aplica o tema salvo na carga
     applyLocalThemeLoader();
 
-    // 2) também ouve mensagens do app/iframe pai (se ele enviar)
+    // ouve mensagens do app/iframe pai
     window.addEventListener('message', (event) => {
       if (!event.data || event.data.type !== 'visya-theme') return;
       const theme = event.data.theme;
@@ -44,6 +106,7 @@
     });
   </script>
 
+  <!-- JS que você já usa para showLoader/hideLoader via overlay -->
   <script src="/assets/js/loader.js"></script>
 </body>
 </html>

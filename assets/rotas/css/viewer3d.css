@@ -1,0 +1,365 @@
+:root {
+  --v3d-bg-page: #000000;
+  --v3d-bg-section: #050505;
+  --v3d-border-soft: #2f2f2f;
+  --v3d-border-light: #3f3f3f;
+  --v3d-text-main: #f9fafb;
+  --v3d-text-soft: #e5e5e5;
+  --v3d-text-muted: #9ca3af;
+
+  --v3d-radius-sm: 6px;
+  --v3d-radius-md: 10px;
+
+  --v3d-transition-fast: 140ms ease-out;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: "Montserrat", system-ui, -apple-system, BlinkMacSystemFont,
+    sans-serif;
+}
+
+body {
+  background-color: var(--v3d-bg-page);
+  color: var(--v3d-text-main);
+}
+
+.viewer3d-page {
+  min-height: 100vh;
+  max-height: 100vh;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 10px 12px 10px;
+  box-sizing: border-box;
+  gap: 6px;
+}
+
+/* Header */
+
+.viewer3d-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--v3d-border-soft);
+}
+
+.viewer3d-header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.viewer3d-title {
+  margin: 0;
+  font-size: 15px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.viewer3d-subtitle {
+  margin: 0;
+  font-size: 10px;
+  color: var(--v3d-text-muted);
+}
+
+.viewer3d-header-right {
+  display: flex;
+  gap: 6px;
+}
+
+/* Botões */
+
+.v3d-btn {
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--v3d-border-light);
+  background: #050505;
+  color: var(--v3d-text-main);
+  transition: all var(--v3d-transition-fast);
+}
+
+.v3d-btn-outline {
+  background: transparent;
+}
+
+.v3d-btn-primary {
+  border-color: #16a34a;
+}
+
+.v3d-btn:hover {
+  background: #111827;
+}
+
+/* Layout principal */
+
+.viewer3d-main {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.viewer3d-layout {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1.8fr) 320px;
+  gap: 6px;
+  align-items: stretch;
+}
+
+/* Canvas */
+
+.viewer3d-canvas-wrapper {
+  position: relative;
+  border-radius: var(--v3d-radius-md);
+  border: 1px solid var(--v3d-border-soft);
+  background: #020617;
+  overflow: hidden;
+}
+
+#viewer3dCanvas {
+  width: 100%;
+  height: 100%;
+  min-height: 380px;
+  display: block;
+  border: none;
+  outline: none;
+}
+
+/* Barra de info */
+
+.viewer3d-info-bar {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  right: 8px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(148, 163, 184, 0.75);
+  color: #e5e7eb;
+  font-size: 11px;
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.viewer3d-info-bar span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Sidebar */
+
+.viewer3d-sidebar {
+  border-radius: var(--v3d-radius-md);
+  border: 1px solid var(--v3d-border-soft);
+  background: var(--v3d-bg-section);
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.viewer3d-sidebar-inner {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 6px 6px 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.viewer3d-sidebar-section {
+  border-radius: 8px;
+  padding: 6px 7px;
+  background: #020617;
+  border: 1px solid var(--v3d-border-soft);
+}
+
+/* Segunda seção ocupa o espaço e rola por dentro */
+
+.viewer3d-sidebar-section:last-child {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.viewer3d-sidebar-section h2 {
+  font-size: 11px;
+  font-weight: 600;
+  margin: 0 0 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--v3d-text-soft);
+}
+
+/* Campos */
+
+.v3d-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-bottom: 4px;
+}
+
+.v3d-field-group label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--v3d-text-soft);
+}
+
+.v3d-field-group input[type="text"],
+.v3d-field-group select {
+  border-radius: var(--v3d-radius-sm);
+  border: 1px solid var(--v3d-border-light);
+  background: #020617;
+  padding: 4px 8px;
+  font-size: 11px;
+  color: var(--v3d-text-main);
+  outline: none;
+}
+
+.v3d-field-group input[type="text"]::placeholder {
+  color: var(--v3d-text-muted);
+}
+
+.v3d-field-group input[type="text"]:focus,
+.v3d-field-group select:focus {
+  border-color: #22c55e;
+  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.35);
+}
+
+/* Lista de volumes */
+
+.v3d-volumes-list {
+  margin-top: 2px;
+  flex: 1 1 auto;
+  max-height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-right: 3px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(55, 65, 81, 0.8) transparent;
+}
+
+.v3d-volumes-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.v3d-volumes-list::-webkit-scrollbar-thumb {
+  background: rgba(55, 65, 81, 0.8);
+  border-radius: 999px;
+}
+
+/* Card de volume */
+
+.v3d-volume-item {
+  border-radius: 7px;
+  padding: 4px 6px;
+  background: #020617;
+  border: 1px solid var(--v3d-border-soft);
+  font-size: 11px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  transition:
+    border-color var(--v3d-transition-fast),
+    box-shadow var(--v3d-transition-fast),
+    background var(--v3d-transition-fast);
+}
+
+.v3d-volume-item:hover {
+  border-color: #22c55e;
+  box-shadow:
+    0 0 0 1px rgba(34, 197, 94, 0.4);
+  background: #020617;
+}
+
+.v3d-volume-item[data-highlight="true"] {
+  border-color: #facc15;
+  box-shadow:
+    0 0 0 1px rgba(250, 204, 21, 0.75),
+    0 0 10px rgba(250, 204, 21, 0.5);
+}
+
+.v3d-volume-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.v3d-volume-title {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.v3d-volume-chip {
+  border-radius: 999px;
+  padding: 0 6px;
+  font-size: 10px;
+  border: 1px solid var(--v3d-border-light);
+  color: var(--v3d-text-muted);
+}
+
+.v3d-volume-sub {
+  font-size: 10px;
+  color: var(--v3d-text-muted);
+  line-height: 1.3;
+}
+
+/* Toast */
+
+.viewer3d-toast {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: #020617;
+  color: #e5e7eb;
+  font-size: 12px;
+  border: 1px solid rgba(239, 68, 68, 0.85);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.9);
+  z-index: 9999;
+}
+
+/* Responsivo */
+
+@media (max-width: 900px) {
+  .viewer3d-layout {
+    grid-template-columns: minmax(0, 1.4fr) 260px;
+  }
+}
+
+@media (max-width: 768px) {
+  .viewer3d-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 1.2fr) auto;
+  }
+
+  .viewer3d-sidebar {
+    max-height: 280px;
+  }
+}

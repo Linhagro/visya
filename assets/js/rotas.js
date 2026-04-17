@@ -19,18 +19,19 @@ if (window.APIBASE === undefined) {
 
 console.log("[ROTAS] rotas.js carregado. APIBASE =", window.APIBASE);
 
-// ================== LOADER LOCAL DE ROTAS (usa loaderOverlay global) ==================
+// ================== LOADER LOCAL DE ROTAS ==================
 
 let rotasLoaderTimerId = null;
 
 function showRotasLoader() {
-  const overlay = document.getElementById("loaderOverlay");
+  const overlay =
+    document.getElementById("loaderOverlay") ||
+    document.getElementById("rotas-loader-overlay");
   if (!overlay) {
     console.warn("[ROTAS] loaderOverlay global não encontrado no DOM");
     return;
   }
 
-  // mesmo comportamento do estoque: só mostra se passar de 50ms
   if (rotasLoaderTimerId !== null) {
     clearTimeout(rotasLoaderTimerId);
   }
@@ -41,7 +42,9 @@ function showRotasLoader() {
 }
 
 function hideRotasLoader() {
-  const overlay = document.getElementById("loaderOverlay");
+  const overlay =
+    document.getElementById("loaderOverlay") ||
+    document.getElementById("rotas-loader-overlay");
   if (!overlay) return;
 
   if (rotasLoaderTimerId !== null) {
@@ -52,6 +55,7 @@ function hideRotasLoader() {
   overlay.setAttribute("aria-hidden", "true");
   overlay.style.display = "none";
 }
+
 // ================== AUTH HELPER JWT ==================
 
 function getAuthHeadersRotas() {
@@ -76,7 +80,8 @@ async function apiFetch(path, options = {}) {
       ...(options.headers || {}),
       ...(getAuthHeadersRotas() || {})
     },
-    body: options.body === undefined ? undefined : options.body
+    body: options.body === undefined ? undefined : options.body,
+    signal: options.signal
   });
   return resp;
 }
@@ -240,6 +245,7 @@ let cacheClientes = null;
 let cachePedidosPendentes = null;
 let cacheCarteira = null;
 let cacheVendedores = null;
+let cachePedidosItens = new Map(); // === NOVO: itens por NUNOTA
 
 let clientesFiltradosAtuais = null;
 let paginaClientes = 0;
@@ -312,6 +318,12 @@ const btnGerarLinkMaps = document.getElementById("btnGerarLinkMaps");
 const btnSelecionarTodos = document.getElementById("btnSelecionarTodos");
 const btnLimparSelecao = document.getElementById("btnLimparSelecao");
 const btnOtimizarRota = document.getElementById("btnOtimizarRota");
+
+// === NOVO: botões de carregamento manual / 3D (crie no HTML com esses ids)
+const btnRealizarCarregamento = document.getElementById("btnRealizarCarregamento");
+const btnMontarCarga3D = document.getElementById("btnMontarCarga3D");
+const campoResumoCarga = document.getElementById("resumoCargaSelecionada");
+const selectCaminhaoCarga = document.getElementById("selectCaminhaoCarga");
 
 // HELPERS
 function getDestinoCampo() {
@@ -437,7 +449,7 @@ function parseLatLngText(txt) {
   return { lat, lng };
 }
 
-// GEOCODE BACKEND (com loader)
+// GEOCODE BACKEND
 async function geocodeTexto(texto) {
   const path = `/geocode?q=${encodeURIComponent(texto)}`;
   showRotasLoader();
@@ -490,7 +502,7 @@ function atualizarContadorSelecionados() {
   gerarRotaAuto();
 }
 
-// Selecionar até 20 primeiros visíveis
+// Selecionar até 50 primeiros visíveis
 function marcarTodosVisiveis(marcar) {
   const itens = Array.from(
     listaClientesDiv.querySelectorAll(".cliente-item .cliente-checkbox")
@@ -525,7 +537,7 @@ function marcarTodosVisiveis(marcar) {
 function criarItemCliente(c) {
   const div = document.createElement("div");
   div.className = "cliente-item";
-  div.draggable = false; // drag manual
+  div.draggable = false;
   div.dataset.id = c.id;
 
   const checkWrap = document.createElement("label");
@@ -616,7 +628,6 @@ function configurarDragAndDropLista() {
     const item = e.target.closest(".cliente-item");
     if (!item) return;
 
-    // se clicou em checkbox / label, não começa drag
     if (e.target.closest("input, label, .checkmark")) return;
 
     draggingItem = item;
@@ -733,6 +744,68 @@ function getCacheAtual() {
   return [];
 }
 
+// === NOVO: carregar itens de pedidos pendentes (peso/volume/dimensões)
+async function carregarPedidosPendentesItens(filtros = {}) {
+  const params = [];
+  if (filtros.nunota) params.push(`nunota=${encodeURIComponent(filtros.nunota)}`);
+  if (filtros.codemp) params.push(`codemp=${encodeURIComponent(filtros.codemp)}`);
+  if (filtros.codparc) params.push(`codparc=${encodeURIComponent(filtros.codparc)}`);
+  if (filtros.codvend) params.push(`codvend=${encodeURIComponent(filtros.codvend)}`);
+
+  const qs = params.length ? `?${params.join("&")}` : "";
+  const path = `/pedidos-pendentes-itens${qs}`;
+
+  console.log("[ROTAS] GET pedidos-pendentes-itens em", window.APIBASE + path);
+
+  try {
+    const resp = await apiFetch(path);
+    if (!resp.ok) {
+      console.warn("[ROTAS] Erro HTTP em pedidos-pendentes-itens:", resp.status);
+      return;
+    }
+    const data = await resp.json();
+    const pedidos = data.pedidos || [];
+
+    cachePedidosItens.clear();
+
+    pedidos.forEach(p => {
+      const nunota = p.nunota;
+      if (!nunota || !Array.isArray(p.itens)) return;
+
+      let pesoTotalKg = 0;
+      let volumeTotalM3 = 0;
+
+      const itensEnriquecidos = p.itens.map(it => {
+        const pesoBruto = Number(it.pesobruto) || 0;
+        const qtd = Number(it.qtdneg) || 1;
+        const m3Unit =
+          Number(it.m3_calc) ||
+          Number(it.m3_erp) ||
+          0;
+
+        pesoTotalKg += pesoBruto * qtd;
+        volumeTotalM3 += m3Unit * qtd;
+
+        return {
+          ...it,
+          pesoUnitKg: pesoBruto,
+          volumeUnitM3: m3Unit
+        };
+      });
+
+      cachePedidosItens.set(String(nunota), {
+        pesoTotalKg,
+        volumeTotalM3,
+        itens: itensEnriquecidos
+      });
+    });
+
+    console.log("[ROTAS] cachePedidosItens populado com", cachePedidosItens.size, "pedidos");
+  } catch (e) {
+    console.error("[ROTAS] Exception em pedidos-pendentes-itens:", e);
+  }
+}
+
 async function carregarPedidosPendentes(codvendFiltro) {
   showRotasLoader();
   try {
@@ -753,8 +826,22 @@ async function carregarPedidosPendentes(codvendFiltro) {
     }
 
     const data = await resp.json();
-    cachePedidosPendentes = (data.pedidos || []).map(p => {
+    const pedidosApi = data.pedidos || [];
+
+    // carrega itens agregados (por vendedor, se filtrado)
+    await carregarPedidosPendentesItens(
+      codvendFiltro ? { codvend: codvendFiltro } : {}
+    );
+
+    cachePedidosPendentes = pedidosApi.map(p => {
       const endereco = montarEnderecoPadrao(p);
+      const chave = String(p.NUNOTA);
+      const agregados = cachePedidosItens.get(chave) || {
+        pesoTotalKg: 0,
+        volumeTotalM3: 0,
+        itens: []
+      };
+
       return {
         id: p.NUNOTA,
         codigo: p.NUNOTA,
@@ -774,7 +861,10 @@ async function carregarPedidosPendentes(codvendFiltro) {
         uf: p.uf,
         cep: p.cep,
         lat: normalizarLat(p.lat),
-        lng: normalizarLng(p.lng)
+        lng: normalizarLng(p.lng),
+        pesoTotalKg: agregados.pesoTotalKg,
+        volumeTotalM3: agregados.volumeTotalM3,
+        itens: agregados.itens
       };
     });
 
@@ -803,7 +893,6 @@ async function carregarClientesNormais() {
       throw new Error("HTTP " + resp.status);
     }
     const data = await resp.json();
-
     cacheClientes = (data.clientes || []).map(r => {
       const endereco = montarEnderecoPadrao(r);
       return {
@@ -1183,15 +1272,15 @@ function getPontosNaOrdemPainel() {
 }
 
 // =======================
-// OTIMIZAR ROTA (Vizinho mais próximo)
+// OTIMIZAR ROTA – Vizinho mais próximo
 // =======================
 
 function distanciaEntrePontosKm(a, b) {
   const R = 6371;
-  const dLat = (a.lat - b.lat) * Math.PI / 180;
-  const dLng = (a.lng - b.lng) * Math.PI / 180;
-  const lat1 = a.lat * Math.PI / 180;
-  const lat2 = b.lat * Math.PI / 180;
+  const dLat = ((a.lat - b.lat) * Math.PI) / 180;
+  const dLng = ((a.lng - b.lng) * Math.PI) / 180;
+  const lat1 = (a.lat * Math.PI) / 180;
+  const lat2 = (b.lat * Math.PI) / 180;
 
   const sinDLat = Math.sin(dLat / 2);
   const sinDLng = Math.sin(dLng / 2);
@@ -1312,7 +1401,7 @@ function otimizarOrdemParadasVizinhoMaisProximo() {
   gerarRotaAuto();
 }
 
-// ROTA AUTO / OSRM
+// ROTA / OSRM
 function limparRota() {
   if (routingControl) {
     map.removeControl(routingControl);
@@ -1423,8 +1512,14 @@ async function gerarRotaAuto() {
 
     ultimaRotaWaypoints = waypoints;
 
+    const osrmServiceUrl =
+      window.OSRM_SERVICE_URL || "https://router.project-osrm.org/route/v1";
+
     routingControl = L.Routing.control({
       waypoints,
+      router: L.Routing.osrmv1({
+        serviceUrl: osrmServiceUrl
+      }),
       lineOptions: {
         styles: [{ color: "#a855f7", weight: 5, opacity: 0.9 }]
       },
@@ -1437,7 +1532,9 @@ async function gerarRotaAuto() {
         const route = e.routes[0];
         ultimaAnaliseRota = route;
         setAlertasTexto(
-          `Rota com ${route.waypoints.length} pontos, distância aproximada ${(route.summary.totalDistance / 1000).toFixed(
+          `Rota com ${
+            route.waypoints.length
+          } pontos, distância aproximada ${(route.summary.totalDistance / 1000).toFixed(
             1
           )} km, tempo ${(route.summary.totalTime / 3600).toFixed(1)} h.`
         );
@@ -1458,6 +1555,19 @@ async function gerarRotaAuto() {
         setLinkMapsEnabled(true);
       })
       .on("routingerror", err => {
+        const msg = err?.error?.message || "";
+        const status = err?.error?.status;
+
+        if (status === -1 && msg.includes("OSRM request timed out")) {
+          console.warn(
+            "[ROTAS] OSRM demo timeout, mantendo lista e pontos no mapa."
+          );
+          setAlertasTexto(
+            "Serviço de rota externo demorou a responder. Tente novamente em instantes."
+          );
+          return;
+        }
+
         console.error("[ROTAS] Erro no cálculo de rota:", err);
         setAlertasTexto("Erro ao calcular rota. Verifique os pontos.");
         setLinkMapsEnabled(false);
@@ -1546,7 +1656,7 @@ function initPainelRota() {
   });
 }
 
-// RESIZER DA SIDEBAR INTERNA
+// RESIZER DA SIDEBAR
 function initSidebarResizer() {
   const wrapper = document.getElementById("sidebar-wrapper");
   const resizer = document.getElementById("sidebar-resizer");
@@ -1582,6 +1692,240 @@ function initSidebarResizer() {
   }
 }
 
+// === NOVO: Carregamento manual – sugerir caminhão e montar carga 3D
+
+async function sugerirCaminhaoParaCarga(pesoTotalKg) {
+  try {
+    const resp = await apiFetch("/caminhoes?ativo=true");
+    if (!resp.ok) {
+      console.warn("[ROTAS] /caminhoes HTTP", resp.status);
+      return null;
+    }
+    const data = await resp.json();
+    const lista = (data || []).filter(c => Number(c.capacidadeKg) > 0);
+
+    if (!lista.length) return null;
+
+    // Filtra caminhões com capacidade >= pesoTotalKg
+    const candidatos = lista.filter(c => Number(c.capacidadeKg) >= pesoTotalKg);
+
+    let escolhido = null;
+    if (candidatos.length) {
+      escolhido = candidatos.reduce((menor, c) => {
+        if (!menor) return c;
+        return Number(c.capacidadeKg) < Number(menor.capacidadeKg) ? c : menor;
+      }, null);
+    } else {
+      // se nenhum tem capacidade >= peso, pega o maior (alerta depois)
+      escolhido = lista.reduce((maior, c) => {
+        if (!maior) return c;
+        return Number(c.capacidadeKg) > Number(maior.capacidadeKg) ? c : maior;
+      }, null);
+    }
+
+    return { caminhao: escolhido, listaCaminhoes: lista };
+  } catch (e) {
+    console.error("[ROTAS] Erro ao sugerir caminhão:", e);
+    return null;
+  }
+}
+
+
+function montarCarga3DManualPorItens(caminhaoSelecionado, pedidosSelecionados) {
+  if (!caminhaoSelecionado || !pedidosSelecionados || !pedidosSelecionados.length) {
+    return null;
+  }
+
+  const comprimentoM = caminhaoSelecionado.comprimentoM || 6;
+  const larguraM = caminhaoSelecionado.larguraM || 2.4;
+  const alturaM = caminhaoSelecionado.alturaM || 2.4;
+
+  const volumes = [];
+  const cores = [0x22c55e, 0x3b82f6, 0xf97316, 0xa855f7, 0x14b8a6];
+  let corIdxPorPedido = new Map();
+
+  // margens internas para evitar encostar na parede
+  const margemX = comprimentoM * 0.02;
+  const margemZ = larguraM * 0.02;
+  const margemY = alturaM * 0.02;
+
+  const minX = margemX;
+  const maxX = comprimentoM - margemX;
+  const minZ = margemZ;
+  const maxZ = larguraM - margemZ;
+  const minY = margemY;
+  const maxY = alturaM - margemY;
+
+  let posX = minX;
+  let posZ = minZ;
+  let camadas = [{ yBase: minY, alturaUsada: 0 }];
+  let camadaAtual = 0;
+
+  pedidosSelecionados.forEach((pedido) => {
+    const nunota = pedido.nunota;
+    const chave = String(nunota);
+    const agreg = cachePedidosItens.get(chave);
+    if (!agreg || !Array.isArray(agreg.itens)) return;
+
+    if (!corIdxPorPedido.has(chave)) {
+      corIdxPorPedido.set(chave, cores[corIdxPorPedido.size % cores.length]);
+    }
+    const corBase = corIdxPorPedido.get(chave);
+
+    agreg.itens.forEach((it) => {
+      const qtd = Number(it.qtdneg) || 1;
+
+      for (let q = 0; q < qtd; q++) {
+        let larguraItem = Number(it.largura) || 0;
+        let alturaItem = Number(it.altura) || 0;
+        let profItem = Number(it.espessura) || 0;
+        let volumeM3 = it.volumeUnitM3 || 0;
+
+        if (!larguraItem || !alturaItem || !profItem) {
+          if (volumeM3 > 0) {
+            const lado = Math.cbrt(volumeM3);
+            larguraItem = larguraItem || lado;
+            alturaItem = alturaItem || lado;
+            profItem = profItem || lado;
+          } else {
+            larguraItem = larguraItem || 0.5;
+            alturaItem = alturaItem || 0.5;
+            profItem = profItem || 0.5;
+          }
+        }
+
+        // se as dimensões do item forem maiores que o baú útil, ignora o item
+        if (
+          profItem > (maxX - minX) ||
+          larguraItem > (maxZ - minZ) ||
+          alturaItem > (maxY - minY)
+        ) {
+          continue;
+        }
+
+        // garante que estamos em uma camada válida
+        if (!camadas[camadaAtual]) {
+          camadas[camadaAtual] = {
+            yBase:
+              camadas[camadaAtual - 1].yBase +
+              camadas[camadaAtual - 1].alturaUsada +
+              margemY,
+            alturaUsada: 0
+          };
+        }
+
+        let colocado = false;
+
+        // tenta posicionar o item; se não couber na linha, quebra,
+        // se não couber na "fileira", começa nova camada
+        for (let tentativa = 0; tentativa < 3 && !colocado; tentativa++) {
+          const camada = camadas[camadaAtual];
+          const yBase = camada.yBase;
+
+          // se passar da altura útil do baú, não cabe mais nada
+          if (yBase + alturaItem > maxY) {
+            colocado = false;
+            break;
+          }
+
+          // quebra de linha em X
+          if (posX + profItem > maxX) {
+            posX = minX;
+            posZ += larguraItem + margemZ;
+          }
+
+          // nova camada em Y se estourar Z
+          if (posZ + larguraItem > maxZ) {
+            posX = minX;
+            posZ = minZ;
+            camadaAtual++;
+            if (!camadas[camadaAtual]) {
+              camadas[camadaAtual] = {
+                yBase:
+                  camada.yBase + camada.alturaUsada + margemY,
+                alturaUsada: 0
+              };
+            }
+            continue;
+          }
+
+          const xCentro = posX + profItem / 2;
+          const zCentro = posZ + larguraItem / 2;
+          const yCentro = yBase + alturaItem / 2;
+
+          const halfX = profItem / 2;
+          const halfZ = larguraItem / 2;
+          const halfY = alturaItem / 2;
+
+          // limites do baú em 0..comprimento, 0..largura, 0..altura
+          if (
+            xCentro - halfX < minX ||
+            xCentro + halfX > maxX ||
+            zCentro - halfZ < minZ ||
+            zCentro + halfZ > maxZ ||
+            yCentro - halfY < minY ||
+            yCentro + halfY > maxY
+          ) {
+            // não cabe nessa posição, tenta outra linha/camada na próxima iteração
+            posX = minX;
+            posZ += larguraItem + margemZ;
+            if (posZ + larguraItem > maxZ) {
+              posZ = minZ;
+              camadaAtual++;
+            }
+            continue;
+          }
+
+          const alturaTopo = yBase + alturaItem;
+          if (alturaTopo > camada.yBase + camada.alturaUsada) {
+            camada.alturaUsada = alturaTopo - camada.yBase;
+          }
+
+          const pesoUnitKg = Number(it.pesoUnitKg) || 0;
+
+          volumes.push({
+            id: `${nunota}-${it.sequencia}-${q + 1}`,
+            pedido: nunota,
+            nunota: nunota,
+            codprod: it.codprod,
+            descrprod: it.descrprod,
+            larguraM: larguraItem,
+            alturaM: alturaItem,
+            profundidadeM: profItem,
+            x: xCentro,
+            y: yCentro,
+            z: zCentro,
+            cor: corBase,
+            pesoKg: pesoUnitKg,
+            volumeM3: volumeM3 || larguraItem * alturaItem * profItem
+          });
+
+          posX = xCentro + halfX + margemX;
+          colocado = true;
+        }
+
+        // se não conseguiu posicionar nenhuma vez, ignora o item (não desenha fora do baú)
+        if (!colocado) {
+          continue;
+        }
+      }
+    });
+  });
+
+  return {
+    caminhao: {
+      id: caminhaoSelecionado.idCaminhao || caminhaoSelecionado.id,
+      descricao:
+        caminhaoSelecionado.descricao ||
+        caminhaoSelecionado.placa ||
+        "Caminhão",
+      comprimentoM,
+      larguraM,
+      alturaM
+    },
+    volumes
+  };
+}
 // EVENTOS INICIAIS
 function initEventos() {
   tipoOrigemSelect.addEventListener("change", () => {
@@ -1695,6 +2039,135 @@ function initEventos() {
   btnGerarLinkMapsSidebar.addEventListener("click", () => {
     gerarLinkGoogleMaps();
   });
+  // === NOVO: fluxo manual de carregamento
+  if (btnRealizarCarregamento) {
+    btnRealizarCarregamento.addEventListener("click", async () => {
+      const pedidosSelecionados = getClientesSelecionados().filter(
+        c => c.origemTipo === "pedido"
+      );
+
+      if (!pedidosSelecionados.length) {
+        alert("Selecione pelo menos um pedido para realizar o carregamento.");
+        return;
+      }
+
+      // recalcula peso/volume total com base em cachePedidosItens
+      let pesoTotal = 0;
+      let volumeTotal = 0;
+
+      pedidosSelecionados.forEach(p => {
+        const chave = String(p.nunota);
+        const agg = cachePedidosItens.get(chave);
+        if (agg) {
+          pesoTotal += agg.pesoTotalKg || 0;
+          volumeTotal += agg.volumeTotalM3 || 0;
+        }
+      });
+
+      const sugestao = await sugerirCaminhaoParaCarga(pesoTotal);
+      if (!sugestao || !sugestao.caminhao) {
+        alert("Não foi possível sugerir um caminhão para essa carga.");
+        return;
+      }
+
+      const cam = sugestao.caminhao;
+
+      if (campoResumoCarga) {
+        campoResumoCarga.textContent =
+          `Pedidos: ${pedidosSelecionados.length} • Peso total: ${pesoTotal.toFixed(1)} kg • ` +
+          `Volume total: ${volumeTotal.toFixed(3)} m³ • Sugerido: ` +
+          `${cam.descricao || cam.placa} (${cam.capacidadeKg} kg)`;
+      }
+
+      if (selectCaminhaoCarga) {
+        selectCaminhaoCarga.innerHTML = "";
+        sugestao.listaCaminhoes.forEach(c => {
+          const opt = document.createElement("option");
+          opt.value = c.idCaminhao;
+          opt.textContent = `${c.descricao || c.placa} (${c.capacidadeKg} kg)`;
+          if (c.idCaminhao === cam.idCaminhao) opt.selected = true;
+          selectCaminhaoCarga.appendChild(opt);
+        });
+      }
+
+      if (btnMontarCarga3D) {
+        btnMontarCarga3D.disabled = false;
+      }
+
+      // guarda carga "base" global
+      window.__VISYA_CARGA_BASE_MANUAL__ = {
+        pedidosSelecionados,
+        pesoTotal,
+        volumeTotal,
+        listaCaminhoes: sugestao.listaCaminhoes,
+        caminhaoSugeridoId: cam.idCaminhao
+      };
+    });
+  }
+
+  if (btnMontarCarga3D) {
+    btnMontarCarga3D.addEventListener("click", () => {
+      const base = window.__VISYA_CARGA_BASE_MANUAL__;
+      if (!base) {
+        alert("Realize o carregamento primeiro para escolher o caminhão.");
+        return;
+      }
+
+      const lista = base.listaCaminhoes || [];
+      const idEscolhido =
+        selectCaminhaoCarga && selectCaminhaoCarga.value
+          ? selectCaminhaoCarga.value
+          : base.caminhaoSugeridoId;
+
+      const cam =
+        lista.find(c => String(c.idCaminhao) === String(idEscolhido)) ||
+        lista.find(c => String(c.idCaminhao) === String(base.caminhaoSugeridoId));
+
+      if (!cam) {
+        alert("Não foi possível identificar o caminhão selecionado.");
+        return;
+      }
+
+      const carga = montarCarga3DManualPorItens(cam, base.pedidosSelecionados);
+      if (!carga) {
+        alert("Não foi possível montar a carga 3D para os itens selecionados.");
+        return;
+      }
+
+      window.__VISYA_CARGA_ATUAL__ = carga;
+      window.open("../rotas/html/viewer3d.html", "_blank");
+    });
+  }
+  if (btnMontarCarga3D) {
+    btnMontarCarga3D.addEventListener("click", () => {
+      const base = window.__VISYA_CARGA_BASE_MANUAL__;
+      if (!base) {
+        alert("Realize o carregamento primeiro para escolher o caminhão.");
+        return;
+      }
+      const lista = base.listaCaminhoes || [];
+      const idEscolhido = selectCaminhaoCarga && selectCaminhaoCarga.value
+        ? selectCaminhaoCarga.value
+        : base.caminhaoSugeridoId;
+
+      const cam = lista.find(c => String(c.idCaminhao) === String(idEscolhido)) ||
+                  lista.find(c => String(c.idCaminhao) === String(base.caminhaoSugeridoId));
+
+      if (!cam) {
+        alert("Não foi possível identificar o caminhão selecionado.");
+        return;
+      }
+
+      const carga = montarCarga3DManualPorItens(cam, base.pedidosSelecionados);
+      if (!carga) {
+        alert("Não foi possível montar a carga 3D para os itens selecionados.");
+        return;
+      }
+
+      window.__VISYA_CARGA_ATUAL__ = carga;
+      window.open("../rotas/html/viewer3d.html", "_blank");
+    });
+  }
 }
 
 // LINK GOOGLE MAPS
@@ -1712,9 +2185,7 @@ function gerarLinkGoogleMaps() {
   url += `&origin=${origem.lat},${origem.lng}`;
   url += `&destination=${destino.lat},${destino.lng}`;
   if (intermediarios.length) {
-    const wps = intermediarios
-      .map(p => `${p.lat},${p.lng}`)
-      .join("|");
+    const wps = intermediarios.map(p => `${p.lat},${p.lng}`).join("|");
     url += `&waypoints=${encodeURIComponent(wps)}`;
   }
   if (chkEvitarPedagios.checked) {

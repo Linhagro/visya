@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>VISYA - Viewer 3D de Carga</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap"
+  />
+
+  <link rel="stylesheet" href="../css/viewer3d.css" />
+</head>
+<body>
+  <main class="viewer3d-page">
+    <header class="viewer3d-header">
+      <div class="viewer3d-header-left">
+        <h1 class="viewer3d-title">Montagem de carga 3D</h1>
+        <p class="viewer3d-subtitle">
+          Visualização do baú e dos itens por pedido/produto para apoiar o carregamento físico.
+        </p>
+      </div>
+
+      <div class="viewer3d-header-right">
+        <button id="btnResetCamera" class="v3d-btn v3d-btn-outline">
+          Reset câmera
+        </button>
+        <button id="btnImprimirLayout" class="v3d-btn v3d-btn-primary">
+          Imprimir layout
+        </button>
+      </div>
+    </header>
+
+    <section class="viewer3d-main">
+      <section class="viewer3d-layout">
+        <!-- Área 3D -->
+        <div class="viewer3d-canvas-wrapper">
+          <div id="viewer3dCanvas"></div>
+
+          <div id="viewer3dInfo" class="viewer3d-info-bar">
+            <span id="infoCaminhao"></span>
+            <span id="infoResumoCarga"></span>
+          </div>
+        </div>
+
+        <!-- Sidebar -->
+        <aside class="viewer3d-sidebar">
+          <div class="viewer3d-sidebar-inner">
+            <div class="viewer3d-sidebar-section">
+              <h2>Caminhão / filtros</h2>
+
+              <div class="v3d-field-group">
+                <label for="selectCaminhao">Selecionar caminhão:</label>
+                <select id="selectCaminhao"></select>
+              </div>
+
+              <div class="v3d-field-group">
+                <label for="filtroPedido">Filtrar por pedido:</label>
+                <input
+                  type="text"
+                  id="filtroPedido"
+                  placeholder="Ex: 12345"
+                  autocomplete="off"
+                />
+              </div>
+            </div>
+
+            <div class="viewer3d-sidebar-section">
+              <h2>Itens carregados</h2>
+              <div id="listaVolumes" class="v3d-volumes-list"></div>
+            </div>
+          </div>
+        </aside>
+      </section>
+    </section>
+  </main>
+
+  <div id="viewer3dToast" class="viewer3d-toast" style="display:none;">
+    Dados de carga 3D não encontrados. Abra a partir da tela de rotas.
+  </div>
+
+  <!-- ES module moderno (three + OrbitControls são importados dentro de viewer3d.js) -->
+  <script type="module" src="../js/viewer3d.js"></script>
+</body>
+</html>

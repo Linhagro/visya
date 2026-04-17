@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>VISYA - Listagem de Treinamentos</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" />
+  <link rel="stylesheet" href="../css/rh_listagem_treinamentos.css" />
+  <link rel="stylesheet" href="../css/loader.css" />
+
+  <script src="../js/global.js" defer></script>
+  <script src="../js/rh_listagem_treinamentos.js" defer></script>
+</head>
+<body>
+  <main class="rh-page">
+    <!-- TOPO -->
+    <header class="rh-header">
+      <div class="rh-header-left">
+        <h1 class="rh-titulo">Treinamentos</h1>
+        <p class="rh-subtitulo">
+          Listagem de registros de treinamentos por profissional e setor.
+        </p>
+      </div>
+      <div class="rh-header-right">
+        <div class="rh-user-info">
+          <span id="rhUserNome" class="rh-user-nome">Carregando...</span>
+          <span id="rhUserEmail" class="rh-user-email"></span>
+        </div>
+      </div>
+    </header>
+
+    <!-- FILTROS -->
+    <section class="rh-filtros">
+      <div class="filtro-campo">
+        <label for="fNome">Profissional</label>
+        <input
+          id="fNome"
+          type="text"
+          placeholder="parte do nome"
+          autocomplete="off"
+        />
+      </div>
+      <div class="filtro-campo">
+        <label for="fSetor">Setor</label>
+        <input
+          id="fSetor"
+          type="text"
+          placeholder="ex: LOGISTICA"
+          autocomplete="off"
+        />
+      </div>
+      <button
+        type="button"
+        class="btn-filtro btn-filtro-primario"
+        id="btnBuscar"
+      >
+        <span>↻</span>
+        Buscar
+      </button>
+      <button
+        type="button"
+        class="btn-filtro btn-filtro-secundario"
+        id="btnLimpar"
+      >
+        <span>✕</span>
+        Limpar
+      </button>
+    </section>
+
+    <!-- TABELA -->
+    <section class="rh-tabela-bloco">
+      <div class="rh-tabela-header">
+        <span id="infoRegistros">Mostrando 0 registros</span>
+      </div>
+
+      <div class="rh-table-wrapper">
+        <table class="rh-table">
+          <colgroup>
+            <col style="width:7%" />
+            <col style="width:28%" />
+            <col style="width:15%" />
+            <col style="width:15%" />
+            <col style="width:15%" />
+            <col style="width:10%" />
+            <col style="width:10%" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Profissional</th>
+              <th>Setor</th>
+              <th>Início Período</th>
+              <th>Fim Período</th>
+              <th>Status</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyRh">
+            <tr>
+              <td colspan="7" class="rh-empty">
+                Carregando dados...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- MODAL CONFIRMAR DELETE -->
+  <div id="modalDelete" class="rh-modal-backdrop" style="display:none;">
+    <div class="rh-modal rh-modal-sm">
+      <h2>Confirmar exclusão</h2>
+      <p id="modalDeleteMsg">Deseja remover este treinamento?</p>
+      <div class="modal-actions">
+        <button type="button" id="btnDeleteCancelar">Cancelar</button>
+        <button type="button" id="btnDeleteConfirmar" class="btn-danger">
+          Excluir
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOADER -->
+  <div class="loader-overlay" id="loaderOverlay" aria-hidden="true">
+    <iframe
+      src="loader.html"
+      class="loader-frame"
+      frameborder="0"
+      scrolling="no"
+      title="Carregando..."
+    ></iframe>
+  </div>
+
+  <!-- Tema -->
+  <script>
+    const THEME_KEY = "visya-sidebar-theme";
+    function applyLocalTheme() {
+      let saved = null;
+      try {
+        saved = localStorage.getItem(THEME_KEY);
+      } catch (e) {}
+      const theme = saved === "light" || saved === "dark" ? saved : "dark";
+      document.body.classList.toggle("light-theme", theme === "light");
+    }
+    applyLocalTheme();
+    window.addEventListener("message", (event) => {
+      if (!event.data || event.data.type !== "visya-theme") return;
+      document.body.classList.toggle(
+        "light-theme",
+        event.data.theme === "light"
+      );
+      try {
+        localStorage.setItem(THEME_KEY, event.data.theme);
+      } catch (e) {}
+    });
+  </script>
+  <!-- Notificações da tela de Relatório -->
+<ul id="relatorioNotification" class="notification-container" style="display:none;">
+  <!-- itens criados via JS -->
+</ul>
+</body>
+</html>

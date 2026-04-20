@@ -1,684 +1,864 @@
-// ============================================================
-//  viewer3d.js  –  Visualizador 3D de Carga   (Three.js r160)
-//  Autor: gerado para sistema logístico
-// ============================================================
+// assets/rotas/js/viewer3d.js
+import * as THREE from './three/three.module.js';
+import { OrbitControls } from './three/OrbitControls.js';
 
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160/build/three.module.js';
-import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.160/examples/jsm/controls/OrbitControls.js';
+console.log('[VIEWER3D] módulo carregado (three ES module + OrbitControls)');
+console.log('[VIEWER3D] THREE versão:', THREE.REVISION);
 
+let scene, camera, renderer, controls;
+let carga = null;
+let volumesMesh = [];
+let currentCenter = new THREE.Vector3(0, 0, 0);
 
-// ─── Paleta de cores para os itens de carga ──────────────────
-const CARGO_COLORS = [
-  0xe74c3c, 0x3498db, 0x2ecc71, 0xf39c12,
-  0x9b59b6, 0x1abc9c, 0xe67e22, 0x34495e,
-  0x16a085, 0xc0392b, 0x8e44ad, 0x27ae60,
-];
+console.log('[VIEWER3D] buscando elementos do DOM...');
+const canvasContainer  = document.getElementById('viewer3dCanvas');
+const infoCaminhao     = document.getElementById('infoCaminhao');
+const infoResumoCarga  = document.getElementById('infoResumoCarga');
+const listaVolumesEl   = document.getElementById('listaVolumes');
+const selectCaminhao   = document.getElementById('selectCaminhao');
+const btnResetCamera   = document.getElementById('btnResetCamera');
+const btnImprimirLayout = document.getElementById('btnImprimirLayout');
+const filtroPedidoInput = document.getElementById('filtroPedido');
 
+console.log('[VIEWER3D] DOM elementos:', {
+  canvasContainer:   !!canvasContainer,
+  infoCaminhao:      !!infoCaminhao,
+  infoResumoCarga:   !!infoResumoCarga,
+  listaVolumesEl:    !!listaVolumesEl,
+  selectCaminhao:    !!selectCaminhao,
+  btnResetCamera:    !!btnResetCamera,
+  btnImprimirLayout: !!btnImprimirLayout,
+  filtroPedidoInput: !!filtroPedidoInput
+});
 
-// ─── Dimensões internas do baú (metros / unidades Three.js) ──
-const BAU = {
-  innerW : 2.30,   // largura interna
-  innerH : 2.10,   // altura interna
-  innerD : 5.80,   // profundidade interna
-  wall   : 0.08,   // espessura das paredes
-  // posição do CENTRO do baú no grupo do caminhão
-  cx : 0,
-  cy : 2.10,       // altura do centro (chão ≈ 0, rodas ≈ 0.5)
-  cz : 1.40,       // deslocamento para trás (Z+)
-};
+// ─────────────────────────────────────────────────────────────────
+// GERADOR DE TEXTURA DE PAPELÃO
+// ─────────────────────────────────────────────────────────────────
+function gerarTexturaPapelao(opcoes) {
+  console.log('[TEX] gerando textura:', opcoes);
+  opcoes = opcoes || {};
 
+  const largura  = opcoes.largura  || 512;
+  const altura   = opcoes.altura   || 512;
+  const pedido   = opcoes.pedido   || '';
+  const codprod  = opcoes.codprod  || '';
+  const corFaixa = opcoes.corFaixa || null;
+  const face     = opcoes.face     || 'lado';
 
-// ─── Dimensões externas derivadas ────────────────────────────
-const EW = BAU.innerW + BAU.wall * 2;
-const EH = BAU.innerH + BAU.wall * 2;
-const ED = BAU.innerD + BAU.wall * 2;
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width  = largura;
+    canvas.height = altura;
+    const ctx = canvas.getContext('2d');
 
-
-
-// ════════════════════════════════════════════════════════════
-export class Viewer3D {
-
-  /**
-   * @param {string} canvasId – id do elemento anvas>
-   * @param {string} listId   – id do elemento da lista de itens
-   */
-  constructor(canvasId, listId) {
-    this.canvasId   = canvasId;
-    this.listId     = listId;
-    this.scene      = null;
-    this.camera     = null;
-    this.renderer   = null;
-    this.controls   = null;
-    this.truckGroup = null;
-    this.cargoGroup = null;
-    this._raf       = null;
-    this._colorMap  = new Map();   // descrição → cor THREE
-    this._colorIdx  = 0;
-  }
-
-  // ── Inicializa cena, câmera, renderer, luzes, caminhão ────
-  init() {
-    const canvas = document.getElementById(this.canvasId);
-    if (!canvas) {
-      console.error('[Viewer3D] canvas não encontrado:', this.canvasId);
-      return;
+    if (!ctx) {
+      console.error('[TEX] ctx 2D não disponível');
+      return new THREE.Texture();
     }
 
-    /* ── Renderer ─────────────────────────────────────── */
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    this.renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
-    this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type    = THREE.PCFSoftShadowMap;
-    this.renderer.outputColorSpace  = THREE.SRGBColorSpace;
+    // Fundo papelão
+    const grad = ctx.createLinearGradient(0, 0, largura, altura);
+    grad.addColorStop(0,   '#c9a96e');
+    grad.addColorStop(0.3, '#d4b07a');
+    grad.addColorStop(0.6, '#c09060');
+    grad.addColorStop(1,   '#b8864e');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, largura, altura);
 
-    /* ── Scene ────────────────────────────────────────── */
-    this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0xe8ecf0);
-    this.scene.fog        = new THREE.FogExp2(0xe8ecf0, 0.025);
-
-    /* ── Câmera ───────────────────────────────────────── */
-    this.camera = new THREE.PerspectiveCamera(
-      45,
-      canvas.clientWidth / canvas.clientHeight,
-      0.1,
-      120
-    );
-    this.camera.position.set(9, 6, 12);
-
-    /* ── Orbit Controls ───────────────────────────────── */
-    this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-    this.controls.enableDamping = true;
-    this.controls.dampingFactor = 0.06;
-    this.controls.minDistance   = 3;
-    this.controls.maxDistance   = 30;
-    this.controls.maxPolarAngle = Math.PI / 2 - 0.02;
-    this.controls.target.set(0, 1.8, 0);
-    this.controls.update(); // [web:11]
-
-    /* ── Luzes ────────────────────────────────────────── */
-    this._setupLights();
-
-    /* ── Chão + Grid ──────────────────────────────────── */
-    this._buildGround();
-
-    /* ── Caminhão ─────────────────────────────────────── */
-    this.truckGroup = new THREE.Group();
-    this.scene.add(this.truckGroup);
-    this._buildTruck();
-
-    /* ── Grupo de carga (filho do truckGroup) ─────────── */
-    this.cargoGroup = new THREE.Group();
-    this.truckGroup.add(this.cargoGroup);
-
-    /* ── Resize ───────────────────────────────────────── */
-    window.addEventListener('resize', () => this._onResize(canvas)); // [web:16]
-
-    /* ── Loop ─────────────────────────────────────────── */
-    this._animate();
-  }
-
-  // ── Destrói o viewer (limpa RAF e renderer) ───────────────
-  destroy() {
-    if (this._raf) cancelAnimationFrame(this._raf);
-    this.renderer?.dispose();
-  }
-
-  // ── API pública: carrega pedido no viewer ─────────────────
-  //  @param {object} pedido
-  //  { numero, volumes: [{descricao, largura, altura, comprimento, peso, quantidade}] }
-  loadPedido(pedido) {
-    if (!pedido) return;
-
-    // limpa carga anterior
-    this.cargoGroup.clear();
-    this._colorMap.clear();
-    this._colorIdx = 0;
-
-    // normaliza volumes
-    const volumes = Array.isArray(pedido.volumes) ? pedido.volumes : [];
-
-    // monta lista lateral
-    this._buildItemList(pedido, volumes);
-
-    // empacota itens no baú
-    this._packCargo(volumes);
-  }
-
-  // ════════════════════════════════════════════════════════
-  //  PRIVADO – Loop de animação
-  // ════════════════════════════════════════════════════════
-  _animate() {
-    this._raf = requestAnimationFrame(() => this._animate());
-    this.controls?.update();
-    this.renderer?.render(this.scene, this.camera);
-  }
-
-  // ════════════════════════════════════════════════════════
-  //  PRIVADO – Resize
-  // ════════════════════════════════════════════════════════
-  _onResize(canvas) {
-    const width  = canvas.clientWidth;
-    const height = canvas.clientHeight;
-    if (!width || !height) return;
-
-    this.camera.aspect = width / height;
-    this.camera.updateProjectionMatrix();
-    this.renderer.setSize(width, height, false); // [web:16]
-  }
-
-  // ════════════════════════════════════════════════════════
-  //  PRIVADO – Luzes
-  // ════════════════════════════════════════════════════════
-  _setupLights() {
-    this.scene.add(new THREE.AmbientLight(0xffffff, 0.55));
-
-    const sun = new THREE.DirectionalLight(0xfff4e0, 1.3);
-    sun.position.set(12, 20, 10);
-    sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
-    Object.assign(sun.shadow.camera, {
-      left: -18, right: 18, top: 18, bottom: -18, near: 0.5, far: 60,
-    });
-    this.scene.add(sun);
-
-    const fill = new THREE.DirectionalLight(0xbbd4ff, 0.45);
-    fill.position.set(-8, 8, -8);
-    this.scene.add(fill);
-
-    const back = new THREE.HemisphereLight(0xddeeff, 0x887766, 0.3);
-    this.scene.add(back);
-  }
-
-  // ════════════════════════════════════════════════════════
-  //  PRIVADO – Chão
-  // ════════════════════════════════════════════════════════
-  _buildGround() {
-    const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(60, 60),
-      new THREE.MeshLambertMaterial({ color: 0xc8cfd8 })
-    );
-    ground.rotation.x = -Math.PI / 2;
-    ground.receiveShadow = true;
-    this.scene.add(ground);
-
-    const grid = new THREE.GridHelper(60, 60, 0x99aabb, 0x99aabb);
-    grid.material.opacity = 0.25;
-    grid.material.transparent = true;
-    this.scene.add(grid);
-  }
-
-  // ════════════════════════════════════════════════════════
-  //  PRIVADO – Caminhão completo
-  // ════════════════════════════════════════════════════════
-  _buildTruck() {
-    /* ── Materiais ─────────────────────────────────────── */
-    const matBody  = this._mat(0xfafafa);                       // baú branco
-    const matCab   = this._mat(0x1a4fa0);                       // cabine azul
-    const matMetal = this._mat(0x777788);                       // metal/chassi
-    const matGlass = this._mat(0x88ccee, 0.45);                 // vidro
-    const matLight = this._mat(0xffffaa, 0, 0xffee00, 0.9);     // farol
-    const matStop  = this._mat(0xff2200, 0, 0xff0000, 0.8);     // lanterna
-    const matTire  = this._mat(0x1a1a1a);                       // pneu
-    const matRim   = this._mat(0xcccccc);                       // aro
-
-    /* ════ CHASSI / LONGARINAS ══════════════════════════ */
-    const chassiY = 0.38;
-    [[-0.7], [0.7]].forEach(([x]) => {
-      const longMesh = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.22, 10.8), matMetal);
-      longMesh.position.set(x, chassiY, 0.2);
-      longMesh.castShadow = true;
-      this.truckGroup.add(longMesh);
-    });
-    // travessas
-    [-3.5, -1.5, 0.5, 2.5, 4.5].forEach(z => {
-      const t = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.12, 0.14), matMetal);
-      t.position.set(0, chassiY - 0.05, z);
-      this.truckGroup.add(t);
-    });
-
-    /* ════ BAÚ ══════════════════════════════════════════ */
-    const { cx, cy, cz, wall, innerW, innerH, innerD } = BAU;
-
-    // piso
-    this._bauPlane(cx, cy - innerH/2 - wall/2, cz, EW, wall, ED, matMetal);
-    // teto
-    this._bauPlane(cx, cy + innerH/2 + wall/2, cz, EW, wall, ED, matBody);
-    // lateral esquerda
-    this._bauPlane(cx - EW/2 + wall/2, cy, cz, wall, EH, ED, matBody);
-    // lateral direita
-    this._bauPlane(cx + EW/2 - wall/2, cy, cz, wall, EH, ED, matBody);
-    // frente
-    this._bauPlane(cx, cy, cz - ED/2 + wall/2, EW, EH, wall, matBody);
-    // traseira (porta)
-    this._bauPlane(cx, cy, cz + ED/2 - wall/2, EW, EH, wall, this._mat(0xdddddd));
-
-    // nervuras laterais
-    for (let i = -2; i <= 2; i++) {
-      const zOff = i * (innerD / 5);
-      [-EW/2 - 0.02, EW/2 + 0.02].forEach(x => {
-        const rib = new THREE.Mesh(new THREE.BoxGeometry(0.05, EH, 0.10), matMetal);
-        rib.position.set(x, cy, cz + zOff);
-        rib.castShadow = true;
-        this.truckGroup.add(rib);
-      });
+    // Ondulações
+    ctx.strokeStyle = 'rgba(0,0,0,0.07)';
+    ctx.lineWidth   = 1;
+    for (let y = 0; y < altura; y += 10) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      for (let x = 0; x <= largura; x += 4) {
+        ctx.lineTo(x, y + Math.sin(x / 8) * 2);
+      }
+      ctx.stroke();
     }
 
-    // frisos horizontais
-    [cy - innerH/2 + 0.3, cy, cy + innerH/2 - 0.3].forEach(y => {
-      [-EW/2 - 0.02, EW/2 + 0.02].forEach(x => {
-        const f = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.06, ED), matMetal);
-        f.position.set(x, y, cz);
-        this.truckGroup.add(f);
-      });
-    });
+    // Riscos de fibra
+    ctx.strokeStyle = 'rgba(80,40,0,0.06)';
+    ctx.lineWidth   = 0.5;
+    for (let i = 0; i < 30; i++) {
+      const y = Math.random() * altura;
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(largura, y + (Math.random() - 0.5) * 20);
+      ctx.stroke();
+    }
 
-    // aba de vedação teto
-    const eaveGeo = new THREE.BoxGeometry(EW + 0.12, 0.05, ED + 0.12);
-    const eave = new THREE.Mesh(eaveGeo, matMetal);
-    eave.position.set(cx, cy + EH/2, cz);
-    this.truckGroup.add(eave);
+    // Borda
+    ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+    ctx.lineWidth   = 8;
+    ctx.strokeRect(4, 4, largura - 8, altura - 8);
 
-    /* ════ CABINE ═══════════════════════════════════════ */
-    const cabZ = cz - ED/2 - 1.15;
-    const cabY = 1.45;
-    const cabW = 2.35;
-    const cabH = 1.70;
-    const cabD = 2.20;
+    // Vincos diagonais
+    ctx.strokeStyle = 'rgba(0,0,0,0.06)';
+    ctx.lineWidth   = 1;
+    ctx.beginPath(); ctx.moveTo(0, 0);              ctx.lineTo(largura * 0.3, altura * 0.3); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(largura, 0);        ctx.lineTo(largura * 0.7, altura * 0.3); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, altura);         ctx.lineTo(largura * 0.3, altura * 0.7); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(largura, altura);   ctx.lineTo(largura * 0.7, altura * 0.7); ctx.stroke();
 
-    // corpo principal
-    const cabBody = new THREE.Mesh(new THREE.BoxGeometry(cabW, cabH, cabD), matCab);
-    cabBody.position.set(0, cabY, cabZ);
-    cabBody.castShadow = true;
-    this.truckGroup.add(cabBody);
+    // Fita no topo
+    if (face === 'topo') {
+      const fitaCor = corFaixa || '#f5e642';
+      ctx.fillStyle   = fitaCor + 'cc';
+      ctx.fillRect(largura / 2 - 20, 0, 40, altura);
+      ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+      ctx.lineWidth   = 1;
+      ctx.strokeRect(largura / 2 - 20, 0, 40, altura);
+      ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+      ctx.lineWidth   = 2;
+      for (let y = 0; y < altura; y += 12) {
+        ctx.beginPath();
+        ctx.moveTo(largura / 2 - 18, y);
+        ctx.lineTo(largura / 2 + 18, y + 6);
+        ctx.stroke();
+      }
+    }
 
-    // teto
-    const roofBox = new THREE.Mesh(new THREE.BoxGeometry(cabW, 0.30, cabD), matCab);
-    roofBox.position.set(0, cabY + cabH/2 + 0.13, cabZ);
-    this.truckGroup.add(roofBox);
+    // Faixa colorida na frente
+    if (face === 'frente' && corFaixa) {
+      ctx.fillStyle   = corFaixa + 'dd';
+      ctx.fillRect(0, altura * 0.55, largura, altura * 0.12);
+      ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+      ctx.lineWidth   = 1;
+      ctx.strokeRect(0, altura * 0.55, largura, altura * 0.12);
+    }
 
-    // defletor de ar
-    const deflector = new THREE.Mesh(new THREE.BoxGeometry(cabW + 0.1, 0.55, 0.12), matMetal);
-    deflector.position.set(0, cabY + cabH/2 + 0.10, cabZ + cabD/2);
-    this.truckGroup.add(deflector);
+    // Texto frente/lado
+    if (face === 'frente' || face === 'lado') {
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      ctx.font      = `bold ${Math.floor(largura * 0.07)}px monospace`;
+      ctx.textAlign = 'center';
+      ctx.fillText('▲ FRÁGIL ▲', largura / 2, altura * 0.14);
 
-    // grade frontal
-    const grille = new THREE.Mesh(new THREE.BoxGeometry(cabW - 0.2, 0.50, 0.06), matMetal);
-    grille.position.set(0, cabY - 0.30, cabZ - cabD/2);
-    this.truckGroup.add(grille);
+      ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+      ctx.lineWidth   = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(largura * 0.1, altura * 0.19);
+      ctx.lineTo(largura * 0.9, altura * 0.19);
+      ctx.stroke();
 
-    // para-choque frontal
-    const bumper = new THREE.Mesh(new THREE.BoxGeometry(cabW + 0.10, 0.22, 0.18), matMetal);
-    bumper.position.set(0, 0.62, cabZ - cabD/2 - 0.06);
-    bumper.castShadow = true;
-    this.truckGroup.add(bumper);
-
-    // estribos
-    [-1.05, 1.05].forEach(x => {
-      const step = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.06, 0.55), matMetal);
-      step.position.set(x, 0.70, cabZ + 0.2);
-      this.truckGroup.add(step);
-    });
-
-    // para-brisa
-    const windshield = new THREE.Mesh(new THREE.BoxGeometry(cabW - 0.30, 0.78, 0.04), matGlass);
-    windshield.position.set(0, cabY + 0.22, cabZ - cabD/2 - 0.01);
-    windshield.rotation.x = THREE.MathUtils.degToRad(8);
-    this.truckGroup.add(windshield);
-
-    // janelas laterais + espelhos
-    [-cabW/2 - 0.01, cabW/2 + 0.01].forEach((x, i) => {
-      const sideWin = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.55, 0.75), matGlass);
-      sideWin.position.set(x, cabY + 0.20, cabZ - 0.15);
-      this.truckGroup.add(sideWin);
-
-      const mirrorArm = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.04, 0.04), matMetal);
-      mirrorArm.position.set(
-        x + (i === 0 ? -0.11 : 0.11),
-        cabY + 0.48,
-        cabZ - cabD/2 + 0.30
-      );
-      this.truckGroup.add(mirrorArm);
-
-      const mirrorHead = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.20, 0.14), matMetal);
-      mirrorHead.position.set(
-        x + (i === 0 ? -0.23 : 0.23),
-        cabY + 0.48,
-        cabZ - cabD/2 + 0.30
-      );
-      this.truckGroup.add(mirrorHead);
-    });
-
-    // faróis principais + posição
-    [-0.68, 0.68].forEach(x => {
-      const hl = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.18, 0.06), matLight);
-      hl.position.set(x, cabY - 0.10, cabZ - cabD/2 - 0.02);
-      this.truckGroup.add(hl);
-
-      const pos = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.10, 0.05), matLight);
-      pos.position.set(x, cabY - 0.32, cabZ - cabD/2 - 0.01);
-      this.truckGroup.add(pos);
-    });
-
-    // lanternas traseiras do baú
-    [-EW/2 + 0.18, EW/2 - 0.18].forEach(x => {
-      const stop = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.22, 0.05), matStop);
-      stop.position.set(x, cy - innerH/2 + 0.35, cz + ED/2 + 0.01);
-      this.truckGroup.add(stop);
-    });
-
-    // placa dianteira
-    const plate = new THREE.Mesh(new THREE.BoxGeometry(0.50, 0.14, 0.03), this._mat(0xffffff));
-    plate.position.set(0, 0.70, cabZ - cabD/2 - 0.10);
-    this.truckGroup.add(plate);
-
-    /* ════ RODAS ════════════════════════════════════════ */
-    const axleFront = cabZ + 0.50;
-    const axleRear1 = cz + ED/2 - 0.80;
-    const axleRear2 = cz + ED/2 - 2.10;
-
-    // dianteiras simples
-    [-1.28, 1.28].forEach(x => this._addWheel(x, 0.50, axleFront, matTire, matRim, false));
-
-    // traseiras duplas
-    [-1.28, 1.28].forEach(x => {
-      this._addWheel(x, 0.50, axleRear1, matTire, matRim, true);
-      this._addWheel(x, 0.50, axleRear2, matTire, matRim, true);
-    });
-
-    // eixos visuais
-    [axleFront, axleRear1, axleRear2].forEach(z => {
-      const axle = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.055, 0.055, 3.20, 10),
-        matMetal
-      );
-      axle.rotation.z = Math.PI / 2;
-      axle.position.set(0, 0.50, z);
-      this.truckGroup.add(axle);
-    });
-
-    /* ════ TANQUE DE COMBUSTÍVEL ════════════════════════ */
-    const tank = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.22, 0.22, 0.85, 16),
-      matMetal
-    );
-    tank.rotation.z = Math.PI / 2;
-    tank.position.set(-1.20, 0.70, cabZ + cabD/2 + 0.20);
-    this.truckGroup.add(tank);
-
-    /* ════ ESCAPAMENTO ══════════════════════════════════ */
-    const exhaust = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.055, 0.055, 1.80, 8),
-      matMetal
-    );
-    exhaust.position.set(-1.10, cabY + cabH/2 + 0.60, cabZ + cabD/2 - 0.15);
-    this.truckGroup.add(exhaust);
-
-    const exhaustCap = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.08, 0.055, 0.10, 8),
-      matMetal
-    );
-    exhaustCap.position.set(-1.10, cabY + cabH/2 + 1.52, cabZ + cabD/2 - 0.15);
-    this.truckGroup.add(exhaustCap);
-  }
-
-  // ════════════════════════════════════════════════════════
-  //  PRIVADO – Material helper
-  // ════════════════════════════════════════════════════════
-  _mat(color, opacity = 1, emissive = 0x000000, metalness = 0.1) {
-    const mat = new THREE.MeshStandardMaterial({
-      color,
-      emissive,
-      metalness,
-      roughness: 0.6,
-      transparent: opacity < 1,
-      opacity,
-    });
-    mat.side = THREE.FrontSide;
-    return mat;
-  }
-
-  // ════════════════════════════════════════════════════════
-  //  PRIVADO – Roda completa (pneu + aro + parafusos)
-  // ════════════════════════════════════════════════════════
-  _addWheel(x, y, z, matTire, matRim, dual = false) {
-    const tireRadius = 0.48;
-    const tireWidth  = dual ? 0.20 : 0.24;
-    const offset     = dual ? 0.13 : 0;
-    const sides      = dual ? [-offset, offset] : [0];
-
-    sides.forEach(dx => {
-      // pneu
-      const tire = new THREE.Mesh(
-        new THREE.TorusGeometry(tireRadius - 0.09, 0.13, 14, 28),
-        matTire
-      );
-      tire.rotation.y = Math.PI / 2;
-      tire.position.set(x + dx, y, z);
-      tire.castShadow = true;
-      this.truckGroup.add(tire);
-
-      // aro
-      const rim = new THREE.Mesh(
-        new THREE.CylinderGeometry(tireRadius - 0.12, tireRadius - 0.12, tireWidth, 16),
-        matRim
-      );
-      rim.rotation.z = Math.PI / 2;
-      rim.position.set(x + dx, y, z);
-      rim.castShadow = true;
-      this.truckGroup.add(rim);
-
-      // parafusos
-      for (let i = 0; i < 6; i++) {
-        const angle = (i / 6) * Math.PI * 2;
-        const bolt = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.025, 0.025, tireWidth + 0.01, 6),
-          matRim
-        );
-        bolt.rotation.z = Math.PI / 2;
-        bolt.position.set(
-          x + dx,
-          y + Math.sin(angle) * (tireRadius - 0.22),
-          z + Math.cos(angle) * (tireRadius - 0.22)
-        );
-        this.truckGroup.add(bolt);
+      if (pedido) {
+        ctx.fillStyle = 'rgba(0,0,0,0.75)';
+        ctx.font      = `bold ${Math.floor(largura * 0.1)}px monospace`;
+        ctx.textAlign = 'center';
+        ctx.fillText('Ped: ' + String(pedido), largura / 2, altura * 0.35);
       }
 
-      // hub central
-      const hub = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.07, 0.07, tireWidth + 0.02, 12),
-        matRim
-      );
-      hub.rotation.z = Math.PI / 2;
-      hub.position.set(x + dx, y, z);
-      this.truckGroup.add(hub);
-    });
-  }
-
-  // ════════════════════════════════════════════════════════
-  //  PRIVADO – painel do baú (placa simples)
-  // ════════════════════════════════════════════════════════
-  _bauPlane(x, y, z, w, h, d, mat) {
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
-    mesh.position.set(x, y, z);
-    mesh.castShadow    = true;
-    mesh.receiveShadow = true;
-    this.truckGroup.add(mesh);
-    return mesh;
-  }
-
-  // ════════════════════════════════════════════════════════
-  //  PRIVADO – Empacotamento de carga dentro do baú
-  // ════════════════════════════════════════════════════════
-  _packCargo(volumes) {
-    if (!volumes.length) return;
-
-    const { innerW, innerH, innerD, cx, cy, cz } = BAU;
-
-    // origem do canto interno (mínimo X, mínimo Y, mínimo Z)
-    const originX = cx - innerW / 2;
-    const originY = cy - innerH / 2;
-    const originZ = cz - innerD / 2;
-
-    // algoritmo simples: coluna por coluna, linha por linha
-    let curX = originX;
-    let curY = originY;
-    let curZ = originZ;
-    let rowMaxX   = 0; // largura máxima na linha atual
-    let layerMaxY = 0; // altura máxima na camada atual
-
-    volumes.forEach((vol, idx) => {
-      const qty   = Math.max(1, parseInt(vol.quantidade) || 1);
-      const desc  = vol.descricao || vol.produto || `Item ${idx + 1}`;
-      const color = this._getColor(desc);
-      const mat   = new THREE.MeshLambertMaterial({ color });
-
-      // dimensões em metros (converte cm → m se necessário)
-      let iW = parseFloat(vol.largura)     || 0.40;
-      let iH = parseFloat(vol.altura)      || 0.40;
-      let iD = parseFloat(vol.comprimento) || 0.40;
-
-      // se valores > 5 assume que estão em cm
-      if (iW > 5) iW /= 100;
-      if (iH > 5) iH /= 100;
-      if (iD > 5) iD /= 100;
-
-      // clamp para não ultrapassar o baú
-      iW = Math.min(iW, innerW);
-      iH = Math.min(iH, innerH);
-      iD = Math.min(iD, innerD);
-
-      const gap = 0.015; // espaçamento entre volumes
-
-      for (let q = 0; q < qty; q++) {
-        // verifica se cabe na profundidade atual
-        if (curZ + iD > originZ + innerD + 0.001) {
-          // avança para próxima linha (X+)
-          curX += rowMaxX + gap;
-          curZ  = originZ;
-          rowMaxX = 0;
-
-          // verifica se cabe na largura
-          if (curX + iW > originX + innerW + 0.001) {
-            // sobe uma camada (Y+)
-            curX      = originX;
-            curZ      = originZ;
-            curY     += layerMaxY + gap;
-            rowMaxX   = 0;
-            layerMaxY = 0;
-
-            // se não cabe mais na altura, para
-            if (curY + iH > originY + innerH + 0.001) break;
-          }
-        }
-
-        // posição do centro do item
-        const px = curX + iW / 2;
-        const py = curY + iH / 2;
-        const pz = curZ + iD / 2;
-
-        const geo  = new THREE.BoxGeometry(
-          Math.max(iW - gap, 0.01),
-          Math.max(iH - gap, 0.01),
-          Math.max(iD - gap, 0.01)
-        );
-        const mesh = new THREE.Mesh(geo, mat);
-        mesh.position.set(px, py, pz);
-        mesh.castShadow    = true;
-        mesh.receiveShadow = true;
-
-        // arestas visíveis
-        const edges = new THREE.LineSegments(
-          new THREE.EdgesGeometry(geo),
-          new THREE.LineBasicMaterial({
-            color: 0x000000,
-            transparent: true,
-            opacity: 0.25,
-          })
-        );
-        mesh.add(edges);
-
-        this.cargoGroup.add(mesh);
-
-        // atualiza cursores
-        curZ      += iD + gap;
-        rowMaxX    = Math.max(rowMaxX,   iW);
-        layerMaxY  = Math.max(layerMaxY, iH);
+      if (codprod) {
+        ctx.fillStyle = 'rgba(0,0,0,0.55)';
+        ctx.font      = `${Math.floor(largura * 0.072)}px monospace`;
+        ctx.textAlign = 'center';
+        ctx.fillText(String(codprod).slice(0, 14), largura / 2, altura * 0.48);
       }
-    });
-  }
 
-  // ════════════════════════════════════════════════════════
-  //  PRIVADO – Lista lateral de itens com scroll
-  // ════════════════════════════════════════════════════════
-  _buildItemList(pedido, volumes) {
-    const el = document.getElementById(this.listId);
-    if (!el) return;
+      // Código de barras decorativo
+      ctx.fillStyle   = 'rgba(0,0,0,0.6)';
+      const barX      = largura * 0.2;
+      const barY      = altura  * 0.72;
+      const barW      = largura * 0.6;
+      const barH      = altura  * 0.1;
+      const numBarras = 28;
+      for (let i = 0; i < numBarras; i++) {
+        const x = barX + (barW / numBarras) * i;
+        const w = (barW / numBarras) * (i % 3 === 0 ? 0.6 : 0.35);
+        ctx.fillRect(x, barY, w, barH);
+      }
 
-    el.innerHTML = '';
-
-    // cabeçalho do pedido
-    const header = document.createElement('div');
-    header.className = 'viewer-list-header';
-    const numPedido  = pedido.numero || pedido.id || '—';
-    const cliente    = pedido.cliente || pedido.nomeCliente || '';
-
-    header.innerHTML = `
-      <div class="vlh-title">
-        <span class="vlh-icon">📦</span>
-        <span class="vlh-num">Pedido #${numPedido}</span>
-      </div>
-      ${cliente ? `<div class="vlh-cliente">${cliente}</div>` : ''}
-      <div class="vlh-total">${volumes.length} tipo(s) de volume</div>
-    `;
-    el.appendChild(header);
-
-    // container com scroll apenas dos itens
-    const listWrap = document.createElement('div');
-    listWrap.className = 'viewer-list-scroll';
-    el.appendChild(listWrap);
-
-    if (!volumes.length) {
-      const empty = document.createElement('div');
-      empty.className = 'viewer-list-empty';
-      empty.textContent = 'Nenhum volume neste pedido.';
-      listWrap.appendChild(empty);
-      return;
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.font      = `${Math.floor(largura * 0.05)}px monospace`;
+      ctx.textAlign = 'center';
+      const codigoFake = String(Math.abs(parseInt(pedido) || 0) * 7 + 1000).padStart(8, '0');
+      ctx.fillText(codigoFake, largura / 2, barY + barH + largura * 0.06);
     }
 
-    volumes.forEach((vol, idx) => {
-      const desc  = vol.descricao || vol.produto || `Item ${idx + 1}`;
-      const qty   = Math.max(1, parseInt(vol.quantidade) || 1);
-      const color = this._getColor(desc);
+    const tex = new THREE.CanvasTexture(canvas);
+    console.log('[TEX] textura criada OK face:', face);
+    return tex;
 
-      const item = document.createElement('div');
-      item.className = 'viewer-list-item';
-
-      item.innerHTML = `
-        <div class="vli-color" style="background-color:#${color.toString(16).padStart(6, '0')}"></div>
-        <div class="vli-main">
-          <div class="vli-desc">${desc}</div>
-          <div class="vli-meta">
-            Qtd: ${qty}
-            · ${vol.largura || '—'} x ${vol.altura || '—'} x ${vol.comprimento || '—'}
-          </div>
-        </div>
-      `;
-
-      listWrap.appendChild(item);
-    });
-  }
-
-  // ════════════════════════════════════════════════════════
-  //  PRIVADO – Paleta de cores determinística por descrição
-  // ════════════════════════════════════════════════════════
-  _getColor(desc) {
-    if (this._colorMap.has(desc)) {
-      return this._colorMap.get(desc);
-    }
-    const color = CARGO_COLORS[this._colorIdx % CARGO_COLORS.length];
-    this._colorMap.set(desc, color);
-    this._colorIdx++;
-    return color;
+  } catch (e) {
+    console.error('[TEX] erro ao gerar textura:', e);
+    return new THREE.Texture();
   }
 }
+
+// ─────────────────────────────────────────────────────────────────
+// MATERIAIS DE CAIXA
+// ─────────────────────────────────────────────────────────────────
+function criarMateriaisCaixa(v, highlight) {
+  console.log('[MAT] criando materiais para volume:', v.id, 'highlight:', highlight);
+  try {
+    const corNum   = typeof v.cor === 'number' ? v.cor : 0x22c55e;
+    const corHex   = '#' + corNum.toString(16).padStart(6, '0');
+    const opcoes   = { pedido: v.pedido, codprod: v.codprod, corFaixa: corHex };
+    const emissive = highlight ? new THREE.Color(0xfacc15) : new THREE.Color(0x000000);
+    const emissiveIntensity = highlight ? 0.4 : 0;
+
+    const texFrente = gerarTexturaPapelao({ ...opcoes, face: 'frente', largura: 512, altura: 512 });
+    const texLado   = gerarTexturaPapelao({ ...opcoes, face: 'lado',   largura: 512, altura: 512 });
+    const texTopo   = gerarTexturaPapelao({ ...opcoes, face: 'topo',   largura: 512, altura: 512 });
+
+    function mat(tex) {
+      return new THREE.MeshStandardMaterial({
+        map: tex, metalness: 0.0, roughness: 0.85, emissive, emissiveIntensity
+      });
+    }
+
+    // +X, -X, +Y (topo), -Y (base), +Z (frente), -Z (fundo)
+    const mats = [mat(texLado), mat(texLado), mat(texTopo), mat(texTopo), mat(texFrente), mat(texLado)];
+    console.log('[MAT] materiais criados OK:', mats.length);
+    return mats;
+
+  } catch (e) {
+    console.error('[MAT] erro ao criar materiais:', e);
+    return new THREE.MeshStandardMaterial({ color: 0x22c55e });
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────
+// TOAST
+// ─────────────────────────────────────────────────────────────────
+function showToast(msg) {
+  console.log('[TOAST]', msg);
+  const toast = document.getElementById('viewer3dToast');
+  if (!toast) return;
+  toast.textContent   = msg;
+  toast.style.display = 'block';
+  setTimeout(() => { toast.style.display = 'none'; }, 4000);
+}
+
+// ─────────────────────────────────────────────────────────────────
+// OBTER CARGA
+// ─────────────────────────────────────────────────────────────────
+function obterCargaDoOpener() {
+  console.log('[CARGA] tentando obter carga...');
+
+  try {
+    if (window.opener && window.opener.__VISYA_CARGA_ATUAL__) {
+      console.log('[CARGA] obtida via window.opener');
+      return window.opener.__VISYA_CARGA_ATUAL__;
+    }
+  } catch (e) {
+    console.warn('[CARGA] window.opener erro:', e);
+  }
+
+  try {
+    if (window.__VISYA_CARGA_ATUAL__) {
+      console.log('[CARGA] obtida via window local');
+      return window.__VISYA_CARGA_ATUAL__;
+    }
+  } catch (e) {
+    console.warn('[CARGA] window local erro:', e);
+  }
+
+  try {
+    const raw = sessionStorage.getItem('__VISYA_CARGA_ATUAL__');
+    if (raw) {
+      console.log('[CARGA] obtida via sessionStorage');
+      return JSON.parse(raw);
+    }
+  } catch (e) {
+    console.warn('[CARGA] sessionStorage erro:', e);
+  }
+
+  console.warn('[CARGA] nenhuma carga encontrada, usará mock');
+  return null;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// INIT THREE
+// ─────────────────────────────────────────────────────────────────
+function initThree() {
+  console.log('[THREE] iniciando...');
+
+  if (!canvasContainer) {
+    throw new Error('canvasContainer não encontrado no DOM');
+  }
+
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0a0f1e);
+  scene.fog        = new THREE.Fog(0x0a0f1e, 20, 80);
+  console.log('[THREE] scene criada');
+
+  const width  = canvasContainer.clientWidth  || 800;
+  const height = canvasContainer.clientHeight || 600;
+  console.log('[THREE] canvas size:', width, 'x', height);
+
+  camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 2000);
+  console.log('[THREE] camera criada');
+
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(width, height);
+  renderer.setPixelRatio(window.devicePixelRatio || 1);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type    = THREE.PCFSoftShadowMap;
+  canvasContainer.appendChild(renderer.domElement);
+  console.log('[THREE] renderer criado e adicionado ao DOM');
+
+  // Luzes
+  const ambient = new THREE.AmbientLight(0xffffff, 0.45);
+  scene.add(ambient);
+  console.log('[THREE] ambient light adicionada');
+
+  const dir1 = new THREE.DirectionalLight(0xfff5e0, 1.1);
+  dir1.position.set(8, 14, 6);
+  dir1.castShadow            = true;
+  dir1.shadow.mapSize.width  = 2048;
+  dir1.shadow.mapSize.height = 2048;
+  dir1.shadow.camera.near    = 0.5;
+  dir1.shadow.camera.far     = 60;
+  dir1.shadow.camera.left    = -20;
+  dir1.shadow.camera.right   = 20;
+  dir1.shadow.camera.top     = 20;
+  dir1.shadow.camera.bottom  = -20;
+  dir1.shadow.bias           = -0.001;
+  scene.add(dir1);
+  console.log('[THREE] dir light 1 adicionada');
+
+  const dir2 = new THREE.DirectionalLight(0xc8d8ff, 0.4);
+  dir2.position.set(-6, 8, -4);
+  scene.add(dir2);
+  console.log('[THREE] dir light 2 adicionada');
+
+  const hemi = new THREE.HemisphereLight(0x88aaff, 0x442200, 0.3);
+  scene.add(hemi);
+  console.log('[THREE] hemi light adicionada');
+
+  // Chão
+  const floorGeom = new THREE.PlaneGeometry(60, 60);
+  const floorMat  = new THREE.MeshStandardMaterial({ color: 0x0d1224, metalness: 0.1, roughness: 0.9 });
+  const floor     = new THREE.Mesh(floorGeom, floorMat);
+  floor.rotation.x    = -Math.PI / 2;
+  floor.position.y    = -0.01;
+  floor.receiveShadow = true;
+  scene.add(floor);
+  console.log('[THREE] chão adicionado');
+
+  const grid = new THREE.GridHelper(60, 60, 0x1a2a4a, 0x1a2a4a);
+  grid.position.y = 0;
+  scene.add(grid);
+  console.log('[THREE] grid adicionado');
+
+  controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.enablePan     = true;
+  controls.enableZoom    = true;
+  controls.autoRotate    = false;
+  controls.target.set(0, 1.2, 0);
+  controls.update();
+  console.log('[THREE] OrbitControls criado');
+
+  window.addEventListener('resize', onWindowResize);
+  console.log('[THREE] initThree completo');
+}
+
+function onWindowResize() {
+  if (!camera || !renderer) return;
+  const width  = canvasContainer.clientWidth  || 800;
+  const height = canvasContainer.clientHeight || 600;
+  camera.aspect = width / height;
+  camera.updateProjectionMatrix();
+  renderer.setSize(width, height);
+  console.log('[THREE] resize:', width, 'x', height);
+}
+
+// ─────────────────────────────────────────────────────────────────
+// LIMPAR CENA
+// ─────────────────────────────────────────────────────────────────
+function clearScene() {
+  console.log('[SCENE] limpando cena...');
+  const toRemove = [];
+  scene.traverse((obj) => { if (obj.isMesh || obj.isLine) toRemove.push(obj); });
+  console.log('[SCENE] objetos a remover:', toRemove.length);
+
+  toRemove.forEach((m) => {
+    scene.remove(m);
+    if (m.geometry) m.geometry.dispose();
+    if (m.material) {
+      if (Array.isArray(m.material)) {
+        m.material.forEach((mat) => { if (mat.map) mat.map.dispose(); mat.dispose(); });
+      } else {
+        if (m.material.map) m.material.map.dispose();
+        m.material.dispose();
+      }
+    }
+  });
+  volumesMesh = [];
+  console.log('[SCENE] cena limpa');
+}
+
+// ─────────────────────────────────────────────────────────────────
+// CRIAR BAÚ
+// ─────────────────────────────────────────────────────────────────
+function criarBau(caminhao) {
+  console.log('[BAU] criando baú:', caminhao);
+  if (!caminhao) { console.warn('[BAU] caminhao null, abortando'); return; }
+
+  const comprimento = caminhao.comprimentoM || 6;
+  const altura      = caminhao.alturaM      || 2.4;
+  const largura     = caminhao.larguraM     || 2.4;
+  const espessura   = 0.04;
+
+  console.log('[BAU] dimensões:', comprimento, 'x', largura, 'x', altura);
+
+  const matParede = new THREE.MeshStandardMaterial({
+    color: 0x1a2a3a, metalness: 0.4, roughness: 0.6,
+    transparent: true, opacity: 0.22, side: THREE.DoubleSide
+  });
+
+  // Chão do baú
+  const chaoGeom = new THREE.BoxGeometry(comprimento, espessura, largura);
+  const chaoMat  = new THREE.MeshStandardMaterial({ color: 0x2a1a0a, metalness: 0.2, roughness: 0.9 });
+  const chao     = new THREE.Mesh(chaoGeom, chaoMat);
+  chao.position.set(comprimento / 2, espessura / 2, largura / 2);
+  chao.receiveShadow = true;
+  scene.add(chao);
+
+  // Parede lateral esquerda
+  const paredeGeom = new THREE.BoxGeometry(comprimento, altura, espessura);
+  const p1 = new THREE.Mesh(paredeGeom, matParede);
+  p1.position.set(comprimento / 2, altura / 2, 0);
+  scene.add(p1);
+
+  // Parede lateral direita
+  const p2 = new THREE.Mesh(paredeGeom, matParede);
+  p2.position.set(comprimento / 2, altura / 2, largura);
+  scene.add(p2);
+
+  // Parede do fundo
+  const fundoGeom = new THREE.BoxGeometry(espessura, altura, largura);
+  const fundo     = new THREE.Mesh(fundoGeom, matParede);
+  fundo.position.set(comprimento, altura / 2, largura / 2);
+  scene.add(fundo);
+
+  // Arestas do baú
+  const bauGeom = new THREE.BoxGeometry(comprimento, altura, largura);
+  const edges   = new THREE.EdgesGeometry(bauGeom);
+  const lineMat = new THREE.LineBasicMaterial({ color: 0x4a7abf });
+  const wire    = new THREE.LineSegments(edges, lineMat);
+  wire.position.set(comprimento / 2, altura / 2, largura / 2);
+  scene.add(wire);
+
+  // Trilhos do chão
+  const trilhoMat = new THREE.MeshStandardMaterial({ color: 0x3a3a3a, metalness: 0.8, roughness: 0.3 });
+  for (const z of [0.1, largura - 0.1]) {
+    const trilhoGeom = new THREE.BoxGeometry(comprimento, 0.04, 0.06);
+    const trilho     = new THREE.Mesh(trilhoGeom, trilhoMat);
+    trilho.position.set(comprimento / 2, 0.06, z);
+    scene.add(trilho);
+  }
+
+  if (infoCaminhao) {
+    infoCaminhao.textContent =
+      `${caminhao.descricao || caminhao.id} • ${comprimento.toFixed(2)}m x ${largura.toFixed(2)}m x ${altura.toFixed(2)}m`;
+  }
+
+  console.log('[BAU] baú criado OK');
+}
+
+// ─────────────────────────────────────────────────────────────────
+// CRIAR VOLUMES
+// ─────────────────────────────────────────────────────────────────
+function criarVolumes(volumes) {
+  console.log('[VOL] criarVolumes chamado, total:', volumes ? volumes.length : 0);
+
+  volumesMesh.forEach((m) => scene.remove(m));
+  volumesMesh = [];
+
+  if (!volumes || !volumes.length) {
+    console.warn('[VOL] nenhum volume para renderizar');
+    return;
+  }
+
+  let pesoTotal   = 0;
+  let volumeTotal = 0;
+
+  volumes.forEach((v, idx) => {
+    console.log(`[VOL] processando volume ${idx + 1}/${volumes.length}:`, v.id, v);
+
+    try {
+      const larguraM      = Math.max(Number(v.larguraM)      || 0.3, 0.05);
+      const alturaM       = Math.max(Number(v.alturaM)       || 0.3, 0.05);
+      const profundidadeM = Math.max(Number(v.profundidadeM) || 0.3, 0.05);
+
+      console.log(`[VOL] dimensões resolvidas: prof=${profundidadeM} larg=${larguraM} alt=${alturaM}`);
+
+      const geom = new THREE.BoxGeometry(profundidadeM, alturaM, larguraM);
+      console.log(`[VOL] BoxGeometry criada`);
+
+      const mats = criarMateriaisCaixa(v, false);
+      console.log(`[VOL] materiais criados:`, Array.isArray(mats) ? mats.length : typeof mats);
+
+      const mesh = new THREE.Mesh(geom, mats);
+
+      const posX = (Number(v.x) || 0) + profundidadeM / 2;
+      const posY = (Number(v.y) || 0) + alturaM       / 2;
+      const posZ = (Number(v.z) || 0) + larguraM      / 2;
+
+      console.log(`[VOL] posição: x=${posX} y=${posY} z=${posZ}`);
+
+      mesh.position.set(posX, posY, posZ);
+      mesh.castShadow    = true;
+      mesh.receiveShadow = true;
+      mesh.userData.volumeData = v;
+      scene.add(mesh);
+      volumesMesh.push(mesh);
+      console.log(`[VOL] mesh adicionado à cena`);
+
+      // Arestas da caixa
+      const edgesGeom = new THREE.EdgesGeometry(geom);
+      const edgesMat  = new THREE.LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35 });
+      const edgesMesh = new THREE.LineSegments(edgesGeom, edgesMat);
+      edgesMesh.position.copy(mesh.position);
+      edgesMesh.userData.isEdge   = true;
+      edgesMesh.userData.parentId = v.id;
+      scene.add(edgesMesh);
+      console.log(`[VOL] arestas adicionadas`);
+
+      pesoTotal   += Number(v.pesoKg)   || 0;
+      volumeTotal += Number(v.volumeM3) || (profundidadeM * larguraM * alturaM);
+
+    } catch (e) {
+      console.error(`[VOL] erro ao processar volume ${v.id}:`, e);
+    }
+  });
+
+  console.log('[VOL] total meshes na cena:', volumesMesh.length);
+
+  if (infoResumoCarga) {
+    infoResumoCarga.textContent =
+      `Itens: ${volumes.length} • Peso: ${pesoTotal.toFixed(1)} kg • Volume: ${volumeTotal.toFixed(3)} m³`;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────
+// HIGHLIGHT
+// ─────────────────────────────────────────────────────────────────
+function highlightMesh(volumeId, highlight) {
+  volumesMesh.forEach((m) => {
+    if (m.userData.volumeData && m.userData.volumeData.id === volumeId) {
+      if (Array.isArray(m.material)) {
+        m.material.forEach((mat) => { if (mat.map) mat.map.dispose(); mat.dispose(); });
+      }
+      m.material = criarMateriaisCaixa(m.userData.volumeData, highlight);
+      m.scale.set(highlight ? 1.03 : 1, highlight ? 1.03 : 1, highlight ? 1.03 : 1);
+    }
+  });
+  scene.traverse((obj) => {
+    if (obj.userData.isEdge && obj.userData.parentId === volumeId) {
+      obj.material.color.set(highlight ? 0xfacc15 : 0x000000);
+      obj.material.opacity = highlight ? 0.9 : 0.35;
+    }
+  });
+}
+
+function highlightVolumeCard(volumeId, highlight) {
+  if (!listaVolumesEl) return;
+  const card = listaVolumesEl.querySelector(`.v3d-volume-item[data-id="${volumeId}"]`);
+  if (card) card.dataset.highlight = highlight ? 'true' : 'false';
+}
+
+// ─────────────────────────────────────────────────────────────────
+// CÂMERA
+// ─────────────────────────────────────────────────────────────────
+function recenterCamera() {
+  console.log('[CAM] recentrando câmera...');
+  try {
+    const box    = new THREE.Box3().setFromObject(scene);
+    const center = new THREE.Vector3();
+    box.getCenter(center);
+    const size   = new THREE.Vector3();
+    box.getSize(size);
+    const maxDim = Math.max(size.x, size.y, size.z) || 10;
+    const dist   = maxDim * 2.2;
+
+    camera.position.set(center.x + dist * 0.8, center.y + dist * 0.6, center.z + dist);
+    camera.lookAt(center);
+    currentCenter.copy(center);
+
+    if (controls) { controls.target.copy(center); controls.update(); }
+    console.log('[CAM] câmera recentrada. center:', center, 'dist:', dist);
+  } catch (e) {
+    console.error('[CAM] erro ao recentrar:', e);
+  }
+}
+
+function focusCameraOnVolume(volumeId) {
+  const mesh = volumesMesh.find((m) => m.userData.volumeData && m.userData.volumeData.id === volumeId);
+  if (!mesh) return;
+  const targetPos = mesh.position.clone();
+  camera.position.copy(targetPos.clone().add(new THREE.Vector3(3, 2, 4)));
+  camera.lookAt(targetPos);
+  if (controls) { controls.target.copy(targetPos); controls.update(); }
+}
+
+function resetCamera() { recenterCamera(); }
+
+// ─────────────────────────────────────────────────────────────────
+// LISTA DE VOLUMES
+// ─────────────────────────────────────────────────────────────────
+function renderListaVolumes(volumes) {
+  console.log('[LISTA] renderizando lista, total:', volumes ? volumes.length : 0);
+  if (!listaVolumesEl) { console.warn('[LISTA] listaVolumesEl não encontrado'); return; }
+
+  listaVolumesEl.innerHTML = '';
+
+  if (!volumes || !volumes.length) {
+    const empty = document.createElement('div');
+    empty.className   = 'v3d-volume-sub';
+    empty.textContent = 'Nenhum item para exibir.';
+    listaVolumesEl.appendChild(empty);
+    return;
+  }
+
+  const frag = document.createDocumentFragment();
+
+  volumes.forEach((v) => {
+    const corNum = typeof v.cor === 'number' ? v.cor : 0x22c55e;
+    const corHex = '#' + corNum.toString(16).padStart(6, '0');
+
+    const card = document.createElement('div');
+    card.className      = 'v3d-volume-item';
+    card.dataset.id     = v.id;
+    card.dataset.pedido = v.pedido;
+
+    const header = document.createElement('div');
+    header.className = 'v3d-volume-header';
+
+    const titleWrap = document.createElement('div');
+    titleWrap.style.cssText = 'display:flex;align-items:center;gap:6px;';
+
+    const dot = document.createElement('span');
+    dot.style.cssText = `display:inline-block;width:9px;height:9px;border-radius:50%;background:${corHex};flex-shrink:0;`;
+
+    const title = document.createElement('div');
+    title.className   = 'v3d-volume-title';
+    title.textContent = `Ped ${v.pedido} • ${v.codprod || v.descrprod || 'Volume agregado'}`;
+
+    titleWrap.appendChild(dot);
+    titleWrap.appendChild(title);
+
+    const chip = document.createElement('div');
+    chip.className   = 'v3d-volume-chip';
+    chip.textContent = `${(v.volumeM3 || 0).toFixed(3)} m³`;
+
+    header.appendChild(titleWrap);
+    header.appendChild(chip);
+
+    const sub1 = document.createElement('div');
+    sub1.className   = 'v3d-volume-sub';
+    sub1.textContent = v.descrprod || (v.codprod ? `Produto ${v.codprod}` : 'Volume agregado');
+
+    const sub2 = document.createElement('div');
+    sub2.className   = 'v3d-volume-sub';
+    sub2.textContent = `Peso: ${(v.pesoKg || 0).toFixed(1)} kg • ${(v.profundidadeM || 0).toFixed(2)} x ${(v.larguraM || 0).toFixed(2)} x ${(v.alturaM || 0).toFixed(2)} m`;
+
+    card.appendChild(header);
+    card.appendChild(sub1);
+    card.appendChild(sub2);
+
+    card.addEventListener('mouseenter', () => { highlightVolumeCard(v.id, true);  highlightMesh(v.id, true);  });
+    card.addEventListener('mouseleave', () => { highlightVolumeCard(v.id, false); highlightMesh(v.id, false); });
+    card.addEventListener('click',      () => { focusCameraOnVolume(v.id); });
+
+    frag.appendChild(card);
+  });
+
+  listaVolumesEl.appendChild(frag);
+  console.log('[LISTA] lista renderizada OK');
+}
+
+// ─────────────────────────────────────────────────────────────────
+// FILTRO
+// ─────────────────────────────────────────────────────────────────
+function applyFiltroPedido() {
+  if (!carga || !carga._volumesAtuais) return;
+  const filtro = (filtroPedidoInput.value || '').trim().toLowerCase();
+  const vols   = filtro
+    ? carga._volumesAtuais.filter((v) => String(v.pedido).toLowerCase().includes(filtro))
+    : carga._volumesAtuais;
+  renderListaVolumes(vols);
+}
+
+// ─────────────────────────────────────────────────────────────────
+// IMPRIMIR
+// ─────────────────────────────────────────────────────────────────
+function imprimirLayout() {
+  if (!carga || !carga._volumesAtuais || !carga._volumesAtuais.length) {
+    showToast('Nenhum item para imprimir.');
+    return;
+  }
+  const cam    = carga._caminhaoAtual || {};
+  const win    = window.open('', '_blank', 'width=900,height=700');
+  if (!win) return;
+  const titulo = `Layout de carga – ${cam.descricao || cam.id || ''}`;
+  const linhas = carga._volumesAtuais.map((v) => `
+    <tr>
+      <td>${v.pedido}</td>
+      <td>${v.codprod || v.descrprod || 'Volume agregado'}</td>
+      <td>${(v.pesoKg || 0).toFixed(1)}</td>
+      <td>${(v.volumeM3 || 0).toFixed(3)}</td>
+      <td>${(v.profundidadeM || 0).toFixed(2)} x ${(v.larguraM || 0).toFixed(2)} x ${(v.alturaM || 0).toFixed(2)}</td>
+    </tr>`).join('');
+
+  win.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"/>
+    <title>${titulo}</title>
+    <style>body{font-family:Arial,sans-serif;font-size:12px;}table{width:100%;border-collapse:collapse;margin-top:8px;}th,td{border:1px solid #ccc;padding:4px;}th{background:#f3f4f6;}</style>
+    </head><body><h1>${titulo}</h1>
+    <p>${infoResumoCarga ? infoResumoCarga.textContent : ''}</p>
+    <table><thead><tr><th>Pedido</th><th>Produto</th><th>Peso (kg)</th><th>Volume (m³)</th><th>Dimensões</th></tr></thead>
+    <tbody>${linhas}</tbody></table>
+    <script>window.print();<\/script></body></html>`);
+  win.document.close();
+}
+
+// ─────────────────────────────────────────────────────────────────
+// SELECTOR DE CAMINHÃO
+// ─────────────────────────────────────────────────────────────────
+function initCaminhaoSelector() {
+  console.log('[SEL] initCaminhaoSelector...');
+  if (!selectCaminhao) { console.warn('[SEL] selectCaminhao não encontrado'); return; }
+
+  const caminhoes = carga.caminhoes || (carga.caminhao ? [carga.caminhao] : []);
+  console.log('[SEL] caminhoes:', caminhoes.length);
+  if (!caminhoes.length) return;
+
+  selectCaminhao.innerHTML = '';
+  caminhoes.forEach((cam, idx) => {
+    const opt = document.createElement('option');
+    opt.value       = cam.id != null ? cam.id : idx;
+    opt.textContent = cam.descricao || `Caminhão ${idx + 1}`;
+    selectCaminhao.appendChild(opt);
+  });
+
+  selectCaminhao.addEventListener('change', () => {
+    console.log('[SEL] caminhão selecionado:', selectCaminhao.value);
+    renderForCaminhao(selectCaminhao.value);
+  });
+
+  const idInicial = (carga.caminhao && carga.caminhao.id) || caminhoes[0].id || 0;
+  selectCaminhao.value = idInicial;
+  console.log('[SEL] idInicial:', idInicial);
+}
+
+function getCaminhaoById(idSel) {
+  const caminhoes = carga.caminhoes || (carga.caminhao ? [carga.caminhao] : []);
+  return caminhoes.find((c) => String(c.id) === String(idSel)) || caminhoes[0] || null;
+}
+
+function getVolumesForCaminhao(idSel) {
+  if (carga.alocacao) {
+    return (carga.volumes || []).filter((v) => String(carga.alocacao[v.id]) === String(idSel));
+  }
+  return carga.volumes || [];
+}
+
+function renderForCaminhao(idSel) {
+  console.log('[RENDER] renderForCaminhao:', idSel);
+  clearScene();
+
+  const cam     = getCaminhaoById(idSel);
+  const volumes = getVolumesForCaminhao(idSel);
+
+  console.log('[RENDER] caminhao:', cam);
+  console.log('[RENDER] volumes:', volumes.length);
+
+  carga._caminhaoAtual = cam;
+  carga._volumesAtuais = volumes;
+
+  criarBau(cam);
+  criarVolumes(volumes);
+  renderListaVolumes(volumes);
+  recenterCamera();
+
+  console.log('[RENDER] renderForCaminhao completo');
+}
+
+// ─────────────────────────────────────────────────────────────────
+// LOOP
+// ─────────────────────────────────────────────────────────────────
+function animate() {
+  requestAnimationFrame(animate);
+  if (controls) controls.update();
+  if (renderer && scene && camera) renderer.render(scene, camera);
+}
+
+// ─────────────────────────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('[INIT] DOMContentLoaded disparou');
+  console.log('[INIT] canvasContainer:', canvasContainer);
+  console.log('[INIT] canvasContainer size:', canvasContainer?.clientWidth, 'x', canvasContainer?.clientHeight);
+
+  carga = obterCargaDoOpener();
+
+  if (!carga) {
+    showToast('Dados de carga 3D não encontrados. Abra o viewer a partir da tela de rotas.');
+    carga = {
+      caminhao: {
+        id: 'M710', descricao: 'Truck 3/4 Baú (mock)',
+        comprimentoM: 6, larguraM: 2.4, alturaM: 2.4
+      },
+      volumes: [
+        { id: 'V1', pedido: '10001', codprod: 'PROD-A', descrprod: 'Produto A',
+          larguraM: 0.6, alturaM: 0.8, profundidadeM: 0.5, volumeM3: 0.24, pesoKg: 18,
+          x: 0.1, y: 0, z: 0.1, cor: 0x22c55e },
+        { id: 'V2', pedido: '10001', codprod: 'PROD-B', descrprod: 'Produto B',
+          larguraM: 0.4, alturaM: 0.6, profundidadeM: 0.4, volumeM3: 0.096, pesoKg: 9,
+          x: 0.7, y: 0, z: 0.2, cor: 0x3b82f6 },
+        { id: 'V3', pedido: '10002', codprod: 'PROD-C', descrprod: 'Produto C',
+          larguraM: 1.0, alturaM: 1.2, profundidadeM: 0.8, volumeM3: 0.96, pesoKg: 45,
+          x: 1.2, y: 0, z: 0.1, cor: 0xf97316 },
+        { id: 'V4', pedido: '10003', codprod: 'PROD-D', descrprod: 'Produto D',
+          larguraM: 0.5, alturaM: 0.5, profundidadeM: 0.5, volumeM3: 0.125, pesoKg: 12,
+          x: 2.1, y: 0, z: 0.5, cor: 0xa855f7 }
+      ]
+    };
+    console.log('[INIT] usando mock:', carga);
+  }
+
+  console.log('[INIT] iniciando THREE...');
+  try {
+    initThree();
+    console.log('[INIT] initThree OK');
+  } catch (e) {
+    console.error('[INIT] initThree ERRO:', e);
+    return;
+  }
+
+  try {
+    initCaminhaoSelector();
+    console.log('[INIT] initCaminhaoSelector OK');
+  } catch (e) {
+    console.error('[INIT] initCaminhaoSelector ERRO:', e);
+  }
+
+  const idInicial =
+    (carga.caminhao && carga.caminhao.id) ||
+    (carga.caminhoes && carga.caminhoes[0] && carga.caminhoes[0].id) || 0;
+
+  console.log('[INIT] idInicial:', idInicial);
+
+  try {
+    renderForCaminhao(idInicial);
+    console.log('[INIT] renderForCaminhao OK');
+  } catch (e) {
+    console.error('[INIT] renderForCaminhao ERRO:', e);
+    return;
+  }
+
+  animate();
+  console.log('[INIT] animate iniciado');
+
+  if (btnResetCamera)    btnResetCamera.addEventListener('click',   resetCamera);
+  if (btnImprimirLayout) btnImprimirLayout.addEventListener('click', imprimirLayout);
+  if (filtroPedidoInput) filtroPedidoInput.addEventListener('input', applyFiltroPedido);
+
+  console.log('[INIT] VIEWER3D totalmente inicializado ✅');
+});

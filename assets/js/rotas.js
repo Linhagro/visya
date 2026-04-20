@@ -245,7 +245,7 @@ let cacheClientes = null;
 let cachePedidosPendentes = null;
 let cacheCarteira = null;
 let cacheVendedores = null;
-let cachePedidosItens = new Map(); // === NOVO: itens por NUNOTA
+let cachePedidosItens = new Map();
 
 let clientesFiltradosAtuais = null;
 let paginaClientes = 0;
@@ -257,16 +257,14 @@ let rotaDebounceTimeout = null;
 let dragListaConfigurado = false;
 
 let idsSelecionados = new Set();
-let origemAtual = "pedidos"; // "pedidos" | "clientes" | "carteira"
+let origemAtual = "pedidos";
 
-// origem fixa para o ponto de partida
 const ORIGEM_FIXA = {
   lat: -19.383869647653956,
   lng: -40.067551247607746
 };
 
 let marcadorLocalizacao = null;
-// começa na origem fixa, mas pode ser arrastado depois
 let origemManual = { ...ORIGEM_FIXA };
 
 let pontosManuais = [];
@@ -296,16 +294,13 @@ const chkEvitarPedagios = document.getElementById("chkEvitarPedagios");
 const chkEvitarPontes = document.getElementById("chkEvitarPontes");
 const linkMapsDiv = document.getElementById("linkMaps");
 
-// seletor de origem e vendedores
 const tipoOrigemSelect = document.getElementById("tipoOrigem");
 const grupoVendedoresDiv = document.getElementById("grupoVendedores");
 const selectVendedor = document.getElementById("selectVendedor");
 
-// trânsito
 let chkVerTransito = document.getElementById("chkVerTransito");
 if (!chkVerTransito) chkVerTransito = chkEvitarPontes;
 
-// painel rota
 const rotaListaDiv = document.getElementById("rotaListaPontos");
 const novoPontoInput = document.getElementById("novoPontoInput");
 const btnAdicionarPonto = document.getElementById("btnAdicionarPonto");
@@ -319,7 +314,6 @@ const btnSelecionarTodos = document.getElementById("btnSelecionarTodos");
 const btnLimparSelecao = document.getElementById("btnLimparSelecao");
 const btnOtimizarRota = document.getElementById("btnOtimizarRota");
 
-// === NOVO: botões de carregamento manual / 3D (crie no HTML com esses ids)
 const btnRealizarCarregamento = document.getElementById("btnRealizarCarregamento");
 const btnMontarCarga3D = document.getElementById("btnMontarCarga3D");
 const campoResumoCarga = document.getElementById("resumoCargaSelecionada");
@@ -340,7 +334,6 @@ function setLinkMapsEnabled(enabled) {
   btnGerarLinkMapsSidebar.disabled = !enabled;
 }
 
-// remove todos os markers de rota/cliente do mapa
 function removerTodosMarkersDoMapa() {
   todosMarkersRota.forEach(m => {
     if (map.hasLayer(m)) map.removeLayer(m);
@@ -352,7 +345,6 @@ function removerTodosMarkersDoMapa() {
   clienteMarkers = {};
 }
 
-// monta string de endereço
 function montarEnderecoPadrao(item) {
   const partes = [];
   if (item.logradouro) {
@@ -367,6 +359,17 @@ function montarEnderecoPadrao(item) {
   if (linha2.length) partes.push(linha2.join(" - "));
   if (item.cep) partes.push("CEP " + item.cep);
   return partes.join(" | ");
+}
+
+function getChaveSelecao(item) {
+  if (!item) return "";
+  if (item.chaveSelecao != null && String(item.chaveSelecao).trim() !== "") {
+    return String(item.chaveSelecao);
+  }
+  if (item.origemTipo === "pedido") return `pedido:${String(item.nunota ?? item.id ?? "")}`;
+  if (item.origemTipo === "clientes") return `clientes:${String(item.codparc ?? item.codigo ?? item.id ?? "")}`;
+  if (item.origemTipo === "carteira") return `carteira:${String(item.codparc ?? item.codigo ?? item.id ?? "")}`;
+  return String(item.id ?? "");
 }
 
 function criarMarkerNumerado(lat, lng, numero, titulo, pontoRef) {
@@ -391,7 +394,7 @@ function criarMarkerNumerado(lat, lng, numero, titulo, pontoRef) {
     const { lat: newLat, lng: newLng } = e.target.getLatLng();
     if (pontoRef.tipo === "cliente") {
       const base = getCacheAtual();
-      const c = base.find(x => x.id === pontoRef.id);
+      const c = base.find(x => getChaveSelecao(x) === pontoRef.id);
       if (c) {
         c.lat = newLat;
         c.lng = newLng;
@@ -409,7 +412,6 @@ function criarMarkerNumerado(lat, lng, numero, titulo, pontoRef) {
   return marker;
 }
 
-// COORDENADAS SEGURAS
 function normalizarLat(valor) {
   if (valor == null) return null;
   if (typeof valor === "number") {
@@ -438,7 +440,6 @@ function normalizarLng(valor) {
   return n;
 }
 
-// PARSE lat,lng texto
 function parseLatLngText(txt) {
   if (!txt) return null;
   const parts = txt.split(",");
@@ -449,7 +450,6 @@ function parseLatLngText(txt) {
   return { lat, lng };
 }
 
-// GEOCODE BACKEND
 async function geocodeTexto(texto) {
   const path = `/geocode?q=${encodeURIComponent(texto)}`;
   showRotasLoader();
@@ -502,7 +502,6 @@ function atualizarContadorSelecionados() {
   gerarRotaAuto();
 }
 
-// Selecionar até 50 primeiros visíveis
 function marcarTodosVisiveis(marcar) {
   const itens = Array.from(
     listaClientesDiv.querySelectorAll(".cliente-item .cliente-checkbox")
@@ -511,7 +510,7 @@ function marcarTodosVisiveis(marcar) {
   let count = 0;
 
   itens.forEach(cb => {
-    const id = parseInt(cb.value, 10);
+    const id = String(cb.value);
     const wrapper = cb.closest(".cliente-item");
     const semLoc = wrapper?.classList.contains("cliente-sem-localizacao");
     if (semLoc) {
@@ -538,7 +537,7 @@ function criarItemCliente(c) {
   const div = document.createElement("div");
   div.className = "cliente-item";
   div.draggable = false;
-  div.dataset.id = c.id;
+  div.dataset.id = getChaveSelecao(c);
 
   const checkWrap = document.createElement("label");
   checkWrap.className = "checkbox-wrapper checkbox-sm checkbox-cliente";
@@ -546,7 +545,7 @@ function criarItemCliente(c) {
   const checkbox = document.createElement("input");
   checkbox.type = "checkbox";
   checkbox.className = "cliente-checkbox";
-  checkbox.value = c.id;
+  checkbox.value = getChaveSelecao(c);
 
   const checkmark = document.createElement("div");
   checkmark.className = "checkmark";
@@ -600,10 +599,11 @@ function criarItemCliente(c) {
       checkbox.checked = false;
       return;
     }
+    const chave = getChaveSelecao(c);
     if (checkbox.checked) {
-      idsSelecionados.add(c.id);
+      idsSelecionados.add(chave);
     } else {
-      idsSelecionados.delete(c.id);
+      idsSelecionados.delete(chave);
     }
     atualizarContadorSelecionados();
     div.classList.toggle("selecionado", checkbox.checked);
@@ -689,7 +689,7 @@ function renderClientesPagina() {
   for (let i = inicio; i < fim; i++) {
     const c = clientesFiltradosAtuais[i];
     const div = criarItemCliente(c);
-    if (idsSelecionados.has(c.id)) {
+    if (idsSelecionados.has(getChaveSelecao(c))) {
       const cb = div.querySelector(".cliente-checkbox");
       if (cb && !cb.disabled) {
         cb.checked = true;
@@ -716,7 +716,6 @@ function renderClientes(clientes) {
   configurarDragAndDropLista();
 }
 
-// INFINITE SCROLL
 function configurarInfiniteScrollClientes() {
   listaClientesDiv.addEventListener("scroll", () => {
     if (carregandoMais) return;
@@ -744,7 +743,6 @@ function getCacheAtual() {
   return [];
 }
 
-// === NOVO: carregar itens de pedidos pendentes (peso/volume/dimensões)
 async function carregarPedidosPendentesItens(filtros = {}) {
   const params = [];
   if (filtros.nunota) params.push(`nunota=${encodeURIComponent(filtros.nunota)}`);
@@ -828,7 +826,6 @@ async function carregarPedidosPendentes(codvendFiltro) {
     const data = await resp.json();
     const pedidosApi = data.pedidos || [];
 
-    // carrega itens agregados (por vendedor, se filtrado)
     await carregarPedidosPendentesItens(
       codvendFiltro ? { codvend: codvendFiltro } : {}
     );
@@ -844,6 +841,7 @@ async function carregarPedidosPendentes(codvendFiltro) {
 
       return {
         id: p.NUNOTA,
+        chaveSelecao: `pedido:${String(p.NUNOTA)}`,
         codigo: p.NUNOTA,
         nome: p.NOME_CLIENTE,
         endereco,
@@ -853,6 +851,7 @@ async function carregarPedidosPendentes(codvendFiltro) {
         codparc: p.CODPARC,
         codvend: p.CODVEND,
         nomevendedor: p.NOMEVENDEDOR,
+        nome_vendedor: p.NOMEVENDEDOR,
         codemp: p.CODEMP,
         logradouro: p.logradouro,
         numero: p.numero,
@@ -897,13 +896,15 @@ async function carregarClientesNormais() {
       const endereco = montarEnderecoPadrao(r);
       return {
         id: r.id,
-        codigo: r.codigo,
-        nome: r.nomecliente || r.nome,
+        chaveSelecao: `clientes:${String(r.codparc ?? r.codigo ?? r.id)}`,
+        codigo: r.codigo ?? r.codparc ?? r.id,
+        nome: r.nomecliente || r.nome || r.nome_cliente,
         endereco,
         origemTipo: "clientes",
         codparc: r.codparc,
         codvend: r.codvend,
-        nomevendedor: r.nomevendedor,
+        nomevendedor: r.nomevendedor || r.nome_vendedor,
+        nome_vendedor: r.nome_vendedor || r.nomevendedor,
         codemp: r.codemp,
         logradouro: r.logradouro,
         numero: r.numero,
@@ -943,7 +944,7 @@ async function carregarVendedores() {
     cacheVendedores.forEach(v => {
       const opt = document.createElement("option");
       opt.value = v.codvend;
-      opt.textContent = `${v.codvend} - ${v.nomevendedor}`;
+      opt.textContent = `${v.codvend} - ${v.nome_vendedor || v.nomevendedor || ""}`;
       selectVendedor.appendChild(opt);
     });
   } catch (e) {
@@ -976,14 +977,18 @@ async function carregarCarteiraPorVendedor(codvend) {
       const endereco = montarEnderecoPadrao(c);
       return {
         id: c.codparc,
+        chaveSelecao: `carteira:${String(c.codparc)}`,
         codigo: c.codparc,
-        nome: c.nomecliente,
+        nome: c.nome_cliente || c.nomecliente || c.nome,
         endereco,
         origemTipo: "carteira",
         codparc: c.codparc,
         codvend: c.codvend,
-        nomevendedor: c.nomevendedor,
+        nomevendedor: c.nome_vendedor || c.nomevendedor,
+        nome_vendedor: c.nome_vendedor || c.nomevendedor,
         codemp: c.codemp,
+        dtlim: c.dtlim,
+        limcred: c.limcred,
         logradouro: c.logradouro,
         numero: c.numero,
         bairro: c.bairro,
@@ -1034,7 +1039,7 @@ function getClientesSelecionados() {
   const base = getCacheAtual();
   const clientes = [];
   base.forEach(c => {
-    if (idsSelecionados.has(c.id)) clientes.push(c);
+    if (idsSelecionados.has(getChaveSelecao(c))) clientes.push(c);
   });
   return clientes;
 }
@@ -1051,7 +1056,7 @@ function reconstruirPainelRota() {
     if (lat == null || lng == null) return;
     pontos.push({
       tipo: "cliente",
-      id: c.id,
+      id: getChaveSelecao(c),
       label: `${c.codigo} - ${c.nome}`,
       endereco: c.endereco,
       lat,
@@ -1224,8 +1229,8 @@ function removerPontoDaRota(ponto) {
     listaClientesDiv.querySelectorAll(".cliente-item").forEach(div => {
       const cb = div.querySelector(".cliente-checkbox");
       if (!cb) return;
-      const id = parseInt(cb.value, 10);
-      if (id === ponto.id) {
+      const id = String(cb.value);
+      if (id === String(ponto.id)) {
         cb.checked = false;
         div.classList.remove("selecionado");
       }
@@ -1250,13 +1255,13 @@ function getPontosNaOrdemPainel() {
 
     if (tipo === "cliente") {
       const base = getCacheAtual();
-      const c = base.find(x => String(x.id) === String(id));
+      const c = base.find(x => getChaveSelecao(x) === String(id));
       const lat = normalizarLat(c?.lat);
       const lng = normalizarLng(c?.lng);
       if (c && lat != null && lng != null) {
         pontos.push({
           tipo: "cliente",
-          id: c.id,
+          id: getChaveSelecao(c),
           label: `${c.codigo} - ${c.nome}`,
           endereco: c.endereco,
           lat,
@@ -1706,7 +1711,6 @@ async function sugerirCaminhaoParaCarga(pesoTotalKg) {
 
     if (!lista.length) return null;
 
-    // Filtra caminhões com capacidade >= pesoTotalKg
     const candidatos = lista.filter(c => Number(c.capacidadeKg) >= pesoTotalKg);
 
     let escolhido = null;
@@ -1716,7 +1720,6 @@ async function sugerirCaminhaoParaCarga(pesoTotalKg) {
         return Number(c.capacidadeKg) < Number(menor.capacidadeKg) ? c : menor;
       }, null);
     } else {
-      // se nenhum tem capacidade >= peso, pega o maior (alerta depois)
       escolhido = lista.reduce((maior, c) => {
         if (!maior) return c;
         return Number(c.capacidadeKg) > Number(maior.capacidadeKg) ? c : maior;
@@ -1729,7 +1732,6 @@ async function sugerirCaminhaoParaCarga(pesoTotalKg) {
     return null;
   }
 }
-
 
 function montarCarga3DManualPorItens(caminhaoSelecionado, pedidosSelecionados) {
   if (!caminhaoSelecionado || !pedidosSelecionados || !pedidosSelecionados.length) {
@@ -1744,7 +1746,6 @@ function montarCarga3DManualPorItens(caminhaoSelecionado, pedidosSelecionados) {
   const cores = [0x22c55e, 0x3b82f6, 0xf97316, 0xa855f7, 0x14b8a6];
   let corIdxPorPedido = new Map();
 
-  // margens internas para evitar encostar na parede
   const margemX = comprimentoM * 0.02;
   const margemZ = larguraM * 0.02;
   const margemY = alturaM * 0.02;
@@ -1794,7 +1795,6 @@ function montarCarga3DManualPorItens(caminhaoSelecionado, pedidosSelecionados) {
           }
         }
 
-        // se as dimensões do item forem maiores que o baú útil, ignora o item
         if (
           profItem > (maxX - minX) ||
           larguraItem > (maxZ - minZ) ||
@@ -1803,7 +1803,6 @@ function montarCarga3DManualPorItens(caminhaoSelecionado, pedidosSelecionados) {
           continue;
         }
 
-        // garante que estamos em uma camada válida
         if (!camadas[camadaAtual]) {
           camadas[camadaAtual] = {
             yBase:
@@ -1816,25 +1815,20 @@ function montarCarga3DManualPorItens(caminhaoSelecionado, pedidosSelecionados) {
 
         let colocado = false;
 
-        // tenta posicionar o item; se não couber na linha, quebra,
-        // se não couber na "fileira", começa nova camada
         for (let tentativa = 0; tentativa < 3 && !colocado; tentativa++) {
           const camada = camadas[camadaAtual];
           const yBase = camada.yBase;
 
-          // se passar da altura útil do baú, não cabe mais nada
           if (yBase + alturaItem > maxY) {
             colocado = false;
             break;
           }
 
-          // quebra de linha em X
           if (posX + profItem > maxX) {
             posX = minX;
             posZ += larguraItem + margemZ;
           }
 
-          // nova camada em Y se estourar Z
           if (posZ + larguraItem > maxZ) {
             posX = minX;
             posZ = minZ;
@@ -1857,7 +1851,6 @@ function montarCarga3DManualPorItens(caminhaoSelecionado, pedidosSelecionados) {
           const halfZ = larguraItem / 2;
           const halfY = alturaItem / 2;
 
-          // limites do baú em 0..comprimento, 0..largura, 0..altura
           if (
             xCentro - halfX < minX ||
             xCentro + halfX > maxX ||
@@ -1866,7 +1859,6 @@ function montarCarga3DManualPorItens(caminhaoSelecionado, pedidosSelecionados) {
             yCentro - halfY < minY ||
             yCentro + halfY > maxY
           ) {
-            // não cabe nessa posição, tenta outra linha/camada na próxima iteração
             posX = minX;
             posZ += larguraItem + margemZ;
             if (posZ + larguraItem > maxZ) {
@@ -1904,7 +1896,6 @@ function montarCarga3DManualPorItens(caminhaoSelecionado, pedidosSelecionados) {
           colocado = true;
         }
 
-        // se não conseguiu posicionar nenhuma vez, ignora o item (não desenha fora do baú)
         if (!colocado) {
           continue;
         }
@@ -1926,6 +1917,7 @@ function montarCarga3DManualPorItens(caminhaoSelecionado, pedidosSelecionados) {
     volumes
   };
 }
+
 // EVENTOS INICIAIS
 function initEventos() {
   tipoOrigemSelect.addEventListener("change", () => {
@@ -2039,7 +2031,7 @@ function initEventos() {
   btnGerarLinkMapsSidebar.addEventListener("click", () => {
     gerarLinkGoogleMaps();
   });
-  // === NOVO: fluxo manual de carregamento
+
   if (btnRealizarCarregamento) {
     btnRealizarCarregamento.addEventListener("click", async () => {
       const pedidosSelecionados = getClientesSelecionados().filter(
@@ -2051,7 +2043,6 @@ function initEventos() {
         return;
       }
 
-      // recalcula peso/volume total com base em cachePedidosItens
       let pesoTotal = 0;
       let volumeTotal = 0;
 
@@ -2094,7 +2085,6 @@ function initEventos() {
         btnMontarCarga3D.disabled = false;
       }
 
-      // guarda carga "base" global
       window.__VISYA_CARGA_BASE_MANUAL__ = {
         pedidosSelecionados,
         pesoTotal,
@@ -2138,6 +2128,7 @@ function initEventos() {
       window.open("../rotas/html/viewer3d.html", "_blank");
     });
   }
+
   if (btnMontarCarga3D) {
     btnMontarCarga3D.addEventListener("click", () => {
       const base = window.__VISYA_CARGA_BASE_MANUAL__;

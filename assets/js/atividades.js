@@ -445,7 +445,7 @@ async function carregarTudo(opcoes = {}) {
       carregarTodasPaginas((page) => "/atividades" + buildQSAtividadesPage(page, true), ["atividades", "data"]),
       carregarTodasPaginas((page) => "/carteira-analytics" + buildQSCarteiraPage(page), ["clientes", "data"]),
       carregarTodasPaginas((page) => "/vendas/dashboard" + buildQSVendasDashboardPage(page), ["clientes", "data"]),
-      carregarTodasPaginas((page) => "/Vendedores" + buildQSVendedoresPage(page), ["vendedores", "data"])
+      carregarTodasPaginas((page) => "/vendedores" + buildQSVendedoresPage(page), ["vendedores", "data"])
     ];
 
     if (recarregarBases || !vendedoresBase.length || !tiposAtividadeBase.length) {

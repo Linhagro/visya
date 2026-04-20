@@ -131,9 +131,6 @@ body {
   width: 100%;
   height: 100%;
   min-height: 380px;
-  display: block;
-  border: none;
-  outline: none;
 }
 
 /* Barra de info */
@@ -190,8 +187,7 @@ body {
   border: 1px solid var(--v3d-border-soft);
 }
 
-/* Segunda seção ocupa o espaço e rola por dentro */
-
+/* Faz a segunda seção (itens) ocupar o espaço e rolar por dentro */
 .viewer3d-sidebar-section:last-child {
   flex: 1 1 auto;
   min-height: 0;
@@ -282,16 +278,13 @@ body {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  transition:
-    border-color var(--v3d-transition-fast),
-    box-shadow var(--v3d-transition-fast),
-    background var(--v3d-transition-fast);
+  transition: border-color var(--v3d-transition-fast),
+    box-shadow var(--v3d-transition-fast), background var(--v3d-transition-fast);
 }
 
 .v3d-volume-item:hover {
   border-color: #22c55e;
-  box-shadow:
-    0 0 0 1px rgba(34, 197, 94, 0.4);
+  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.4);
   background: #020617;
 }
 

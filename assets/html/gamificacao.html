@@ -5,27 +5,19 @@
   <title>VISYA - Gamificação</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-  <!-- Fonte -->
   <link
     rel="stylesheet"
     href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap"
   />
 
-  <!-- CSS específico -->
   <link rel="stylesheet" href="../css/gamificacao.css" />
-
-  <!-- Loader global -->
   <link rel="stylesheet" href="../css/loader.css" />
 
-  <!-- JS globais -->
   <script src="../js/global.js" defer></script>
-
-  <!-- JS específico -->
   <script src="../js/gamificacao.js" defer></script>
 </head>
 <body>
   <main class="gamif-page">
-    <!-- HEADER -->
     <header class="dash-header">
       <div class="dash-header-left">
         <span class="dash-kicker">Gestão de performance</span>
@@ -41,7 +33,6 @@
       </div>
     </header>
 
-    <!-- FILTROS -->
     <section class="gamif-filtros">
       <div class="filtro-campo filtro-campo-curto">
         <label for="fMes">Mês</label>
@@ -71,6 +62,11 @@
           step="1"
           placeholder="ex: 2026"
         />
+      </div>
+
+      <div class="filtro-campo-ano-todo">
+        <input type="checkbox" id="chkAnoTodo" />
+        <label for="chkAnoTodo">Ano todo</label>
       </div>
 
       <div class="filtro-campo filtro-campo-curto">
@@ -108,9 +104,7 @@
       </div>
     </section>
 
-    <!-- CONTEÚDO -->
     <section class="dash-content">
-      <!-- CARDS -->
       <div class="cards-summary">
         <div class="card-small">
           <div class="card-small-label">Pontuação média</div>
@@ -137,7 +131,6 @@
         </div>
       </div>
 
-      <!-- INFO PERÍODO / REGISTROS -->
       <div class="gamif-info-bar">
         <span id="infoRegistros">Mostrando 0 de 0 vendedores</span>
         <span id="infoPeriodo" class="gamif-info-periodo">
@@ -145,11 +138,15 @@
         </span>
       </div>
 
-      <!-- TABELA (sem limitador, só scroll da área) -->
+      <div class="gamif-table-tip">
+        Clique no botão de detalhes para ver a listagem completa dos motivos da perda de pontos.
+      </div>
+
       <div class="table-wrapper">
         <table class="gamif-table">
           <thead>
             <tr>
+              <th>Ação</th>
               <th>ID Vendedor</th>
               <th>Vendedor</th>
               <th>Dias sem rota</th>
@@ -164,7 +161,7 @@
           </thead>
           <tbody id="tbodyGamificacao">
             <tr>
-              <td colspan="10" class="empty-state">
+              <td colspan="11" class="empty-state">
                 Selecione mês/ano e clique em Atualizar.
               </td>
             </tr>
@@ -174,7 +171,38 @@
     </section>
   </main>
 
-  <!-- LOADER GLOBAL -->
+  <div class="gamif-modal-overlay" id="gamifModalOverlay" aria-hidden="true">
+    <div
+      class="gamif-modal"
+      id="gamifModal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="gamifModalTitle"
+    >
+      <div class="gamif-modal-header">
+        <div>
+          <div class="gamif-modal-title" id="gamifModalTitle">
+            Detalhes da perda de pontos
+          </div>
+          <div class="detail-subtitle" id="gamifModalSubtitle">
+            Período não definido
+          </div>
+        </div>
+        <button
+          type="button"
+          class="gamif-modal-close"
+          id="gamifModalClose"
+          aria-label="Fechar detalhes"
+        >
+          ×
+        </button>
+      </div>
+      <div class="gamif-modal-body" id="gamifModalBody">
+        <div class="detail-loading">Carregando detalhes...</div>
+      </div>
+    </div>
+  </div>
+
   <div class="loader-overlay" id="loaderOverlay" aria-hidden="true">
     <iframe
       src="loader.html"
@@ -185,7 +213,6 @@
     ></iframe>
   </div>
 
-  <!-- Tema sincronizado com sidebar/app principal -->
   <script>
     const THEME_KEY = 'visya-sidebar-theme';
 

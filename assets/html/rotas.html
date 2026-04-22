@@ -25,6 +25,47 @@
     href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css"
   />
 
+  <style>
+    /* ===== CHIPS DE VENDEDOR ===== */
+    #filtroVendedorChips {
+      display: none;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-bottom: 6px;
+    }
+
+    .chip-vendedor {
+      padding: 3px 9px;
+      border-radius: 999px;
+      border: 1px solid var(--border-light-dark);
+      background: var(--bg-section-dark);
+      color: var(--text-soft-dark);
+      font-size: 10px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 140ms ease-out, border-color 140ms ease-out, color 140ms ease-out;
+      font-family: "Montserrat", system-ui, sans-serif;
+      white-space: nowrap;
+    }
+
+    body.light-theme .chip-vendedor {
+      border-color: var(--border-light-light);
+      background: var(--bg-section-light);
+      color: var(--text-soft-light);
+    }
+
+    .chip-vendedor:hover {
+      border-color: #22c55e;
+      color: #22c55e;
+    }
+
+    .chip-vendedor-ativo {
+      background: #16a34a !important;
+      border-color: #16a34a !important;
+      color: #fff !important;
+    }
+  </style>
+
   <script src="../js/global.js" defer></script>
   <script src="../js/rotas.js" defer></script>
   <script src="../rotas/js/planejamento-rotas.js" defer></script>
@@ -48,7 +89,7 @@
         <div id="sidebar-wrapper">
           <div id="sidebar-logistica">
             <div class="sidebar-scroll">
-              <!-- ========= BLOCO CLIENTES (original) ========= -->
+              <!-- ========= BLOCO CLIENTES ========= -->
               <div class="sidebar-section">
                 <h2>Clientes</h2>
 
@@ -67,6 +108,9 @@
                     <option value="">Selecione um vendedor...</option>
                   </select>
                 </div>
+
+                <!-- CHIPS DE FILTRO POR VENDEDOR (apenas para pedidos pendentes) -->
+                <div id="filtroVendedorChips"></div>
 
                 <div class="field-group">
                   <label for="filtroNome">Buscar por código, nome ou endereço:</label>
@@ -126,7 +170,7 @@
                 <div class="clientes-lista" id="listaClientes"></div>
               </div>
 
-              <!-- ========= NOVO BLOCO: CARREGAMENTO MANUAL ========= -->
+              <!-- ========= BLOCO CARREGAMENTO MANUAL ========= -->
               <div class="sidebar-section">
                 <h2>Carregamento manual</h2>
 
@@ -169,7 +213,7 @@
                 </div>
               </div>
 
-              <!-- ========= BLOCO LINK MAPS (original) ========= -->
+              <!-- ========= BLOCO LINK MAPS ========= -->
               <div class="sidebar-section">
                 <h2>Link Google Maps</h2>
                 <button

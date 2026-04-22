@@ -167,7 +167,6 @@ window.addEventListener("DOMContentLoaded", () => {
   if (nomeEl) nomeEl.textContent = user.nome || "Usuário Admin";
   if (emailEl) emailEl.textContent = user.email || "";
 
-  // Filtros
   document
     .getElementById("fBuscaUsuario")
     ?.addEventListener("input", aplicarFiltroLocal);
@@ -178,7 +177,6 @@ window.addEventListener("DOMContentLoaded", () => {
     .getElementById("fStatus")
     ?.addEventListener("change", aplicarFiltroLocal);
 
-  // Botões
   document
     .getElementById("btnBuscarUsuarios")
     ?.addEventListener("click", carregarUsuarios);
@@ -189,7 +187,6 @@ window.addEventListener("DOMContentLoaded", () => {
     .getElementById("btnNovoUsuario")
     ?.addEventListener("click", () => abrirModalUsuario(null));
 
-  // Modal usuário
   document
     .getElementById("btnFecharModalUsuario")
     ?.addEventListener("click", fecharModalUsuario);
@@ -200,7 +197,6 @@ window.addEventListener("DOMContentLoaded", () => {
     .getElementById("btnSalvarUsuario")
     ?.addEventListener("click", salvarUsuario);
 
-  // Modal confirmação
   document
     .getElementById("btnFecharConfirmacao")
     ?.addEventListener("click", fecharModalConfirmacao);
@@ -218,7 +214,6 @@ window.addEventListener("DOMContentLoaded", () => {
       fecharModalConfirmacao();
     });
 
-  // Fechar modais clicando no backdrop
   document
     .getElementById("modalUsuario")
     ?.addEventListener("click", (e) => {
@@ -306,10 +301,14 @@ function aplicarFiltroLocal() {
       const nome = String(u.Nome || "").toLowerCase();
       const email = String(u.Email || "").toLowerCase();
       const empresas = String(u.Empresas || "").toLowerCase();
+      const vendedorCrm = String(u.IdVendedorCrm || "").toLowerCase();
+      const vendedorErp = String(u.IdVendedorErp || "").toLowerCase();
       return (
         nome.includes(busca) ||
         email.includes(busca) ||
-        empresas.includes(busca)
+        empresas.includes(busca) ||
+        vendedorCrm.includes(busca) ||
+        vendedorErp.includes(busca)
       );
     });
   }
@@ -359,7 +358,6 @@ function aplicarFiltroLocal() {
     const empresasStr = u.Empresas || "";
     const perfisStr = u.Perfis || "";
 
-    const status = ativo ? "ativo" : "inativo";
     if (ativo) ativos++;
     else inativos++;
 
@@ -491,6 +489,8 @@ function abrirModalUsuario(u) {
   const senhaInput = document.getElementById("usuarioSenha");
   const perfisSelect = document.getElementById("usuarioPerfisSelect");
   const empresasSelect = document.getElementById("usuarioEmpresasSelect");
+  const vendedorCrmInput = document.getElementById("usuarioVendedorCrm");
+  const vendedorErpInput = document.getElementById("usuarioVendedorErp");
   const erroEl = document.getElementById("usuarioErro");
   const grupoSenha = document.getElementById("grupoSenha");
 
@@ -514,6 +514,20 @@ function abrirModalUsuario(u) {
     setSelectMultipleValues(perfisSelect, arrPerfis);
     setSelectMultipleValues(empresasSelect, arrEmpresas);
 
+    if (vendedorCrmInput) {
+      vendedorCrmInput.value =
+        u.IdVendedorCrm !== null && u.IdVendedorCrm !== undefined
+          ? u.IdVendedorCrm
+          : "";
+    }
+
+    if (vendedorErpInput) {
+      vendedorErpInput.value =
+        u.IdVendedorErp !== null && u.IdVendedorErp !== undefined
+          ? u.IdVendedorErp
+          : "";
+    }
+
     const ativo = Number(u.Ativo ?? 1) === 1;
     const radio = document.querySelector(
       `input[name="usuarioStatus"][value="${ativo ? "ativo" : "inativo"}"]`
@@ -529,8 +543,11 @@ function abrirModalUsuario(u) {
     nomeInput.value = "";
     emailInput.value = "";
 
-    setSelectMultipleValues(perfisSelect, ["USER"]);
+    setSelectMultipleValues(perfisSelect, []);
     setSelectMultipleValues(empresasSelect, []);
+
+    if (vendedorCrmInput) vendedorCrmInput.value = "";
+    if (vendedorErpInput) vendedorErpInput.value = "";
 
     if (senhaInput) senhaInput.value = "";
     const radioAtivo = document.querySelector(
@@ -567,6 +584,8 @@ async function salvarUsuario() {
   const senha = document.getElementById("usuarioSenha")?.value;
   const perfisSelect = document.getElementById("usuarioPerfisSelect");
   const empresasSelect = document.getElementById("usuarioEmpresasSelect");
+  const vendedorCrmRaw = document.getElementById("usuarioVendedorCrm")?.value.trim();
+  const vendedorErpRaw = document.getElementById("usuarioVendedorErp")?.value.trim();
   const erroEl = document.getElementById("usuarioErro");
   const status = document.querySelector(
     'input[name="usuarioStatus"]:checked'
@@ -589,12 +608,24 @@ async function salvarUsuario() {
   const empresasCodigos = getSelectMultipleValues(empresasSelect);
   const ativo = status === "ativo";
 
+  const idVendedorCrm =
+    vendedorCrmRaw === "" ? null : Number(vendedorCrmRaw);
+  const idVendedorErp =
+    vendedorErpRaw === "" ? null : vendedorErpRaw;
+
+  if (vendedorCrmRaw !== "" && Number.isNaN(idVendedorCrm)) {
+    if (erroEl) erroEl.textContent = "O campo vendedor CRM deve ser numérico.";
+    return;
+  }
+
   const payload = {
     nome,
     email,
     ativo,
     empresasCodigos,
     perfisCodigos,
+    idVendedorCrm,
+    idVendedorErp,
   };
   if (criando) payload.senha = senha;
 
@@ -663,7 +694,7 @@ async function resetarSenhaUsuario(usuario) {
 
   setLoadingUsuarios(true);
   try {
-    await apiPutUsuarios(path, { novaSenha }); // <--- troca aqui
+    await apiPutUsuarios(path, { novaSenha });
     alert("Senha alterada com sucesso.");
   } catch (e) {
     console.error("Erro ao alterar senha:", e);

@@ -164,22 +164,22 @@
           />
         </div>
 
-<div class="filtro-campo">
-  <label for="usuarioPerfisSelect">Perfis</label>
-  <select id="usuarioPerfisSelect" multiple>
-    <!-- value = CodigoPerfil, texto = NomePerfil -->
-    <option value="ADMIN">Administrador</option>
-    <option value="GESTOR_LITHO">Gestor Lithoplant</option>
-    <option value="GESTOR_LINHA">Gestor Linhagro</option>
-    <option value="VENDEDOR_CAMPO_LITHO">Vendedor de Campo Lithoplant</option>
-    <option value="VENDEDOR_CAMPO_LINHA">Vendedor de Campo Linhagro</option>
-    <option value="VENDEDOR_BALCAO_LITHO">Vendedor de Balcão Lithoplant</option>
-    <option value="VENDEDOR_BALCAO_LINHA">Vendedor de Balcão Linhagro</option>
-  </select>
-  <small class="hint-multiple">
-    Segure Ctrl (ou Cmd) para selecionar vários.
-  </small>
-</div>
+        <div class="filtro-campo">
+          <label for="usuarioPerfisSelect">Perfis</label>
+          <select id="usuarioPerfisSelect" multiple>
+            <!-- value = CodigoPerfil, texto = NomePerfil -->
+            <option value="ADMIN">Administrador</option>
+            <option value="GESTOR_LITHO">Gestor Lithoplant</option>
+            <option value="GESTOR_LINHA">Gestor Linhagro</option>
+            <option value="VENDEDOR_CAMPO_LITHO">Vendedor de Campo Lithoplant</option>
+            <option value="VENDEDOR_CAMPO_LINHA">Vendedor de Campo Linhagro</option>
+            <option value="VENDEDOR_BALCAO_LITHO">Vendedor de Balcão Lithoplant</option>
+            <option value="VENDEDOR_BALCAO_LINHA">Vendedor de Balcão Linhagro</option>
+          </select>
+          <small class="hint-multiple">
+            Segure Ctrl (ou Cmd) para selecionar vários.
+          </small>
+        </div>
 
         <div class="filtro-campo">
           <label for="usuarioEmpresasSelect">Empresas</label>
@@ -191,6 +191,24 @@
           <small class="hint-multiple">
             Segure Ctrl (ou Cmd) para selecionar várias.
           </small>
+        </div>
+
+        <div class="filtro-campo">
+          <label for="usuarioVendedorCrm">Vendedor (CRM / dimVendedor.id)</label>
+          <input
+            id="usuarioVendedorCrm"
+            type="number"
+            placeholder="Id do vendedor (dimVendedor.id)"
+          />
+        </div>
+
+        <div class="filtro-campo">
+          <label for="usuarioVendedorErp">Código Integração (ERP)</label>
+          <input
+            id="usuarioVendedorErp"
+            type="text"
+            placeholder="codigoIntegracao do vendedor"
+          />
         </div>
 
         <div class="filtro-campo">

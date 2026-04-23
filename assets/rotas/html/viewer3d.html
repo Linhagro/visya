@@ -1,87 +1,124 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-<head>
-  <meta charset="UTF-8" />
-  <title>VISYA - Viewer 3D de Carga</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" type="image/x-icon" href="../logo/favicon.ico" />
-
-  <link
-    rel="stylesheet"
-    href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap"
-  />
-
-  <link rel="stylesheet" href="../css/viewer3d.css" />
-</head>
-<body>
-  <main class="viewer3d-page">
-    <header class="viewer3d-header">
-      <div class="viewer3d-header-left">
-        <h1 class="viewer3d-title">Montagem de carga 3D</h1>
-        <p class="viewer3d-subtitle">
-          Visualização do baú e dos itens por pedido/produto para apoiar o carregamento físico.
-        </p>
-      </div>
-
-      <div class="viewer3d-header-right">
-        <button id="btnResetCamera" class="v3d-btn v3d-btn-outline">
-          Reset câmera
-        </button>
-        <button id="btnImprimirLayout" class="v3d-btn v3d-btn-primary">
-          Imprimir layout
-        </button>
-      </div>
-    </header>
-
-    <section class="viewer3d-main">
-      <section class="viewer3d-layout">
-        <!-- Área 3D -->
-        <div class="viewer3d-canvas-wrapper">
-          <div id="viewer3dCanvas"></div>
-
-          <div id="viewer3dInfo" class="viewer3d-info-bar">
-            <span id="infoCaminhao"></span>
-            <span id="infoResumoCarga"></span>
-          </div>
+  <head>
+    <meta charset="UTF-8" />
+    <title>VISYA – Simulador de Carregamento 3D</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="../css/viewer3d.css" />
+  </head>
+  <body class="viewer3d-shell">
+    <div class="viewer3d-app">
+      <header class="viewer3d-topbar">
+        <div class="viewer3d-brand">VISYA / LOGÍSTICA</div>
+        <div class="viewer3d-top-title">SIMULADOR DE CARREGAMENTO 3D</div>
+        <div class="viewer3d-top-metrics">
+          <div class="viewer3d-pill"><span id="topPedidos">0</span> pedidos</div>
+          <div class="viewer3d-pill"><span id="topVolumes">0</span> volumes</div>
+          <div class="viewer3d-pill"><span id="topPeso">0 kg</span></div>
+          <div class="viewer3d-pill viewer3d-pill-success"><span id="topOcupacaoPct">0%</span></div>
+          <div class="viewer3d-pill viewer3d-pill-warn" id="topRegras">Regras OK</div>
         </div>
+      </header>
 
-        <!-- Sidebar -->
-        <aside class="viewer3d-sidebar">
-          <div class="viewer3d-sidebar-inner">
-            <div class="viewer3d-sidebar-section">
-              <h2>Caminhão / filtros</h2>
+      <main class="viewer3d-stage">
+        <aside class="viewer3d-leftpanel">
+          <div class="viewer3d-panel-title">REGRAS DE CARREGAMENTO</div>
 
-              <div class="v3d-field-group">
-                <label for="selectCaminhao">Selecionar caminhão:</label>
-                <select id="selectCaminhao"></select>
-              </div>
+          <div class="viewer3d-rule-card"><div class="viewer3d-rule-icon">⚖</div><div><div class="viewer3d-rule-title">Mais pesado sempre atrás</div><div class="viewer3d-rule-text">Itens com maior peso por unidade são posicionados primeiro na parte traseira do baú.</div></div></div>
+          <div class="viewer3d-rule-card"><div class="viewer3d-rule-icon">🧱</div><div><div class="viewer3d-rule-title">Mais denso embaixo</div><div class="viewer3d-rule-text">Produtos mais pesados e densos ocupam camadas inferiores, preservando os leves acima.</div></div></div>
+          <div class="viewer3d-rule-card"><div class="viewer3d-rule-icon">📦</div><div><div class="viewer3d-rule-title">Empilhamento por compatibilidade</div><div class="viewer3d-rule-text">Volumes compatíveis são agrupados para reduzir espaço morto e facilitar a operação.</div></div></div>
+          <div class="viewer3d-rule-card"><div class="viewer3d-rule-icon">△</div><div><div class="viewer3d-rule-title">Sem desperdício de espaço</div><div class="viewer3d-rule-text">O algoritmo tenta preencher lacunas antes de abrir uma nova fileira ou camada.</div></div></div>
+          <div class="viewer3d-rule-card"><div class="viewer3d-rule-icon">↔</div><div><div class="viewer3d-rule-title">Equilíbrio lateral</div><div class="viewer3d-rule-text">A carga é distribuída entre esquerda e direita para manter melhor estabilidade no transporte.</div></div></div>
+          <div class="viewer3d-rule-card"><div class="viewer3d-rule-icon">⬆</div><div><div class="viewer3d-rule-title">Leves no topo e na frente</div><div class="viewer3d-rule-text">Itens de menor peso e densidade tendem a ficar nas regiões superiores e na frente do baú.</div></div></div>
 
-              <div class="v3d-field-group">
-                <label for="filtroPedido">Filtrar por pedido:</label>
-                <input
-                  type="text"
-                  id="filtroPedido"
-                  placeholder="Ex: 12345"
-                  autocomplete="off"
-                />
+          <div class="viewer3d-direction-card">
+            <span>← TRASEIRA</span>
+            <span>FRENTE →</span>
+            <p>Sentido operacional: os itens mais pesados entram primeiro e ficam junto ao eixo traseiro.</p>
+          </div>
+        </aside>
+
+        <section class="viewer3d-centerpanel">
+          <div class="viewer3d-toolbar-left">
+            <button class="viewer3d-toolbtn" type="button" id="btnCamReset">↺ Câmera</button>
+            <button class="viewer3d-toolbtn" type="button" id="btnCamFront">◼ Frente</button>
+            <button class="viewer3d-toolbtn" type="button" id="btnCamTop">▽ Topo</button>
+            <button class="viewer3d-toolbtn" type="button" id="btnCamSide">◁ Lateral</button>
+          </div>
+
+          <div class="viewer3d-canvas-stage">
+            <div id="viewer3dCanvas"></div>
+
+            <div id="viewer3dHoverCard" class="viewer3d-hovercard is-hidden">
+              <div class="viewer3d-hover-title" id="hoverTitulo">Produto</div>
+              <div class="viewer3d-hover-row"><span>Pedido</span><strong id="hoverPedido">—</strong></div>
+              <div class="viewer3d-hover-row"><span>Peso</span><strong id="hoverPeso">—</strong></div>
+              <div class="viewer3d-hover-row"><span>Medidas</span><strong id="hoverMedidas">—</strong></div>
+              <div class="viewer3d-hover-row"><span>Faixa</span><strong id="hoverFaixa">—</strong></div>
+            </div>
+          </div>
+        </section>
+
+        <aside class="viewer3d-rightpanel">
+          <div class="viewer3d-products-box">
+            <div class="viewer3d-products-head">
+              <span>PRODUTOS NA CARGA</span>
+              <strong id="topProdutosQtd">0 PRODUTOS</strong>
+            </div>
+
+            <div class="viewer3d-right-inline-actions">
+              <button class="viewer3d-toolbtn" type="button" id="btnWireframe">◫ Wireframe</button>
+              <button class="viewer3d-toolbtn" type="button" id="btnExplodir">⊕ Explodir</button>
+              <button class="viewer3d-toolbtn" type="button" id="btnCorte">✂ Corte</button>
+            </div>
+
+            <div id="listaVolumes" class="viewer3d-products-list"></div>
+
+            <div class="viewer3d-zone-box">
+              <div class="viewer3d-zone-title">DISTRIBUIÇÃO DE PESO POR ZONA</div>
+              <div class="viewer3d-zone-bars">
+                <div class="viewer3d-zone-bar z1"><span id="zonaPeso0">0</span><small>Traseira</small></div>
+                <div class="viewer3d-zone-bar z2"><span id="zonaPeso1">0</span><small>M-Tras.</small></div>
+                <div class="viewer3d-zone-bar z3"><span id="zonaPeso2">0</span><small>Centro</small></div>
+                <div class="viewer3d-zone-bar z4"><span id="zonaPeso3">0</span><small>M-Fren.</small></div>
+                <div class="viewer3d-zone-bar z5"><span id="zonaPeso4">0</span><small>Frente</small></div>
               </div>
             </div>
 
-            <div class="viewer3d-sidebar-section">
-              <h2>Itens carregados</h2>
-              <div id="listaVolumes" class="v3d-volumes-list"></div>
+            <div class="viewer3d-occup-box">
+              <div class="viewer3d-zone-title">OCUPAÇÃO DO BAÚ</div>
+              <div class="viewer3d-occup-line">
+                <strong id="ocupadoM3">0 m³</strong>
+                <span>/</span>
+                <strong id="totalM3">0 m³</strong>
+              </div>
+              <div class="viewer3d-occup-progress"><div id="ocupacaoBar"></div></div>
+              <div class="viewer3d-occup-pct" id="ocupacaoPctTexto">0%</div>
+            </div>
+
+            <div class="viewer3d-bottom-controls">
+              <div class="viewer3d-play-row">
+                <button class="viewer3d-playerbtn viewer3d-playerbtn-accent" type="button" id="btnAnimar">▶ ANIMAR</button>
+                <button class="viewer3d-playerbtn" type="button" id="btnPause">❚❚</button>
+                <button class="viewer3d-playerbtn" type="button" id="btnResetAnim">⏮</button>
+                <button class="viewer3d-playerbtn" type="button" id="btnFim">⏭</button>
+              </div>
+
+              <div class="viewer3d-speed-row">
+                <span>Vel.</span>
+                <input type="range" min="1" max="12" value="5" id="speedRange" />
+                <strong id="v3d-spd-lbl">5x</strong>
+              </div>
             </div>
           </div>
         </aside>
-      </section>
-    </section>
-  </main>
+      </main>
+    </div>
 
-  <div id="viewer3dToast" class="viewer3d-toast" style="display:none;">
-    Dados de carga 3D não encontrados. Abra a partir da tela de rotas.
-  </div>
-
-  <!-- ES module moderno (three + OrbitControls são importados dentro de viewer3d.js) -->
-  <script type="module" src="../js/viewer3d.js"></script>
-</body>
+    <div id="viewer3dToast" class="viewer3d-toast" style="display:none"></div>
+    <script type="module" src="../js/viewer3d.js"></script>
+  </body>
 </html>

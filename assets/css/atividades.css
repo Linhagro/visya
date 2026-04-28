@@ -117,7 +117,8 @@ body.light-theme .ativ-user-email {
 
 .ativ-filtros {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr)) auto auto;
+  grid-template-columns: repeat(6, minmax(0, 1fr)) auto auto;
+
   gap: 8px;
   align-items: end;
   padding: 6px 0;
@@ -647,6 +648,10 @@ body.light-theme .leaflet-popup-tip {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.conversao-resumo-cards-8 {
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+}
+
 .conv-card {
   padding: 6px 8px;
   border-radius: var(--radius-sm);
@@ -805,6 +810,28 @@ body.light-theme .rank-pos {
   min-width: 0;
 }
 
+.rank-nome-bloco {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.rank-detalhe {
+  font-size: 8px;
+  color: var(--text-muted-dark);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: 0.02em;
+}
+
+body.light-theme .rank-detalhe {
+  color: var(--text-muted-light);
+}
+
 .rank-bar-wrap {
   width: 100%;
   height: 6px;
@@ -830,6 +857,20 @@ body.light-theme .rank-bar-wrap {
   font-variant-numeric: tabular-nums;
   text-align: right;
   white-space: nowrap;
+}
+
+.rank-total-linha {
+  font-size: 10px;
+  color: var(--text-soft-dark);
+  padding: 2px 0 6px 0;
+  border-bottom: 1px solid #1a1a1a;
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+
+body.light-theme .rank-total-linha {
+  color: var(--text-soft-light);
+  border-bottom-color: #e5e7eb;
 }
 
 .loader-overlay {
@@ -929,6 +970,10 @@ body.light-theme .loader-overlay {
     font-size: 9px;
   }
 
+  .rank-detalhe {
+    font-size: 7px;
+  }
+
   .rank-taxa {
     font-size: 9px;
   }
@@ -1008,9 +1053,17 @@ body.light-theme .loader-overlay {
     font-size: 8.5px;
   }
 
+  .rank-detalhe {
+    font-size: 7px;
+  }
+
   .rank-taxa,
   .rank-pos {
     font-size: 8px;
+  }
+
+  .conversao-resumo-cards-8 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .conversao-grid {
@@ -1040,6 +1093,10 @@ body.light-theme .loader-overlay {
   .conversao-resumo-cards,
   .conversao-resumo-cards-4 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .conversao-resumo-cards-8 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .conversao-grid,
@@ -1074,6 +1131,10 @@ body.light-theme .loader-overlay {
   .conversao-resumo-cards,
   .conversao-resumo-cards-4 {
     grid-template-columns: 1fr;
+  }
+
+  .conversao-resumo-cards-8 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .mapa-acoes-topo {

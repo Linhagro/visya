@@ -67,7 +67,14 @@
           <option value="4">4 – Cancelado</option>
         </select>
       </div>
-
+<div class="filtro-campo">
+  <label for="fEmpresa">Empresa</label>
+  <select id="fEmpresa">
+    <option value="linhagro" selected>Linhagro</option>
+    <option value="lithoplant">Lithoplant</option>
+    <option value="todas">Todas</option>
+  </select>
+</div>
       <button type="button" class="btn-filtro" id="btnBuscar"><span>↻</span> Atualizar</button>
       <button type="button" class="btn-filtro" id="btnLimpar"><span>✕</span> Limpar</button>
     </section>
@@ -186,7 +193,12 @@
     </div>
 
     <div id="tab-conversao" class="tab-panel">
-      <div class="conversao-resumo-cards conversao-resumo-cards-4">
+      <div class="conversao-resumo-cards conversao-resumo-cards-8">
+        <div class="conv-card">
+          <span class="conv-card-label">Clientes visitados</span>
+          <span class="conv-card-valor blue" id="convVisitados">—</span>
+        </div>
+
         <div class="conv-card">
           <span class="conv-card-label">Clientes convertidos</span>
           <span class="conv-card-valor green" id="convClientesConv">—</span>
@@ -198,13 +210,28 @@
         </div>
 
         <div class="conv-card">
+          <span class="conv-card-label">Pedidos convertidos</span>
+          <span class="conv-card-valor blue" id="convPedidos">—</span>
+        </div>
+
+        <div class="conv-card">
           <span class="conv-card-label">Valor convertido</span>
           <span class="conv-card-valor green" id="convValorConv">—</span>
         </div>
 
         <div class="conv-card">
+          <span class="conv-card-label">Ticket médio convertido</span>
+          <span class="conv-card-valor yellow" id="convTicket">—</span>
+        </div>
+
+        <div class="conv-card">
+          <span class="conv-card-label">Dias médios até venda</span>
+          <span class="conv-card-valor blue" id="convDiasMedio">—</span>
+        </div>
+
+        <div class="conv-card">
           <span class="conv-card-label">Total de vendas no período</span>
-          <span class="conv-card-valor blue" id="convTotalVendas">—</span>
+          <span class="conv-card-valor green" id="convTotalVendas">—</span>
         </div>
       </div>
 

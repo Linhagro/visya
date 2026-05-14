@@ -587,9 +587,9 @@ body.light-theme .table-header-info {
   border-collapse: collapse;
   font-size: 11px;
   color: var(--text-main-dark);
-  width: 5210px; /* soma fixa das colunas */
-  min-width: 5210px;
-  max-width: 5210px;
+  width: 5320px; /* soma fixa das colunas */
+  min-width: 5320px;
+  max-width: 5320px;
 }
 
 body.light-theme .carteira-table {
@@ -762,7 +762,32 @@ body.light-theme .carteira-table tbody tr.row-selected {
   background: rgba(34, 197, 94, 0.15);
 }
 
-.culturas-modal {
+.btn-propriedades {
+  border-radius: 999px;
+  border: 1px solid rgba(96, 165, 250, 0.8);
+  background: transparent;
+  color: #bfdbfe;
+  font-size: 11px;
+  padding: 2px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn-propriedades:hover {
+  background: rgba(96, 165, 250, 0.15);
+}
+
+body.light-theme .btn-propriedades {
+  border-color: rgba(37, 99, 235, 0.8);
+  color: #1d4ed8;
+}
+
+body.light-theme .btn-propriedades:hover {
+  background: #dbeafe;
+}
+
+.culturas-modal,
+.propriedades-modal {
   position: fixed;
   inset: 0;
   display: none;
@@ -771,18 +796,21 @@ body.light-theme .carteira-table tbody tr.row-selected {
   z-index: 110;
 }
 
-.culturas-modal.is-open {
+.culturas-modal.is-open,
+.propriedades-modal.is-open {
   display: flex;
 }
 
-.culturas-modal-backdrop {
+.culturas-modal-backdrop,
+.propriedades-modal-backdrop {
   position: absolute;
   inset: 0;
   background: rgba(15, 23, 42, 0.8);
   backdrop-filter: blur(3px);
 }
 
-.culturas-modal-content {
+.culturas-modal-content,
+.propriedades-modal-content {
   position: relative;
   max-width: 900px;
   width: 90%;
@@ -798,30 +826,43 @@ body.light-theme .carteira-table tbody tr.row-selected {
   color: #e5e7eb;
 }
 
-body.light-theme .culturas-modal-content {
+.propriedades-modal-content {
+  border-color: rgba(96, 165, 250, 0.6);
+}
+
+body.light-theme .culturas-modal-content,
+body.light-theme .propriedades-modal-content {
   background: #ffffff;
   border-color: rgba(34, 197, 94, 0.6);
   color: var(--text-main-light);
 }
 
-.culturas-modal-title {
+body.light-theme .propriedades-modal-content {
+  border-color: rgba(37, 99, 235, 0.6);
+}
+
+.culturas-modal-title,
+.propriedades-modal-title {
   margin: 0 0 0.6rem;
   font-size: 1rem;
   font-weight: 600;
   letter-spacing: 0.04em;
 }
 
-.culturas-modal-sub {
+.culturas-modal-sub,
+.propriedades-modal-sub {
   margin: 0 0 0.8rem;
   font-size: 0.75rem;
   color: #9ca3af;
 }
 
-body.light-theme .culturas-modal-sub {
+body.light-theme .culturas-modal-sub,
+body.light-theme .propriedades-modal-sub {
   color: var(--text-muted-light);
 }
 
-.culturas-modal-close {
+.culturas-modal-close,
+.propriedades-modal-close {
   position: absolute;
   top: 0.5rem;
   right: 0.6rem;
@@ -835,20 +876,24 @@ body.light-theme .culturas-modal-sub {
   cursor: pointer;
 }
 
-body.light-theme .culturas-modal-close {
+body.light-theme .culturas-modal-close,
+body.light-theme .propriedades-modal-close {
   background: #ffffff;
   color: var(--text-main-light);
 }
 
-.culturas-modal-close:hover {
+.culturas-modal-close:hover,
+.propriedades-modal-close:hover {
   background: #020617;
 }
 
-body.light-theme .culturas-modal-close:hover {
+body.light-theme .culturas-modal-close:hover,
+body.light-theme .propriedades-modal-close:hover {
   background: #e5e7eb;
 }
 
-.culturas-modal-body {
+.culturas-modal-body,
+.propriedades-modal-body {
   display: flex;
   flex-wrap: wrap;
   gap: 0.6rem;
@@ -867,6 +912,20 @@ body.light-theme .cultura-card {
   background: #ecfdf5;
 }
 
+.propriedade-card {
+  border-radius: 10px;
+  border: 1px solid rgba(96, 165, 250, 0.5);
+  padding: 0.6rem 0.8rem;
+  background: rgba(30, 58, 138, 0.18);
+  min-width: 280px;
+  max-width: 360px;
+  flex: 1 1 280px;
+}
+
+body.light-theme .propriedade-card {
+  background: #eff6ff;
+}
+
 .cultura-titulo {
   font-weight: 600;
   font-size: 0.8rem;
@@ -878,15 +937,45 @@ body.light-theme .cultura-titulo {
   color: #166534;
 }
 
-.cultura-lista {
+.propriedade-titulo {
+  font-weight: 600;
+  font-size: 0.8rem;
+  margin-bottom: 0.25rem;
+  color: #bfdbfe;
+}
+
+body.light-theme .propriedade-titulo {
+  color: #1d4ed8;
+}
+
+.cultura-lista,
+.propriedade-lista {
   margin: 0;
   padding-left: 1rem;
   font-size: 0.74rem;
   color: #e5e7eb;
 }
 
-body.light-theme .cultura-lista {
+body.light-theme .cultura-lista,
+body.light-theme .propriedade-lista {
   color: var(--text-main-light);
+}
+
+.propriedade-culturas {
+  margin-top: 0.4rem;
+  font-size: 0.7rem;
+  color: #d1d5db;
+  border-top: 1px dashed rgba(148, 163, 184, 0.4);
+  padding-top: 0.35rem;
+}
+
+body.light-theme .propriedade-culturas {
+  color: #374151;
+}
+
+.propriedade-culturas-titulo {
+  font-weight: 600;
+  margin-bottom: 0.2rem;
 }
 
 .loader-overlay {
@@ -924,6 +1013,7 @@ body.light-theme .loader-overlay {
 .w-nome-vendedor { width: 190px; min-width: 190px; max-width: 190px; }
 .w-cod-cliente { width: 95px; min-width: 95px; max-width: 95px; }
 .w-nome-cliente { width: 220px; min-width: 220px; max-width: 220px; }
+.w-propriedades { width: 110px; min-width: 110px; max-width: 110px; }
 
 .w-end-comp { width: 160px; min-width: 160px; max-width: 160px; }
 .w-end-num { width: 80px; min-width: 80px; max-width: 80px; }

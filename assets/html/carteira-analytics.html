@@ -188,6 +188,7 @@
             <col class="w-nome-vendedor" />
             <col class="w-cod-cliente" />
             <col class="w-nome-cliente" />
+            <col class="w-propriedades" />
             <col class="w-end-comp" />
             <col class="w-end-num" />
             <col class="w-end-logradouro" />
@@ -231,6 +232,7 @@
 
               <th data-col="CODPARC" class="group-cliente"><span>Cód. Cliente</span></th>
               <th data-col="NOME_CLIENTE" class="group-cliente"><span>Nome do Cliente</span></th>
+              <th data-col="Propriedades" class="group-cliente"><span>Propriedades</span></th>
 
               <th data-col="ParceiroEnderecoCompl" class="group-endereco"><span>Complemento</span></th>
               <th data-col="ParceiroEnderecoNumero" class="group-endereco"><span>Número</span></th>
@@ -303,6 +305,23 @@
       <h2 class="culturas-modal-title">Culturas do cliente</h2>
       <p class="culturas-modal-sub" id="culturasModalSub"></p>
       <div id="culturasModalBody" class="culturas-modal-body"></div>
+    </div>
+  </div>
+
+  <div id="propriedadesModal" class="propriedades-modal" aria-hidden="true">
+    <div class="propriedades-modal-backdrop"></div>
+    <div class="propriedades-modal-content">
+      <button
+        type="button"
+        class="propriedades-modal-close"
+        id="btnClosePropriedadesModal"
+        aria-label="Fechar"
+      >
+        ✕
+      </button>
+      <h2 class="propriedades-modal-title">Propriedades do cliente</h2>
+      <p class="propriedades-modal-sub" id="propriedadesModalSub"></p>
+      <div id="propriedadesModalBody" class="propriedades-modal-body"></div>
     </div>
   </div>
 

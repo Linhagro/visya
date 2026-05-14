@@ -577,7 +577,7 @@ async function carregarCarteira() {
     const total = pagination?.totalCount ?? dadosBrutos.length;
     info.textContent = `${total.toLocaleString(
       "pt-BR"
-    )} registros (página ${pagination?.page || 1})`;
+    )} clientes (página ${pagination?.page || 1})`;
   }
 
   selectedRowIndex = null;
@@ -718,6 +718,26 @@ function renderizarMaisLinhas(qtd) {
     add("CODPARC");
     add("NOME_CLIENTE");
 
+    const tdProp = document.createElement("td");
+    tdProp.className = "td-propriedades";
+    const propsArr = Array.isArray(c.propriedades) ? c.propriedades : [];
+    const qtdeProp = propsArr.length || (c.QtdePropriedades || 0);
+    if (qtdeProp > 1) {
+      const btnProp = document.createElement("button");
+      btnProp.type = "button";
+      btnProp.className = "btn-propriedades";
+      btnProp.textContent = `Ver (${qtdeProp})`;
+      btnProp.title = "Ver propriedades";
+      btnProp.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        abrirModalPropriedades(c);
+      });
+      tdProp.appendChild(btnProp);
+    } else {
+      tdProp.textContent = qtdeProp === 1 ? "1" : "-";
+    }
+    tr.appendChild(tdProp);
+
     add("ParceiroEnderecoCompl");
     add("ParceiroEnderecoNumero");
     add("ParceiroLogradouro");
@@ -835,6 +855,9 @@ function abrirModalCulturas(rowData) {
         linhas.push("Área: " + areaStr + " ha");
       }
 
+      if (cultura.CODPARC != null) {
+        linhas.push("CODPARC: " + cultura.CODPARC);
+      }
       if (cultura.COD_CULTURA != null) {
         linhas.push("Cód. cultura: " + cultura.COD_CULTURA);
       }
@@ -868,6 +891,144 @@ function abrirModalCulturas(rowData) {
 
 function fecharModalCulturas() {
   const modal = document.getElementById("culturasModal");
+  if (!modal) return;
+  modal.classList.remove("is-open");
+  modal.setAttribute("aria-hidden", "true");
+}
+
+// ================== MODAL PROPRIEDADES ==================
+
+function abrirModalPropriedades(rowData) {
+  const modal = document.getElementById("propriedadesModal");
+  const body = document.getElementById("propriedadesModalBody");
+  const sub = document.getElementById("propriedadesModalSub");
+  if (!modal || !body) return;
+
+  body.innerHTML = "";
+  const arr = Array.isArray(rowData.propriedades) ? rowData.propriedades : [];
+
+  const nomeCliente = rowData.NOME_CLIENTE || rowData.ParceiroNome || "";
+  if (sub) {
+    sub.textContent = nomeCliente
+      ? `${nomeCliente} • ${arr.length} propriedade(s)`
+      : `${arr.length} propriedade(s)`;
+  }
+
+  if (!arr.length) {
+    const p = document.createElement("p");
+    p.textContent = "Nenhuma propriedade adicional para este cliente.";
+    p.style.fontSize = "0.8rem";
+    body.appendChild(p);
+    modal.classList.add("is-open");
+    modal.setAttribute("aria-hidden", "false");
+    return;
+  }
+
+  const culturasPorCodparc = {};
+  if (Array.isArray(rowData.culturas)) {
+    rowData.culturas.forEach((c) => {
+      const k = c.CODPARC;
+      if (k == null) return;
+      if (!culturasPorCodparc[k]) culturasPorCodparc[k] = [];
+      culturasPorCodparc[k].push(c);
+    });
+  }
+
+  arr.forEach((prop, idx) => {
+    const card = document.createElement("div");
+    card.className = "propriedade-card";
+
+    const titulo = document.createElement("div");
+    titulo.className = "propriedade-titulo";
+    const ehPrincipal =
+      prop.CODPARC != null && prop.CODPARC === rowData.CODPARC;
+    titulo.textContent =
+      idx + 1 +
+      " - CODPARC " + (prop.CODPARC ?? "-") +
+      (ehPrincipal ? " (principal)" : "");
+
+    const linhas = [];
+
+    const enderecoPartes = [];
+    if (prop.ParceiroLogradouro) enderecoPartes.push(prop.ParceiroLogradouro);
+    if (prop.ParceiroEnderecoNumero)
+      enderecoPartes.push("Nº " + prop.ParceiroEnderecoNumero);
+    if (prop.ParceiroEnderecoCompl)
+      enderecoPartes.push(prop.ParceiroEnderecoCompl);
+    if (enderecoPartes.length)
+      linhas.push("Endereço: " + enderecoPartes.join(", "));
+
+    if (prop.ParceiroBairro) linhas.push("Bairro: " + prop.ParceiroBairro);
+    if (prop.ParceiroCidade || prop.ParceiroUFSigla) {
+      linhas.push(
+        "Cidade/UF: " +
+          (prop.ParceiroCidade || "-") +
+          "/" +
+          (prop.ParceiroUFSigla || "-")
+      );
+    }
+    if (prop.ParceiroCEP) linhas.push("CEP: " + prop.ParceiroCEP);
+    if (prop.ParceiroTelefone) linhas.push("Tel: " + prop.ParceiroTelefone);
+    if (prop.ParceiroEmail) linhas.push("E-mail: " + prop.ParceiroEmail);
+    if (prop.ParceiroLatitude && prop.ParceiroLongitude) {
+      linhas.push(
+        "Coord.: " + prop.ParceiroLatitude + ", " + prop.ParceiroLongitude
+      );
+    }
+
+    const ul = document.createElement("ul");
+    ul.className = "propriedade-lista";
+    linhas.forEach((txt) => {
+      const li = document.createElement("li");
+      li.textContent = txt;
+      ul.appendChild(li);
+    });
+
+    card.appendChild(titulo);
+    card.appendChild(ul);
+
+    const culturasDessaProp = culturasPorCodparc[prop.CODPARC] || [];
+    if (culturasDessaProp.length) {
+      const wrap = document.createElement("div");
+      wrap.className = "propriedade-culturas";
+
+      const tituloC = document.createElement("div");
+      tituloC.className = "propriedade-culturas-titulo";
+      tituloC.textContent = "Culturas:";
+      wrap.appendChild(tituloC);
+
+      const partes = culturasDessaProp.map((cu) => {
+        const nome = cu.NOME_CULTURA || "CULTURA";
+        const area = cu.AREA_PLANTADA;
+        let areaStr = "";
+        if (area != null && area !== "") {
+          const n = Number(area);
+          areaStr = Number.isNaN(n)
+            ? String(area)
+            : n.toLocaleString("pt-BR", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              });
+        }
+        return areaStr ? `${nome} (${areaStr} ha)` : nome;
+      });
+
+      const txt = document.createElement("div");
+      txt.textContent = partes.join("; ");
+      wrap.appendChild(txt);
+
+      card.appendChild(wrap);
+    }
+
+    body.appendChild(card);
+  });
+
+  modal.classList.add("is-open");
+  modal.setAttribute("aria-hidden", "false");
+}
+
+function fecharModalPropriedades() {
+  const modal = document.getElementById("propriedadesModal");
   if (!modal) return;
   modal.classList.remove("is-open");
   modal.setAttribute("aria-hidden", "true");
@@ -994,129 +1155,112 @@ function exportarTabelaParaExcel() {
   }
 
   dadosView.forEach((c) => {
-    const culturasArr =
-      Array.isArray(c.culturas) && c.culturas.length ? c.culturas : [null];
+    const tr = document.createElement("tr");
 
-    culturasArr.forEach((cult) => {
-      const tr = document.createElement("tr");
+    function add(field, formatter, valueOverride, opts = {}) {
+      const td = document.createElement("td");
+      let raw = valueOverride !== undefined ? valueOverride : c[field];
 
-      function add(field, formatter, valueOverride, opts = {}) {
-        const td = document.createElement("td");
-        let raw = valueOverride !== undefined ? valueOverride : c[field];
-
-        if (formatter === fmtValor || formatter === fmtDataIso) {
-          raw = formatter(raw);
-        } else if (formatter) {
-          raw = formatter(raw);
-        } else {
-          raw = fmtTextOrDash(raw);
-        }
-
-        if (opts.truncate) {
-          raw = truncText(raw, opts.maxLen || 300);
-        }
-
-        td.textContent = raw == null ? "" : String(raw);
-        td.style.whiteSpace = "nowrap";
-        td.style.overflow = "hidden";
-
-        tr.appendChild(td);
-      }
-
-      add("CODVEND");
-      add("NOME_VENDEDOR", null, undefined, { truncate: true, maxLen: 120 });
-
-      add("CODPARC");
-      add("NOME_CLIENTE", null, undefined, { truncate: true, maxLen: 120 });
-
-      add("ParceiroEnderecoCompl", null, undefined, {
-        truncate: true,
-        maxLen: 120,
-      });
-      add("ParceiroEnderecoNumero");
-      add("ParceiroLogradouro", null, undefined, {
-        truncate: true,
-        maxLen: 120,
-      });
-      add("ParceiroBairro", null, undefined, { truncate: true, maxLen: 120 });
-      add("ParceiroCidade", null, undefined, { truncate: true, maxLen: 100 });
-      add("ParceiroCidadeCodigo");
-      add("ParceiroUFSigla");
-      add("ParceiroCEP");
-
-      add("QtdeCulturasDistintas");
-
-      if (cult) {
-        const nome = cult.NOME_CULTURA || "CULTURA";
-        let areaStr = "";
-        if (cult.AREA_PLANTADA != null) {
-          const n = Number(cult.AREA_PLANTADA);
-          areaStr = Number.isNaN(n)
-            ? String(cult.AREA_PLANTADA)
-            : n.toLocaleString("pt-BR", {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              });
-        }
-        const texto = areaStr ? `${nome} (${areaStr} ha)` : nome;
-        add(null, null, texto, { truncate: true, maxLen: 200 });
+      if (formatter === fmtValor || formatter === fmtDataIso) {
+        raw = formatter(raw);
+      } else if (formatter) {
+        raw = formatter(raw);
       } else {
-        add(null, null, c.CulturasResumo || "-", {
-          truncate: true,
-          maxLen: 200,
-        });
+        raw = fmtTextOrDash(raw);
       }
 
-      add(null, null, "");
+      if (opts.truncate) {
+        raw = truncText(raw, opts.maxLen || 300);
+      }
 
-      add("ParceiroTelefone", null, undefined, {
-        truncate: true,
-        maxLen: 60,
-      });
-      add("ParceiroEmail", null, undefined, { truncate: true, maxLen: 120 });
+      td.textContent = raw == null ? "" : String(raw);
+      td.style.whiteSpace = "nowrap";
+      td.style.overflow = "hidden";
 
-      add("ParceiroLatitude");
-      add("ParceiroLongitude");
+      tr.appendChild(td);
+    }
 
-      add("CODEMP");
-      add("DTLIM", fmtDataIso);
-      add("LIMCRED", fmtValor);
+    add("CODVEND");
+    add("NOME_VENDEDOR", null, undefined, { truncate: true, maxLen: 120 });
 
-      add("NroUnico");
-      add("NumeroNota");
-      add("DataVenda", fmtDataIso);
-      add("ValorTotalVenda", fmtValor);
-      add("VendedorQueVendeuCodigo");
-      add("VendedorQueVendeuNome", null, undefined, {
-        truncate: true,
-        maxLen: 120,
-      });
-      add("CargoVendedorQueVendeu", null, undefined, {
-        truncate: true,
-        maxLen: 120,
-      });
+    add("CODPARC");
+    add("NOME_CLIENTE", null, undefined, { truncate: true, maxLen: 120 });
 
-      add("IdAtividadeUltima");
-      add("DtLancamentoUltimaAtividade", fmtDataIso);
-      add("DtInicialUltimaAtividade", fmtDataIso);
-      add("AssuntoUltimaAtividade", null, undefined, {
-        truncate: true,
-        maxLen: 200,
-      });
+    const qtdePropriedades =
+      (Array.isArray(c.propriedades) && c.propriedades.length) ||
+      c.QtdePropriedades ||
+      1;
+    add(null, null, qtdePropriedades);
 
-      add("ObservacaoUltimaAtividade", null, undefined, {
-        truncate: true,
-        maxLen: 300,
-      });
-
-      add("Total_2024", fmtValor);
-      add("Total_2025", fmtValor);
-      add("Total_2026", fmtValor);
-
-      add("LTV", fmtValor);
-
-      clTbody.appendChild(tr);
+    add("ParceiroEnderecoCompl", null, undefined, {
+      truncate: true,
+      maxLen: 120,
     });
+    add("ParceiroEnderecoNumero");
+    add("ParceiroLogradouro", null, undefined, {
+      truncate: true,
+      maxLen: 120,
+    });
+    add("ParceiroBairro", null, undefined, { truncate: true, maxLen: 120 });
+    add("ParceiroCidade", null, undefined, { truncate: true, maxLen: 100 });
+    add("ParceiroCidadeCodigo");
+    add("ParceiroUFSigla");
+    add("ParceiroCEP");
+
+    add("QtdeCulturasDistintas");
+    add(null, null, c.CulturasResumo || "-", {
+      truncate: true,
+      maxLen: 200,
+    });
+    add(null, null, "");
+
+    add("ParceiroTelefone", null, undefined, {
+      truncate: true,
+      maxLen: 60,
+    });
+    add("ParceiroEmail", null, undefined, { truncate: true, maxLen: 120 });
+
+    add("ParceiroLatitude");
+    add("ParceiroLongitude");
+
+    add("CODEMP");
+    add("DTLIM", fmtDataIso);
+    add("LIMCRED", fmtValor);
+
+    add("NroUnico");
+    add("NumeroNota");
+    add("DataVenda", fmtDataIso);
+    add("ValorTotalVenda", fmtValor);
+    add("VendedorQueVendeuCodigo");
+    add("VendedorQueVendeuNome", null, undefined, {
+      truncate: true,
+      maxLen: 120,
+    });
+    add("CargoVendedorQueVendeu", null, undefined, {
+      truncate: true,
+      maxLen: 120,
+    });
+
+    add("IdAtividadeUltima");
+    add("DtLancamentoUltimaAtividade", fmtDataIso);
+    add("DtInicialUltimaAtividade", fmtDataIso);
+    add("AssuntoUltimaAtividade", null, undefined, {
+      truncate: true,
+      maxLen: 200,
+    });
+
+    add("ObservacaoUltimaAtividade", null, undefined, {
+      truncate: true,
+      maxLen: 300,
+    });
+
+    add("Total_2024", fmtValor);
+    add("Total_2025", fmtValor);
+    add("Total_2026", fmtValor);
+
+    add("LTV", fmtValor);
+
+    clTbody.appendChild(tr);
   });
 
   const styleEl = document.createElement("style");
@@ -1299,6 +1443,8 @@ window.addEventListener("DOMContentLoaded", async () => {
   const btnExport = document.getElementById("btnExportExcelCart");
   const btnCloseModal = document.getElementById("btnCloseCulturasModal");
   const modal = document.getElementById("culturasModal");
+  const btnClosePropModal = document.getElementById("btnClosePropriedadesModal");
+  const modalProp = document.getElementById("propriedadesModal");
 
   if (btnAplicar) btnAplicar.addEventListener("click", atualizarTudoCarteira);
   if (btnLimpar) {
@@ -1316,6 +1462,17 @@ window.addEventListener("DOMContentLoaded", async () => {
     modal.addEventListener("click", (e) => {
       if (e.target.classList.contains("culturas-modal-backdrop")) {
         fecharModalCulturas();
+      }
+    });
+  }
+
+  if (btnClosePropModal) {
+    btnClosePropModal.addEventListener("click", fecharModalPropriedades);
+  }
+  if (modalProp) {
+    modalProp.addEventListener("click", (e) => {
+      if (e.target.classList.contains("propriedades-modal-backdrop")) {
+        fecharModalPropriedades();
       }
     });
   }

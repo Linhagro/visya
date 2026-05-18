@@ -647,9 +647,6 @@ function renderizarListaVendedores() {
 
     const partesCodigo = [];
     if (vendedor.codigo) partesCodigo.push(`Cód. ${vendedor.codigo}`);
-    if (vendedor.qtde_clientes != null) {
-      partesCodigo.push(`${vendedor.qtde_clientes.toLocaleString("pt-BR")} clientes`);
-    }
     codigo.textContent = partesCodigo.join(" • ") || "Sem código";
 
     texto.appendChild(nome);
@@ -861,9 +858,7 @@ async function carregarCarteira() {
   const info = document.getElementById("infoQtdeRegistros");
   if (info) {
     const total = pagination?.totalCount ?? dadosBrutos.length;
-    info.textContent = `${total.toLocaleString(
-      "pt-BR"
-    )} clientes (página ${pagination?.page || 1})`;
+    info.textContent = `${total.toLocaleString("pt-BR")} clientes`;
   }
 
   selectedRowIndex = null;

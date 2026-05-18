@@ -1,146 +1,128 @@
 // assets/js/login.js
 import * as THREE from "three";
-import { OrbitControls } from "jsm/controls/OrbitControls.js";
 
 /**
- * ================== THREE.js - FUNDO ANIMADO ==================
+ * ================== FUNDO 3D - TERRENO TOPOGRÁFICO ==================
  */
+
+const canvas = document.getElementById("bgCanvas");
 let w = window.innerWidth;
 let h = window.innerHeight;
 
 const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0x07090c, 30, 90);
 
-const camera = new THREE.PerspectiveCamera(75, w / h, 0.1, 1000);
-camera.position.z = 11;
-camera.position.y = -5;
-camera.position.x = -7;
-camera.lookAt(0, 0, 0);
+const camera = new THREE.PerspectiveCamera(55, w / h, 0.1, 200);
+camera.position.set(0, 14, 28);
+camera.lookAt(0, -2, 0);
 
-const renderer = new THREE.WebGLRenderer({ antialias: true });
+const renderer = new THREE.WebGLRenderer({
+  canvas,
+  antialias: true,
+  alpha: true,
+});
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(w, h);
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-document.body.appendChild(renderer.domElement);
-renderer.setClearColor(0xffffff, 1); // fundo branco
+renderer.setClearColor(0x000000, 0);
 
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
-controls.enableZoom = false;
-controls.minPolarAngle = Math.PI / 3;
-controls.maxPolarAngle = Math.PI / 2.2;
+const GRID_SIZE = 80;
+const GRID_DIVISIONS = 56;
 
-const vertexShader = `
-  varying vec2 vUv;
-  varying vec3 vNormal;
-  varying vec3 vPosition;
-  void main() {
-    vUv = uv;
-    vNormal = normalize(normalMatrix * normal);
-    vPosition = position;
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-  }
-`;
+const planeGeometry = new THREE.PlaneGeometry(
+  GRID_SIZE,
+  GRID_SIZE,
+  GRID_DIVISIONS,
+  GRID_DIVISIONS
+);
+planeGeometry.rotateX(-Math.PI / 2);
 
-const fragmentShader = `
-  uniform float uTime;
-  uniform float uCircleSpacing;
-  uniform float uLineWidth;
-  uniform float uSpeed;
-  uniform float uFadeEdge;
-  uniform vec3 uCameraPosition;
-  varying vec2 vUv;
-  varying vec3 vNormal;
-  varying vec3 vPosition;
+const basePositions = planeGeometry.attributes.position.array.slice();
 
-  void main() {
-    vec2 center = vec2(0.5, 0.5);
-    vec2 uv = vUv;
-    float dist = distance(uv, center);
-
-    float animatedDist = dist - uTime * uSpeed;
-    float circle = mod(animatedDist, uCircleSpacing);
-    float distFromEdge = min(circle, uCircleSpacing - circle);
-
-    float aaWidth = length(vec2(dFdx(animatedDist), dFdy(animatedDist))) * 2.0;
-    float lineAlpha = 1.0 - smoothstep(uLineWidth - aaWidth, uLineWidth + aaWidth, distFromEdge);
-
-    vec3 baseColor = mix(vec3(1.0), vec3(0.0), lineAlpha);
-
-    vec3 normal = normalize(vNormal);
-    vec3 viewDir = normalize(uCameraPosition - vPosition);
-
-    vec3 lightDir = normalize(vec3(5.0, 10.0, 5.0));
-    float NdotL = max(dot(normal, lightDir), 0.0);
-
-    vec3 diffuse = baseColor * (0.5 + 0.5 * NdotL);
-
-    vec3 reflectDir = reflect(-lightDir, normal);
-    float spec = pow(max(dot(viewDir, reflectDir), 0.0), 64.0);
-    vec3 specular = vec3(1.0) * spec * 0.8;
-
-    float fresnel = pow(1.0 - max(dot(normal, viewDir), 0.0), 2.0);
-    vec3 fresnelColor = vec3(1.0) * fresnel * 0.3;
-
-    vec3 finalColor = diffuse + specular + fresnelColor;
-
-    float edgeFade = smoothstep(0.5 - uFadeEdge, 0.5, dist);
-    float alpha = 1.0 - edgeFade;
-
-    gl_FragColor = vec4(finalColor, alpha);
-  }
-`;
-
-const floorGeometry = new THREE.CircleGeometry(20, 200);
-const floorMaterial = new THREE.ShaderMaterial({
-  vertexShader,
-  fragmentShader,
-  uniforms: {
-    uTime: { value: 0.0 },
-    uCircleSpacing: { value: 0.06 },
-    uLineWidth: { value: 0.02 },
-    uSpeed: { value: 0.003 },
-    uFadeEdge: { value: 0.2 },
-    uCameraPosition: { value: new THREE.Vector3() },
-  },
-  side: THREE.DoubleSide,
+const lineMaterial = new THREE.LineBasicMaterial({
+  color: 0x2a3a3f,
   transparent: true,
+  opacity: 0.55,
 });
 
-const floor = new THREE.Mesh(floorGeometry, floorMaterial);
-floor.rotation.x = -Math.PI / 2;
-floor.position.y = -1;
-floor.receiveShadow = true;
-scene.add(floor);
+const wireframeGeometry = new THREE.WireframeGeometry(planeGeometry);
+const wireframe = new THREE.LineSegments(wireframeGeometry, lineMaterial);
+wireframe.position.y = -4;
+scene.add(wireframe);
 
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+const pointsMaterial = new THREE.PointsMaterial({
+  color: 0xffffff,
+  size: 0.12,
+  transparent: true,
+  opacity: 0.7,
+  sizeAttenuation: true,
+});
+
+const points = new THREE.Points(planeGeometry, pointsMaterial);
+points.position.y = -4;
+scene.add(points);
+
+const accentLight = new THREE.PointLight(0x3d8c5e, 1.4, 60);
+accentLight.position.set(-18, 8, 10);
+scene.add(accentLight);
+
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
 scene.add(ambientLight);
 
-const directionalLight = new THREE.DirectionalLight(0xffffff, 1.2);
-directionalLight.position.set(5, 10, 5);
-directionalLight.castShadow = true;
-directionalLight.shadow.camera.left = -10;
-directionalLight.shadow.camera.right = 10;
-directionalLight.shadow.camera.top = 10;
-directionalLight.shadow.camera.bottom = -10;
-directionalLight.shadow.mapSize.width = 2048;
-directionalLight.shadow.mapSize.height = 2048;
-scene.add(directionalLight);
+const mouse = { x: 0, y: 0, targetX: 0, targetY: 0 };
 
-let time = 0;
+window.addEventListener("mousemove", (e) => {
+  mouse.targetX = (e.clientX / w - 0.5) * 2;
+  mouse.targetY = (e.clientY / h - 0.5) * 2;
+});
+
+function animateTerrain(time) {
+  const positions = planeGeometry.attributes.position.array;
+
+  for (let i = 0; i < positions.length; i += 3) {
+    const x = basePositions[i];
+    const z = basePositions[i + 2];
+
+    const wave1 = Math.sin(x * 0.18 + time * 0.6) * 0.85;
+    const wave2 = Math.cos(z * 0.22 + time * 0.45) * 0.7;
+    const wave3 = Math.sin((x + z) * 0.12 + time * 0.3) * 1.2;
+
+    const dist = Math.sqrt(x * x + z * z);
+    const radial = Math.cos(dist * 0.18 - time * 0.8) * 0.6;
+
+    positions[i + 1] = wave1 + wave2 + wave3 + radial;
+  }
+
+  planeGeometry.attributes.position.needsUpdate = true;
+}
+
+function rebuildWireframe() {
+  wireframe.geometry.dispose();
+  wireframe.geometry = new THREE.WireframeGeometry(planeGeometry);
+}
+
+let frameCount = 0;
+let clock = new THREE.Clock();
 
 function animate() {
   requestAnimationFrame(animate);
 
-  time += 0.016;
-  floorMaterial.uniforms.uTime.value = time;
+  const elapsed = clock.getElapsedTime();
 
-  const cameraWorldPos = new THREE.Vector3();
-  camera.getWorldPosition(cameraWorldPos);
-  floorMaterial.uniforms.uCameraPosition.value.copy(cameraWorldPos);
+  animateTerrain(elapsed);
+
+  frameCount++;
+  if (frameCount % 2 === 0) {
+    rebuildWireframe();
+  }
+
+  mouse.x += (mouse.targetX - mouse.x) * 0.04;
+  mouse.y += (mouse.targetY - mouse.y) * 0.04;
+
+  camera.position.x = mouse.x * 3;
+  camera.position.y = 14 + mouse.y * -1.5;
+  camera.lookAt(0, -2, 0);
 
   renderer.render(scene, camera);
-  controls.update();
 }
 
 animate();
@@ -157,66 +139,66 @@ window.addEventListener("resize", () => {
  * ================== LÓGICA DE LOGIN VISYA ==================
  */
 
-// Elementos do formulário
 const form = document.getElementById("visyaLoginForm");
 const userInput = document.getElementById("loginUser");
 const passInput = document.getElementById("loginPass");
 const button = document.getElementById("loginButton");
 const loaderOverlay = document.getElementById("loaderOverlay");
+const errorEl = document.getElementById("loginError");
 
-// Helper para controlar o overlay de loading
 function setLoading(isLoading) {
   if (loaderOverlay) {
     loaderOverlay.style.display = isLoading ? "flex" : "none";
+    loaderOverlay.setAttribute("aria-hidden", isLoading ? "false" : "true");
   }
   if (button) {
     button.disabled = isLoading;
   }
 }
 
-// Evita erro se o form não for encontrado por algum motivo
+function showError(msg) {
+  if (errorEl) {
+    errorEl.textContent = msg || "";
+  }
+}
+
 if (form && userInput && passInput) {
-  // Envio do formulário
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
+    showError("");
 
     const email = (userInput.value || "").trim();
     const senha = (passInput.value || "").trim();
 
     if (!email || !senha) {
-      alert("Preencha usuário e senha.");
+      showError("Informe e-mail e senha.");
       return;
     }
 
     setLoading(true);
 
     try {
-      // loginSistema vem do seu global.js e chama /auth/login no backend
       const user = await loginSistema(email, senha);
 
       if (!user) {
-        // loginSistema retornou null -> credenciais inválidas ou erro na API
-        alert("Usuário ou senha inválidos.");
+        showError("Usuário ou senha inválidos.");
         return;
       }
 
-      // Opcional: checar se o usuário tem pelo menos uma empresa vinculada
       let atual = null;
       if (typeof getUsuarioAtual === "function") {
         atual = getUsuarioAtual();
       }
 
       if (!atual || !Array.isArray(atual.empresas) || atual.empresas.length === 0) {
-        alert("Seu usuário não possui nenhuma empresa vinculada. Contate o administrador.");
+        showError("Usuário sem empresa vinculada. Contate o administrador.");
         return;
       }
 
-      // Sucesso: token + dados já estão no storage pelo loginSistema
-      // Redireciona para o app com sidebar fixo
       window.location.href = "./assets/html/app.html";
     } catch (e) {
       console.error("Erro no login VISYA:", e);
-      alert("Erro ao tentar autenticar. Tente novamente em instantes.");
+      showError("Falha ao autenticar. Tente novamente.");
     } finally {
       setLoading(false);
     }

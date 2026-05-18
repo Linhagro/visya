@@ -2,11 +2,11 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <title>Visya - Login</title>
+  <title>Visya - Sistema de Relatórios</title>
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<link rel="icon" type="image/x-icon" href="assets/logo/favicon.ico" />
-  <!-- IMPORTMAP THREE PARA O FUNDO 3D DO LOGIN -->
+  <link rel="icon" type="image/x-icon" href="assets/logo/favicon.ico" />
+
   <script type="importmap">
     {
       "imports": {
@@ -16,61 +16,93 @@
     }
   </script>
 
-  <!-- CSS da tela de login (em assets/css) -->
-  <!-- Caminho RELATIVO, funciona bem em ambiente local e em subpastas -->
   <link rel="stylesheet" href="assets/css/login.css" />
 
-  <!-- JS global com API_BASE, loginSistema, getUsuarioAtual, apiGet/Post/etc -->
   <script src="assets/js/global.js" defer></script>
 </head>
 <body>
-  <!-- TEXTO VISYA + FORM -->
-  <div class="title">
-    <h1>
-      <span>VI</span>
-      <span>SY</span>
-      <span>A</span>
-    </h1>
+  <canvas id="bgCanvas"></canvas>
 
-    <form class="login-form" id="visyaLoginForm" autocomplete="on">
-      <input
-        type="text"
-        class="login-line-input"
-        id="loginUser"
-        name="username"
-        placeholder="Login"
-        autocomplete="username"
-      />
-      <input
-        type="password"
-        class="login-line-input"
-        id="loginPass"
-        name="current-password"
-        placeholder="Senha"
-        autocomplete="current-password"
-      />
+  <div class="grid-overlay" aria-hidden="true"></div>
 
-      <button type="submit" class="uiverse" id="loginButton">
-        <div class="wrapper">
-          <span>LOGIN</span>
-          <div class="circle circle-12"></div>
-          <div class="circle circle-11"></div>
-          <div class="circle circle-10"></div>
-          <div class="circle circle-9"></div>
-          <div class="circle circle-8"></div>
-          <div class="circle circle-7"></div>
-          <div class="circle circle-6"></div>
-          <div class="circle circle-5"></div>
-          <div class="circle circle-4"></div>
-          <div class="circle circle-3"></div>
-          <div class="circle circle-2"></div>
-          <div class="circle circle-1"></div>
+  <main class="login-shell">
+    <section class="brand-side">
+      <div class="brand-mark">
+        <span class="brand-dot"></span>
+        <span class="brand-mark-text">VISYA</span>
+      </div>
+
+      <div class="brand-block">
+        <span class="brand-kicker">Sistema de relatórios</span>
+        <h1 class="brand-title">VISYA</h1>
+        <p class="brand-sub">
+          Dados da operação em um só lugar.
+          <br />
+          Carteira, vendas, atividades e indicadores em tempo real.
+        </p>
+      </div>
+
+      <div class="brand-footer">
+        <span class="brand-footer-line"></span>
+        <span class="brand-footer-text">v.2026 · acesso restrito</span>
+      </div>
+    </section>
+
+    <section class="login-card">
+      <header class="login-card-header">
+        <span class="login-card-kicker">Acesso</span>
+        <h2 class="login-card-title">Entrar na plataforma</h2>
+        <p class="login-card-sub">Use suas credenciais corporativas.</p>
+      </header>
+
+      <form class="login-form" id="visyaLoginForm" autocomplete="on" novalidate>
+        <div class="field">
+          <input
+            type="text"
+            id="loginUser"
+            name="username"
+            class="field-input"
+            placeholder=" "
+            autocomplete="username"
+            required
+          />
+          <label for="loginUser" class="field-label">E-mail</label>
+          <span class="field-bar"></span>
         </div>
-      </button>
-    </form>
-  </div>
 
-  <!-- OVERLAY COM IFRAME DO LOADER -->
+        <div class="field">
+          <input
+            type="password"
+            id="loginPass"
+            name="current-password"
+            class="field-input"
+            placeholder=" "
+            autocomplete="current-password"
+            required
+          />
+          <label for="loginPass" class="field-label">Senha</label>
+          <span class="field-bar"></span>
+        </div>
+
+        <div class="login-error" id="loginError" aria-live="polite"></div>
+
+        <button type="submit" class="btn-login" id="loginButton">
+          <span class="btn-login-text">Entrar</span>
+          <span class="btn-login-arrow" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter">
+              <path d="M5 12h14M13 6l6 6-6 6" />
+            </svg>
+          </span>
+        </button>
+      </form>
+
+      <footer class="login-card-foot">
+        <span class="login-card-foot-text">Problemas para acessar?</span>
+        <span class="login-card-foot-link">contate o administrador</span>
+      </footer>
+    </section>
+  </main>
+
   <div class="loader-overlay" id="loaderOverlay" aria-hidden="true">
     <iframe
       src="assets/html/loader.html"
@@ -81,7 +113,6 @@
     ></iframe>
   </div>
 
-  <!-- JS da tela de login (three + lógica de submit) em assets/js -->
   <script type="module" src="assets/js/login.js"></script>
 </body>
 </html>

@@ -7,7 +7,7 @@
 
   <link
     rel="stylesheet"
-    href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
   />
 
   <link rel="stylesheet" href="../css/carteira_analytics.css" />
@@ -157,13 +157,30 @@
       </div>
 
       <div class="filtro-acoes">
-        <button class="btn-filtro" type="button" id="btnAplicarCart">
+        <button class="btn-filtro btn-filtro-primary" type="button" id="btnAplicarCart">
           <span>Aplicar</span>
         </button>
 
         <button class="btn-filtro" type="button" id="btnLimparCart">
           <span>Limpar</span>
         </button>
+
+        <div class="colunas-wrap" id="colunasWrap">
+          <button class="btn-filtro" type="button" id="btnColunas" aria-haspopup="true" aria-expanded="false">
+            <span>Colunas</span>
+          </button>
+          <div class="colunas-dropdown" id="colunasDropdown" hidden>
+            <div class="colunas-dropdown-header">
+              <span class="colunas-dropdown-title">Exibir colunas</span>
+              <div class="colunas-dropdown-actions">
+                <button type="button" class="btn-multi-acao" id="btnColunasTodas">Todas</button>
+                <button type="button" class="btn-multi-acao" id="btnColunasPadrao">Padrão</button>
+                <button type="button" class="btn-multi-acao" id="btnColunasNenhuma">Nenhuma</button>
+              </div>
+            </div>
+            <div class="colunas-dropdown-list" id="colunasDropdownList"></div>
+          </div>
+        </div>
 
         <button
           class="btn-filtro btn-filtro-secundario btn-disabled"
@@ -184,45 +201,45 @@
       <div class="table-wrapper">
         <table id="tblCarteira" class="carteira-table">
           <colgroup>
-            <col class="w-cod-vendedor" />
-            <col class="w-nome-vendedor" />
-            <col class="w-cod-cliente" />
-            <col class="w-nome-cliente" />
-            <col class="w-propriedades" />
-            <col class="w-end-comp" />
-            <col class="w-end-num" />
-            <col class="w-end-logradouro" />
-            <col class="w-end-bairro" />
-            <col class="w-end-cidade" />
-            <col class="w-end-cidade-cod" />
-            <col class="w-end-uf" />
-            <col class="w-end-cep" />
-            <col class="w-cultura-qtde" />
-            <col class="w-cultura-resumo" />
-            <col class="w-cultura-detalhe" />
-            <col class="w-telefone" />
-            <col class="w-email" />
-            <col class="w-lat" />
-            <col class="w-lng" />
-            <col class="w-cod-emp" />
-            <col class="w-dtlim" />
-            <col class="w-limcred" />
-            <col class="w-nrounico" />
-            <col class="w-numnota" />
-            <col class="w-dtvenda" />
-            <col class="w-valortotal" />
-            <col class="w-vv-cod" />
-            <col class="w-vv-nome" />
-            <col class="w-vv-cargo" />
-            <col class="w-atv-id" />
-            <col class="w-atv-lanc" />
-            <col class="w-atv-visita" />
-            <col class="w-atv-assunto" />
-            <col class="w-atv-obs" />
-            <col class="w-total-2024" />
-            <col class="w-total-2025" />
-            <col class="w-total-2026" />
-            <col class="w-ltv" />
+            <col class="w-cod-vendedor" data-col-key="CODVEND" />
+            <col class="w-nome-vendedor" data-col-key="NOME_VENDEDOR" />
+            <col class="w-cod-cliente" data-col-key="CODPARC" />
+            <col class="w-nome-cliente" data-col-key="NOME_CLIENTE" />
+            <col class="w-propriedades" data-col-key="Propriedades" />
+            <col class="w-end-comp" data-col-key="ParceiroEnderecoCompl" />
+            <col class="w-end-num" data-col-key="ParceiroEnderecoNumero" />
+            <col class="w-end-logradouro" data-col-key="ParceiroLogradouro" />
+            <col class="w-end-bairro" data-col-key="ParceiroBairro" />
+            <col class="w-end-cidade" data-col-key="ParceiroCidade" />
+            <col class="w-end-cidade-cod" data-col-key="ParceiroCidadeCodigo" />
+            <col class="w-end-uf" data-col-key="ParceiroUFSigla" />
+            <col class="w-end-cep" data-col-key="ParceiroCEP" />
+            <col class="w-cultura-qtde" data-col-key="QtdeCulturasDistintas" />
+            <col class="w-cultura-resumo" data-col-key="CulturasResumo" />
+            <col class="w-cultura-detalhe" data-col-key="CulturasDetalhe" />
+            <col class="w-telefone" data-col-key="ParceiroTelefone" />
+            <col class="w-email" data-col-key="ParceiroEmail" />
+            <col class="w-lat" data-col-key="ParceiroLatitude" />
+            <col class="w-lng" data-col-key="ParceiroLongitude" />
+            <col class="w-cod-emp" data-col-key="CODEMP" />
+            <col class="w-dtlim" data-col-key="DTLIM" />
+            <col class="w-limcred" data-col-key="LIMCRED" />
+            <col class="w-nrounico" data-col-key="NroUnico" />
+            <col class="w-numnota" data-col-key="NumeroNota" />
+            <col class="w-dtvenda" data-col-key="DataVenda" />
+            <col class="w-valortotal" data-col-key="ValorTotalVenda" />
+            <col class="w-vv-cod" data-col-key="VendedorQueVendeuCodigo" />
+            <col class="w-vv-nome" data-col-key="VendedorQueVendeuNome" />
+            <col class="w-vv-cargo" data-col-key="CargoVendedorQueVendeu" />
+            <col class="w-atv-id" data-col-key="IdAtividadeUltima" />
+            <col class="w-atv-lanc" data-col-key="DtLancamentoUltimaAtividade" />
+            <col class="w-atv-visita" data-col-key="DtInicialUltimaAtividade" />
+            <col class="w-atv-assunto" data-col-key="AssuntoUltimaAtividade" />
+            <col class="w-atv-obs" data-col-key="ObservacaoUltimaAtividade" />
+            <col class="w-total-2024" data-col-key="Total_2024" />
+            <col class="w-total-2025" data-col-key="Total_2025" />
+            <col class="w-total-2026" data-col-key="Total_2026" />
+            <col class="w-ltv" data-col-key="LTV" />
           </colgroup>
 
           <thead>
@@ -302,6 +319,7 @@
       >
         ✕
       </button>
+      <p class="modal-kicker">Detalhe das culturas</p>
       <h2 class="culturas-modal-title">Culturas do cliente</h2>
       <p class="culturas-modal-sub" id="culturasModalSub"></p>
       <div id="culturasModalBody" class="culturas-modal-body"></div>
@@ -319,6 +337,7 @@
       >
         ✕
       </button>
+      <p class="modal-kicker">Detalhe das propriedades</p>
       <h2 class="propriedades-modal-title">Propriedades do cliente</h2>
       <p class="propriedades-modal-sub" id="propriedadesModalSub"></p>
       <div id="propriedadesModalBody" class="propriedades-modal-body"></div>

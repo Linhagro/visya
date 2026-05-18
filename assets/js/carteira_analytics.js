@@ -23,6 +23,265 @@ let vendedoresSelecionados = [];
 const loaderOverlay = document.getElementById("loaderOverlay");
 let loaderTimerId = null;
 
+// ================== COLUNAS - VISIBILIDADE ==================
+
+const TODAS_COLUNAS = [
+  { key: "CODVEND", grupo: "Vendedor", label: "Cód. Vendedor", padrao: true },
+  { key: "NOME_VENDEDOR", grupo: "Vendedor", label: "Nome do Vendedor", padrao: true },
+
+  { key: "CODPARC", grupo: "Cliente", label: "Cód. Cliente", padrao: true },
+  { key: "NOME_CLIENTE", grupo: "Cliente", label: "Nome do Cliente", padrao: true },
+  { key: "Propriedades", grupo: "Cliente", label: "Propriedades", padrao: true },
+
+  { key: "ParceiroEnderecoCompl", grupo: "Endereço", label: "Complemento", padrao: false },
+  { key: "ParceiroEnderecoNumero", grupo: "Endereço", label: "Número", padrao: false },
+  { key: "ParceiroLogradouro", grupo: "Endereço", label: "Logradouro", padrao: true },
+  { key: "ParceiroBairro", grupo: "Endereço", label: "Bairro", padrao: false },
+  { key: "ParceiroCidade", grupo: "Endereço", label: "Cidade", padrao: true },
+  { key: "ParceiroCidadeCodigo", grupo: "Endereço", label: "Cód. Cidade", padrao: false },
+  { key: "ParceiroUFSigla", grupo: "Endereço", label: "UF", padrao: true },
+  { key: "ParceiroCEP", grupo: "Endereço", label: "CEP", padrao: false },
+
+  { key: "QtdeCulturasDistintas", grupo: "Culturas", label: "Qtde Culturas", padrao: true },
+  { key: "CulturasResumo", grupo: "Culturas", label: "Culturas / Áreas", padrao: true },
+  { key: "CulturasDetalhe", grupo: "Culturas", label: "Detalhe", padrao: true },
+
+  { key: "ParceiroTelefone", grupo: "Contato", label: "Telefone", padrao: true },
+  { key: "ParceiroEmail", grupo: "Contato", label: "E-mail", padrao: false },
+
+  { key: "ParceiroLatitude", grupo: "Coordenadas", label: "Latitude", padrao: false },
+  { key: "ParceiroLongitude", grupo: "Coordenadas", label: "Longitude", padrao: false },
+
+  { key: "CODEMP", grupo: "Crédito", label: "Cód. Empresa", padrao: false },
+  { key: "DTLIM", grupo: "Crédito", label: "Data Limite", padrao: false },
+  { key: "LIMCRED", grupo: "Crédito", label: "Limite Crédito", padrao: true },
+
+  { key: "NroUnico", grupo: "Última Venda", label: "Nro. Único", padrao: false },
+  { key: "NumeroNota", grupo: "Última Venda", label: "Nº Nota", padrao: false },
+  { key: "DataVenda", grupo: "Última Venda", label: "Data Venda", padrao: true },
+  { key: "ValorTotalVenda", grupo: "Última Venda", label: "Valor Total", padrao: true },
+  { key: "VendedorQueVendeuCodigo", grupo: "Última Venda", label: "Cod Vend Vendeu", padrao: false },
+  { key: "VendedorQueVendeuNome", grupo: "Última Venda", label: "Quem Vendeu", padrao: false },
+  { key: "CargoVendedorQueVendeu", grupo: "Última Venda", label: "Cargo", padrao: false },
+
+  { key: "IdAtividadeUltima", grupo: "Atividade", label: "ID Atividade", padrao: false },
+  { key: "DtLancamentoUltimaAtividade", grupo: "Atividade", label: "Dt. Lançamento", padrao: false },
+  { key: "DtInicialUltimaAtividade", grupo: "Atividade", label: "Data Última Visita", padrao: true },
+  { key: "AssuntoUltimaAtividade", grupo: "Atividade", label: "Assunto Atividade", padrao: true },
+  { key: "ObservacaoUltimaAtividade", grupo: "Atividade", label: "Desc. Atividade", padrao: false },
+
+  { key: "Total_2024", grupo: "LTV", label: "Total 2024", padrao: true },
+  { key: "Total_2025", grupo: "LTV", label: "Total 2025", padrao: true },
+  { key: "Total_2026", grupo: "LTV", label: "Total 2026", padrao: true },
+  { key: "LTV", grupo: "LTV", label: "LTV", padrao: true },
+];
+
+const COLUNAS_STORAGE_KEY = "visya-carteira-colunas-visiveis";
+let colunasVisiveis = new Set(
+  TODAS_COLUNAS.filter((c) => c.padrao).map((c) => c.key)
+);
+
+function carregarColunasVisiveis() {
+  try {
+    const raw = localStorage.getItem(COLUNAS_STORAGE_KEY);
+    if (raw) {
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr) && arr.length) {
+        colunasVisiveis = new Set(arr);
+      }
+    }
+  } catch (e) {
+    console.warn("[CARTEIRA] erro ao ler colunas:", e);
+  }
+}
+
+function salvarColunasVisiveis() {
+  try {
+    localStorage.setItem(
+      COLUNAS_STORAGE_KEY,
+      JSON.stringify(Array.from(colunasVisiveis))
+    );
+  } catch (e) {
+    console.warn("[CARTEIRA] erro ao salvar colunas:", e);
+  }
+}
+
+function aplicarVisibilidadeColunas() {
+  const table = document.getElementById("tblCarteira");
+  if (!table) return;
+
+  const cols = table.querySelectorAll("colgroup col");
+  const ths = table.querySelectorAll("thead th");
+
+  cols.forEach((col) => {
+    const key = col.dataset.colKey;
+    if (!key) return;
+    if (colunasVisiveis.has(key)) {
+      col.classList.remove("col-hidden");
+    } else {
+      col.classList.add("col-hidden");
+    }
+  });
+
+  ths.forEach((th) => {
+    const key = th.dataset.col;
+    if (!key) return;
+    if (colunasVisiveis.has(key)) {
+      th.classList.remove("col-hidden");
+    } else {
+      th.classList.add("col-hidden");
+    }
+  });
+
+  document
+    .querySelectorAll("#tblCarteira tbody tr")
+    .forEach((tr) => {
+      const tds = tr.querySelectorAll("td");
+      tds.forEach((td, idx) => {
+        const col = cols[idx];
+        if (!col) return;
+        const key = col.dataset.colKey;
+        if (!key) return;
+        if (colunasVisiveis.has(key)) {
+          td.classList.remove("col-hidden");
+        } else {
+          td.classList.add("col-hidden");
+        }
+      });
+    });
+}
+
+function renderizarDropdownColunas() {
+  const list = document.getElementById("colunasDropdownList");
+  if (!list) return;
+
+  const grupos = {};
+  TODAS_COLUNAS.forEach((c) => {
+    if (!grupos[c.grupo]) grupos[c.grupo] = [];
+    grupos[c.grupo].push(c);
+  });
+
+  list.innerHTML = "";
+
+  Object.keys(grupos).forEach((grupo) => {
+    const wrap = document.createElement("div");
+    wrap.className = "colunas-dropdown-group";
+
+    const titulo = document.createElement("div");
+    titulo.className = "colunas-dropdown-group-title";
+    titulo.textContent = grupo;
+    wrap.appendChild(titulo);
+
+    grupos[grupo].forEach((coluna) => {
+      const label = document.createElement("label");
+      label.className = "colunas-dropdown-opcao";
+
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.checked = colunasVisiveis.has(coluna.key);
+      checkbox.addEventListener("change", () => {
+        if (checkbox.checked) {
+          colunasVisiveis.add(coluna.key);
+        } else {
+          colunasVisiveis.delete(coluna.key);
+        }
+        salvarColunasVisiveis();
+        aplicarVisibilidadeColunas();
+      });
+
+      const texto = document.createElement("span");
+      texto.textContent = coluna.label;
+
+      label.appendChild(checkbox);
+      label.appendChild(texto);
+      wrap.appendChild(label);
+    });
+
+    list.appendChild(wrap);
+  });
+}
+
+function abrirDropdownColunas() {
+  const btn = document.getElementById("btnColunas");
+  const dropdown = document.getElementById("colunasDropdown");
+  if (!btn || !dropdown) return;
+  dropdown.hidden = false;
+  btn.setAttribute("aria-expanded", "true");
+  renderizarDropdownColunas();
+}
+
+function fecharDropdownColunas() {
+  const btn = document.getElementById("btnColunas");
+  const dropdown = document.getElementById("colunasDropdown");
+  if (!btn || !dropdown) return;
+  dropdown.hidden = true;
+  btn.setAttribute("aria-expanded", "false");
+}
+
+function initColunasDropdown() {
+  const btn = document.getElementById("btnColunas");
+  const dropdown = document.getElementById("colunasDropdown");
+  const wrap = document.getElementById("colunasWrap");
+  const btnTodas = document.getElementById("btnColunasTodas");
+  const btnPadrao = document.getElementById("btnColunasPadrao");
+  const btnNenhuma = document.getElementById("btnColunasNenhuma");
+
+  if (!btn || !dropdown || !wrap) return;
+
+  btn.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (dropdown.hidden) {
+      abrirDropdownColunas();
+    } else {
+      fecharDropdownColunas();
+    }
+  });
+
+  // clique em qualquer parte da página fora do dropdown fecha
+  document.addEventListener("mousedown", (e) => {
+    if (dropdown.hidden) return;
+    if (wrap.contains(e.target)) return;
+    fecharDropdownColunas();
+  });
+
+  // ESC fecha
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !dropdown.hidden) {
+      fecharDropdownColunas();
+    }
+  });
+
+  if (btnTodas) {
+    btnTodas.addEventListener("click", () => {
+      colunasVisiveis = new Set(TODAS_COLUNAS.map((c) => c.key));
+      salvarColunasVisiveis();
+      aplicarVisibilidadeColunas();
+      renderizarDropdownColunas();
+    });
+  }
+
+  if (btnPadrao) {
+    btnPadrao.addEventListener("click", () => {
+      colunasVisiveis = new Set(
+        TODAS_COLUNAS.filter((c) => c.padrao).map((c) => c.key)
+      );
+      salvarColunasVisiveis();
+      aplicarVisibilidadeColunas();
+      renderizarDropdownColunas();
+    });
+  }
+
+  if (btnNenhuma) {
+    btnNenhuma.addEventListener("click", () => {
+      colunasVisiveis = new Set(["CODPARC", "NOME_CLIENTE"]);
+      salvarColunasVisiveis();
+      aplicarVisibilidadeColunas();
+      renderizarDropdownColunas();
+    });
+  }
+}
+
 // ================== TOAST ==================
 
 function mostrarToastCarteira(msg) {
@@ -38,7 +297,7 @@ function mostrarToastCarteira(msg) {
   }, 3500);
 }
 
-// ================== LOADER GLOBAL ==================
+// ================== LOADER ==================
 
 function setLoadingCarteira(ativo) {
   if (!loaderOverlay) return;
@@ -239,7 +498,7 @@ function montarResumoCulturas(row) {
   return partes.join("; ");
 }
 
-// ================== SELECT ÚNICO VENDEDORES ==================
+// ================== SELECT VENDEDORES ==================
 
 function mapearVendedoresApi(lista) {
   const mapa = new Map();
@@ -834,6 +1093,7 @@ function renderizarMaisLinhas(qtd) {
   }
 
   linhasRenderizadas = fim;
+  aplicarVisibilidadeColunas();
 }
 
 // ================== MODAL CULTURAS ==================
@@ -857,7 +1117,8 @@ function abrirModalCulturas(rowData) {
   if (!arr.length) {
     const p = document.createElement("p");
     p.textContent = "Nenhuma cultura cadastrada para este cliente.";
-    p.style.fontSize = "0.8rem";
+    p.style.fontSize = "12px";
+    p.style.color = "var(--text-3)";
     body.appendChild(p);
   } else {
     arr.forEach((cultura, idx) => {
@@ -944,7 +1205,8 @@ function abrirModalPropriedades(rowData) {
   if (!arr.length) {
     const p = document.createElement("p");
     p.textContent = "Nenhuma propriedade adicional para este cliente.";
-    p.style.fontSize = "0.8rem";
+    p.style.fontSize = "12px";
+    p.style.color = "var(--text-3)";
     body.appendChild(p);
     modal.classList.add("is-open");
     modal.setAttribute("aria-hidden", "false");
@@ -1021,7 +1283,7 @@ function abrirModalPropriedades(rowData) {
 
       const tituloC = document.createElement("div");
       tituloC.className = "propriedade-culturas-titulo";
-      tituloC.textContent = "Culturas:";
+      tituloC.textContent = "Culturas";
       wrap.appendChild(tituloC);
 
       const partes = culturasDessaProp.map((cu) => {
@@ -1325,6 +1587,10 @@ async function exportarTabelaParaExcel() {
       clTbody.appendChild(tr);
     });
 
+    cloned.querySelectorAll(".col-hidden").forEach((el) => {
+      el.classList.remove("col-hidden");
+    });
+
     const styleEl = document.createElement("style");
     styleEl.textContent = `
       table {
@@ -1378,6 +1644,7 @@ function initColumnResize() {
 
     handle.addEventListener("mousedown", (e) => {
       e.preventDefault();
+      e.stopPropagation();
       startX = e.pageX;
       startWidth = th.offsetWidth;
       th.classList.add("resizing");
@@ -1418,6 +1685,10 @@ function initColumnDrag() {
     th.draggable = true;
 
     th.addEventListener("dragstart", (e) => {
+      if (e.target.classList && e.target.classList.contains("col-resize-handle")) {
+        e.preventDefault();
+        return;
+      }
       dragSrcIndex = index;
       th.classList.add("drag-source");
       e.dataTransfer.effectAllowed = "move";
@@ -1510,6 +1781,9 @@ window.addEventListener("DOMContentLoaded", async () => {
   if (nomeEl) nomeEl.textContent = user.nome || "Usuário VISYA";
   if (emailEl) emailEl.textContent = user.email || "";
 
+  carregarColunasVisiveis();
+  aplicarVisibilidadeColunas();
+
   const btnAplicar = document.getElementById("btnAplicarCart");
   const btnLimpar = document.getElementById("btnLimparCart");
   const btnExport = document.getElementById("btnExportExcelCart");
@@ -1548,6 +1822,13 @@ window.addEventListener("DOMContentLoaded", async () => {
       }
     });
   }
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      fecharModalCulturas();
+      fecharModalPropriedades();
+    }
+  });
 
   function atualizarEstadoBotaoExport() {
     const vendedorCod =
@@ -1593,6 +1874,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     });
 
   initMultiSelectVendedor();
+  initColunasDropdown();
 
   const btnSelecionarTodosVendedores = document.getElementById("btnSelecionarTodosVendedores");
   const btnLimparVendedores = document.getElementById("btnLimparVendedores");

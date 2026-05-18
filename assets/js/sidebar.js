@@ -1,7 +1,7 @@
 // ================== AUTENTICAÇÃO / CONTEXTO ==================
 function getAuthData() {
   try {
-    const raw = localStorage.getItem('orgdash_auth'); // <-- chave padrão
+    const raw = localStorage.getItem('orgdash_auth');
     if (!raw) return null;
     return JSON.parse(raw);
   } catch (e) {
@@ -18,13 +18,12 @@ function getUsuarioLogado() {
   return auth.usuario;
 }
 
-// Se não tiver login, redireciona para index.html
 (function enforceAuth() {
   const usuario = getUsuarioLogado();
   if (!usuario) {
     window.location.href = '/index.html';
   } else {
-    window.USUARIO_LOGADO = usuario; // deixa disponível para o resto do script
+    window.USUARIO_LOGADO = usuario;
   }
 })();
 
@@ -59,7 +58,6 @@ function applyTheme(theme) {
     console.warn('[SIDEBAR] erro ao salvar tema:', e);
   }
 
-  // avisa o parent para sincronizar tema do conteúdo
   if (window.parent) {
     window.parent.postMessage(
       {
@@ -102,7 +100,6 @@ function closeAllDropdowns() {
     });
 }
 
-// dropdowns
 document.querySelectorAll('.dropdown-toggle').forEach(dropdownToggle => {
   dropdownToggle.addEventListener('click', function (e) {
     e.preventDefault();
@@ -119,7 +116,6 @@ document.querySelectorAll('.dropdown-toggle').forEach(dropdownToggle => {
   });
 });
 
-// collapse
 if (togglerButton && sidebarElement) {
   togglerButton.addEventListener('click', function () {
     closeAllDropdowns();
@@ -137,7 +133,6 @@ if (togglerButton && sidebarElement) {
   });
 }
 
-// toggle tema
 if (themeToggleBtn && sidebarElement) {
   themeToggleBtn.addEventListener('click', function () {
     const isLight = sidebarElement.classList.contains('light-theme');
@@ -146,26 +141,19 @@ if (themeToggleBtn && sidebarElement) {
   });
 }
 
-// tema inicial
 loadSavedTheme();
 
-// ================== MENU DINÂMICO A PARTIR DE usuario.telas ==================
+// ================== MENU DINÂMICO ==================
 function montarMenuUsuarios() {
   const usuario = window.USUARIO_LOGADO;
   if (!usuario) return;
 
   const telas = (usuario.telas || []).filter(t => t.ativo && t.podeVer);
 
-  // Filtra só módulo "Usuários"
   const telasUsuarios = telas
     .filter(t => t.modulo === 'Usuários')
     .sort((a, b) => a.nome.localeCompare(b.nome));
 
-  // Ajusta IDs conforme seu HTML:
-  // <li class="dropdown-container" id="menu-usuarios">
-  //   <a href="#" class="dropdown-toggle">...</a>
-  //   <ul class="dropdown-menu" id="submenu-usuarios"></ul>
-  // </li>
   const menuContainer = document.getElementById('menu-usuarios');
   const submenu = document.getElementById('submenu-usuarios');
   if (!menuContainer || !submenu) {
@@ -184,7 +172,6 @@ function montarMenuUsuarios() {
     submenu.appendChild(li);
   });
 
-  // Esconde o item "Usuários" inteiro se não tiver nenhuma tela
   if (!telasUsuarios.length) {
     menuContainer.style.display = 'none';
   } else {
@@ -192,5 +179,4 @@ function montarMenuUsuarios() {
   }
 }
 
-// chama depois que o DOM estiver pronto
 document.addEventListener('DOMContentLoaded', montarMenuUsuarios);

@@ -158,6 +158,33 @@ async function apiGetVendedores(nome = "") {
   return json;
 }
 
+async function apiGetCarteiraTodasPaginas(pageSize = 1000, onProgress) {
+  const primeira = await apiGetCarteira(1, pageSize);
+  const totalPages = primeira?.pagination?.totalPages || 1;
+  const totalCount = primeira?.pagination?.totalCount || 0;
+
+  let registros = Array.isArray(primeira?.carteiraAnalytics)
+    ? primeira.carteiraAnalytics.slice()
+    : [];
+
+  if (typeof onProgress === "function") {
+    onProgress(1, totalPages, registros.length, totalCount);
+  }
+
+  for (let page = 2; page <= totalPages; page++) {
+    const json = await apiGetCarteira(page, pageSize);
+    const arr = Array.isArray(json?.carteiraAnalytics)
+      ? json.carteiraAnalytics
+      : [];
+    registros = registros.concat(arr);
+    if (typeof onProgress === "function") {
+      onProgress(page, totalPages, registros.length, totalCount);
+    }
+  }
+
+  return { registros, totalCount, totalPages };
+}
+
 // ================== FORMATADORES ==================
 
 function fmtValor(v) {
@@ -1126,7 +1153,132 @@ function aplicarFiltroGeral() {
 
 // ================== EXPORT EXCEL ==================
 
-function exportarTabelaParaExcel() {
+function aplicarFiltroBuscaGeralLocal(arr) {
+  const texto =
+    (document.getElementById("fBuscaGeral")?.value || "").trim().toUpperCase();
+  if (!texto) return arr.slice();
+
+  return arr.filter((reg) => {
+    for (const v of Object.values(reg || {})) {
+      if (v == null) continue;
+      if (String(v).toUpperCase().includes(texto)) return true;
+    }
+    return false;
+  });
+}
+
+function montarLinhaExcel(c) {
+  const tr = document.createElement("tr");
+
+  function add(field, formatter, valueOverride, opts = {}) {
+    const td = document.createElement("td");
+    let raw = valueOverride !== undefined ? valueOverride : c[field];
+
+    if (formatter === fmtValor || formatter === fmtDataIso) {
+      raw = formatter(raw);
+    } else if (formatter) {
+      raw = formatter(raw);
+    } else {
+      raw = fmtTextOrDash(raw);
+    }
+
+    if (opts.truncate) {
+      const s = raw == null || raw === "" ? "" : String(raw);
+      raw = s.length > (opts.maxLen || 300) ? s.slice(0, (opts.maxLen || 300)) + "..." : s;
+    }
+
+    td.textContent = raw == null ? "" : String(raw);
+    td.style.whiteSpace = "nowrap";
+    td.style.overflow = "hidden";
+
+    tr.appendChild(td);
+  }
+
+  add("CODVEND");
+  add("NOME_VENDEDOR", null, undefined, { truncate: true, maxLen: 120 });
+
+  add("CODPARC");
+  add("NOME_CLIENTE", null, undefined, { truncate: true, maxLen: 120 });
+
+  const qtdePropriedades =
+    (Array.isArray(c.propriedades) && c.propriedades.length) ||
+    c.QtdePropriedades ||
+    1;
+  add(null, null, qtdePropriedades);
+
+  add("ParceiroEnderecoCompl", null, undefined, {
+    truncate: true,
+    maxLen: 120,
+  });
+  add("ParceiroEnderecoNumero");
+  add("ParceiroLogradouro", null, undefined, {
+    truncate: true,
+    maxLen: 120,
+  });
+  add("ParceiroBairro", null, undefined, { truncate: true, maxLen: 120 });
+  add("ParceiroCidade", null, undefined, { truncate: true, maxLen: 100 });
+  add("ParceiroCidadeCodigo");
+  add("ParceiroUFSigla");
+  add("ParceiroCEP");
+
+  add("QtdeCulturasDistintas");
+  const resumoCulturas = c.CulturasResumo || montarResumoCulturas(c);
+  add(null, null, resumoCulturas || "-", {
+    truncate: true,
+    maxLen: 200,
+  });
+  add(null, null, "");
+
+  add("ParceiroTelefone", null, undefined, {
+    truncate: true,
+    maxLen: 60,
+  });
+  add("ParceiroEmail", null, undefined, { truncate: true, maxLen: 120 });
+
+  add("ParceiroLatitude");
+  add("ParceiroLongitude");
+
+  add("CODEMP");
+  add("DTLIM", fmtDataIso);
+  add("LIMCRED", fmtValor);
+
+  add("NroUnico");
+  add("NumeroNota");
+  add("DataVenda", fmtDataIso);
+  add("ValorTotalVenda", fmtValor);
+  add("VendedorQueVendeuCodigo");
+  add("VendedorQueVendeuNome", null, undefined, {
+    truncate: true,
+    maxLen: 120,
+  });
+  add("CargoVendedorQueVendeu", null, undefined, {
+    truncate: true,
+    maxLen: 120,
+  });
+
+  add("IdAtividadeUltima");
+  add("DtLancamentoUltimaAtividade", fmtDataIso);
+  add("DtInicialUltimaAtividade", fmtDataIso);
+  add("AssuntoUltimaAtividade", null, undefined, {
+    truncate: true,
+    maxLen: 200,
+  });
+
+  add("ObservacaoUltimaAtividade", null, undefined, {
+    truncate: true,
+    maxLen: 300,
+  });
+
+  add("Total_2024", fmtValor);
+  add("Total_2025", fmtValor);
+  add("Total_2026", fmtValor);
+
+  add("LTV", fmtValor);
+
+  return tr;
+}
+
+async function exportarTabelaParaExcel() {
   const vendedorCod =
     (document.getElementById("fVendedorCart")?.value || "").trim();
   const vendedorNomeSelecionado = getMultiVendedorSelecionados();
@@ -1136,160 +1288,80 @@ function exportarTabelaParaExcel() {
     return;
   }
 
-  if (!dadosView.length) {
-    mostrarToastCarteira("Não há dados para exportar.");
-    return;
-  }
-
   const table = document.getElementById("tblCarteira");
   if (!table) return;
 
-  const cloned = table.cloneNode(true);
-  const clTbody = cloned.tBodies[0];
-  clTbody.innerHTML = "";
+  setLoadingCarteira(true);
 
-  function truncText(value, maxLen = 300) {
-    if (value == null || value === "") return "";
-    const s = String(value);
-    return s.length > maxLen ? s.slice(0, maxLen) + "..." : s;
+  try {
+    const { registros, totalCount } = await apiGetCarteiraTodasPaginas(
+      1000,
+      (page, totalPages, baixados, total) => {
+        console.log(
+          `[CARTEIRA][EXPORT] página ${page}/${totalPages} - ${baixados}/${total} registros`
+        );
+      }
+    );
+
+    const dadosCompletos = registros.map((reg) => {
+      const clone = { ...reg };
+      clone.CulturasResumo = montarResumoCulturas(clone);
+      return clone;
+    });
+
+    const dadosExport = aplicarFiltroBuscaGeralLocal(dadosCompletos);
+
+    if (!dadosExport.length) {
+      mostrarToastCarteira("Não há dados para exportar.");
+      return;
+    }
+
+    const cloned = table.cloneNode(true);
+    const clTbody = cloned.tBodies[0];
+    clTbody.innerHTML = "";
+
+    dadosExport.forEach((c) => {
+      const tr = montarLinhaExcel(c);
+      clTbody.appendChild(tr);
+    });
+
+    const styleEl = document.createElement("style");
+    styleEl.textContent = `
+      table {
+        table-layout: fixed;
+        border-collapse: collapse;
+      }
+      td, th {
+        white-space: nowrap !important;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+    `;
+    cloned.appendChild(styleEl);
+
+    const blob = new Blob(["\ufeff" + cloned.outerHTML], {
+      type: "application/vnd.ms-excel;charset=utf-8",
+    });
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const hoje = new Date().toISOString().slice(0, 10);
+    link.href = url;
+    link.download = `carteira-analytics-${hoje}.xls`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    mostrarToastCarteira(
+      `Exportados ${dadosExport.length.toLocaleString("pt-BR")} de ${totalCount.toLocaleString("pt-BR")} clientes.`
+    );
+  } catch (e) {
+    console.error("[CARTEIRA][EXPORT] Erro:", e);
+    mostrarToastCarteira(e.message || "Erro ao exportar Excel");
+  } finally {
+    setLoadingCarteira(false);
   }
-
-  dadosView.forEach((c) => {
-    const tr = document.createElement("tr");
-
-    function add(field, formatter, valueOverride, opts = {}) {
-      const td = document.createElement("td");
-      let raw = valueOverride !== undefined ? valueOverride : c[field];
-
-      if (formatter === fmtValor || formatter === fmtDataIso) {
-        raw = formatter(raw);
-      } else if (formatter) {
-        raw = formatter(raw);
-      } else {
-        raw = fmtTextOrDash(raw);
-      }
-
-      if (opts.truncate) {
-        raw = truncText(raw, opts.maxLen || 300);
-      }
-
-      td.textContent = raw == null ? "" : String(raw);
-      td.style.whiteSpace = "nowrap";
-      td.style.overflow = "hidden";
-
-      tr.appendChild(td);
-    }
-
-    add("CODVEND");
-    add("NOME_VENDEDOR", null, undefined, { truncate: true, maxLen: 120 });
-
-    add("CODPARC");
-    add("NOME_CLIENTE", null, undefined, { truncate: true, maxLen: 120 });
-
-    const qtdePropriedades =
-      (Array.isArray(c.propriedades) && c.propriedades.length) ||
-      c.QtdePropriedades ||
-      1;
-    add(null, null, qtdePropriedades);
-
-    add("ParceiroEnderecoCompl", null, undefined, {
-      truncate: true,
-      maxLen: 120,
-    });
-    add("ParceiroEnderecoNumero");
-    add("ParceiroLogradouro", null, undefined, {
-      truncate: true,
-      maxLen: 120,
-    });
-    add("ParceiroBairro", null, undefined, { truncate: true, maxLen: 120 });
-    add("ParceiroCidade", null, undefined, { truncate: true, maxLen: 100 });
-    add("ParceiroCidadeCodigo");
-    add("ParceiroUFSigla");
-    add("ParceiroCEP");
-
-    add("QtdeCulturasDistintas");
-    add(null, null, c.CulturasResumo || "-", {
-      truncate: true,
-      maxLen: 200,
-    });
-    add(null, null, "");
-
-    add("ParceiroTelefone", null, undefined, {
-      truncate: true,
-      maxLen: 60,
-    });
-    add("ParceiroEmail", null, undefined, { truncate: true, maxLen: 120 });
-
-    add("ParceiroLatitude");
-    add("ParceiroLongitude");
-
-    add("CODEMP");
-    add("DTLIM", fmtDataIso);
-    add("LIMCRED", fmtValor);
-
-    add("NroUnico");
-    add("NumeroNota");
-    add("DataVenda", fmtDataIso);
-    add("ValorTotalVenda", fmtValor);
-    add("VendedorQueVendeuCodigo");
-    add("VendedorQueVendeuNome", null, undefined, {
-      truncate: true,
-      maxLen: 120,
-    });
-    add("CargoVendedorQueVendeu", null, undefined, {
-      truncate: true,
-      maxLen: 120,
-    });
-
-    add("IdAtividadeUltima");
-    add("DtLancamentoUltimaAtividade", fmtDataIso);
-    add("DtInicialUltimaAtividade", fmtDataIso);
-    add("AssuntoUltimaAtividade", null, undefined, {
-      truncate: true,
-      maxLen: 200,
-    });
-
-    add("ObservacaoUltimaAtividade", null, undefined, {
-      truncate: true,
-      maxLen: 300,
-    });
-
-    add("Total_2024", fmtValor);
-    add("Total_2025", fmtValor);
-    add("Total_2026", fmtValor);
-
-    add("LTV", fmtValor);
-
-    clTbody.appendChild(tr);
-  });
-
-  const styleEl = document.createElement("style");
-  styleEl.textContent = `
-    table {
-      table-layout: fixed;
-      border-collapse: collapse;
-    }
-    td, th {
-      white-space: nowrap !important;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-  `;
-  cloned.appendChild(styleEl);
-
-  const blob = new Blob(["\ufeff" + cloned.outerHTML], {
-    type: "application/vnd.ms-excel;charset=utf-8",
-  });
-
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  const hoje = new Date().toISOString().slice(0, 10);
-  link.href = url;
-  link.download = `carteira-analytics-${hoje}.xls`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
 }
 
 // ================== RESIZE / DRAG ==================

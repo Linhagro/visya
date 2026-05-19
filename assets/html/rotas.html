@@ -7,7 +7,7 @@
 
   <link
     rel="stylesheet"
-    href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
   />
 
   <link rel="stylesheet" href="../css/rotas.css" />
@@ -25,76 +25,61 @@
     href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css"
   />
 
-  <style>
-    /* ===== CHIPS DE VENDEDOR ===== */
-    #filtroVendedorChips {
-      display: none;
-      flex-wrap: wrap;
-      gap: 4px;
-      margin-bottom: 6px;
-    }
-
-    .chip-vendedor {
-      padding: 3px 9px;
-      border-radius: 999px;
-      border: 1px solid var(--border-light-dark);
-      background: var(--bg-section-dark);
-      color: var(--text-soft-dark);
-      font-size: 10px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: background 140ms ease-out, border-color 140ms ease-out, color 140ms ease-out;
-      font-family: "Montserrat", system-ui, sans-serif;
-      white-space: nowrap;
-    }
-
-    body.light-theme .chip-vendedor {
-      border-color: var(--border-light-light);
-      background: var(--bg-section-light);
-      color: var(--text-soft-light);
-    }
-
-    .chip-vendedor:hover {
-      border-color: #22c55e;
-      color: #22c55e;
-    }
-
-    .chip-vendedor-ativo {
-      background: #16a34a !important;
-      border-color: #16a34a !important;
-      color: #fff !important;
-    }
-  </style>
-
   <script src="../js/global.js" defer></script>
   <script src="../js/rotas.js" defer></script>
   <script src="../rotas/js/planejamento-rotas.js" defer></script>
 
-  <!-- three.js para o viewer 3D aberto em nova aba -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r152/three.min.js"></script>
+
+  <!--
+    OPCIONAL: pra habilitar mapa 3D (MapTiler), descomente abaixo e cole sua API key.
+    Grátis em https://www.maptiler.com — 100k visualizações/mês.
+    <script>window.MAPTILER_KEY = "SUA_CHAVE_AQUI";</script>
+  -->
 </head>
 <body>
-  <main class="rotas-page">
-    <header class="rotas-header">
-      <div class="rotas-header-left">
-        <h1 class="rotas-titulo">Mapeamento de Rotas</h1>
-        <p class="rotas-subtitulo">
+  <!-- TOAST GLOBAL -->
+  <div id="toastRotas" class="toast-ano" aria-hidden="true">
+    <span id="toastRotasMsg"></span>
+  </div>
+
+  <main class="rt-page">
+    <!-- HEADER -->
+    <header class="dash-header">
+      <div class="dash-header-left">
+        <span class="dash-kicker">Logística</span>
+        <h1 class="dash-title">
+          Mapeamento <span>de Rotas</span>
+        </h1>
+        <p class="dash-subtitulo">
           Planejamento de rotas, trânsito e link Google Maps para equipes de campo.
         </p>
       </div>
     </header>
 
-    <section class="rotas-main-card">
-      <section class="logistica-grid" id="logistica-app">
+    <section class="rt-main-card">
+      <section class="rt-grid" id="logistica-app">
+        <!-- SIDEBAR -->
         <div id="sidebar-wrapper">
           <div id="sidebar-logistica">
-            <div class="sidebar-scroll">
-              <!-- ========= BLOCO CLIENTES ========= -->
-              <div class="sidebar-section">
-                <h2>Clientes</h2>
+            <!-- ABAS -->
+            <div class="rt-tabs" role="tablist">
+              <button type="button" class="rt-tab is-active" data-tab="clientes" role="tab">
+                Clientes
+              </button>
+              <button type="button" class="rt-tab" data-tab="carga" role="tab">
+                Carregamento
+              </button>
+              <button type="button" class="rt-tab" data-tab="link" role="tab">
+                Link & Alertas
+              </button>
+            </div>
 
+            <div class="sidebar-scroll">
+              <!-- ========= ABA CLIENTES ========= -->
+              <div class="rt-tab-panel is-active" data-panel="clientes">
                 <div class="field-group">
-                  <label for="tipoOrigem">Origem dos pontos:</label>
+                  <label for="tipoOrigem">Origem dos pontos</label>
                   <select id="tipoOrigem">
                     <option value="pedidos" selected>Pedidos pendentes</option>
                     <option value="clientes">Clientes</option>
@@ -103,145 +88,90 @@
                 </div>
 
                 <div class="field-group" id="grupoVendedores" style="display:none;">
-                  <label for="selectVendedor">Vendedor:</label>
+                  <label for="selectVendedor">Vendedor</label>
                   <select id="selectVendedor">
                     <option value="">Selecione um vendedor...</option>
                   </select>
                 </div>
 
-                <!-- CHIPS DE FILTRO POR VENDEDOR (apenas para pedidos pendentes) -->
-                <div id="filtroVendedorChips"></div>
+                <div class="field-group" id="grupoChipsVendedor">
+                  <label>Filtrar por vendedor</label>
+                  <div id="filtroVendedorChips" class="rt-chips"></div>
+                </div>
 
                 <div class="field-group">
-                  <label for="filtroNome">Buscar por código, nome ou endereço:</label>
+                  <label for="filtroNome">Buscar</label>
                   <input
                     type="text"
                     id="filtroNome"
-                    placeholder="Ex: 1016, SILVA, ZONA RURAL..."
+                    placeholder="código, nome, endereço..."
                     autocomplete="off"
                   />
                 </div>
 
-                <div class="counters">
-                  <span class="pill" id="contadorClientes">0 clientes</span>
-                  <span class="pill" id="contadorSelecionados">0 selecionados</span>
+                <div class="rt-counters">
+                  <span class="rt-pill" id="contadorClientes">0 clientes</span>
+                  <span class="rt-pill rt-pill-accent" id="contadorSelecionados">0 selecionados</span>
                 </div>
 
-                <div class="toolbar-row">
-                  <button
-                    id="btnSelecionarTodos"
-                    type="button"
-                    class="uni-btn uni-btn-ghost uni-btn-sm"
-                  >
-                    Selecione os 50 primeiros (Validos)
-                    <svg
-                      class="uni-btn-icon"
-                      viewBox="0 0 16 19"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        d="M7 18C7 18.5523 7.44772 19 8 19C8.55228 19 9 18.5523 9 18H7ZM8.70711 0.292893C8.31658 -0.0976311 7.68342 -0.0976311 7.29289 0.292893L0.928932 6.65685C0.538408 7.04738 0.538408 7.68054 0.928932 8.07107C1.31946 8.46159 1.95262 8.46159 2.34315 8.07107L8 2.41421L13.6569 8.07107C14.0474 8.46159 14.6805 8.46159 15.0711 8.07107C15.4616 7.68054 15.4616 7.04738 15.0711 6.65685L8.70711 0.292893ZM9 18L9 1H7L7 18H9Z"
-                      ></path>
-                    </svg>
+                <div class="rt-toolbar">
+                  <button id="btnSelecionarTodos" type="button" class="rt-btn rt-btn-ghost">
+                    Selecionar 50
                   </button>
-
-                  <button
-                    id="btnLimparSelecao"
-                    type="button"
-                    class="uni-btn uni-btn-ghost uni-btn-sm"
-                  >
-                    Limpar seleção
-                    <svg
-                      class="uni-btn-icon"
-                      viewBox="0 0 16 19"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        d="M7 18C7 18.5523 7.44772 19 8 19C8.55228 19 9 18.5523 9 18H7ZM8.70711 0.292893C8.31658 -0.0976311 7.68342 -0.0976311 7.29289 0.292893L0.928932 6.65685C0.538408 7.04738 0.538408 7.68054 0.928932 8.07107C1.31946 8.46159 1.95262 8.46159 2.34315 8.07107L8 2.41421L13.6569 8.07107C14.0474 8.46159 14.6805 8.46159 15.0711 8.07107C15.4616 7.68054 15.4616 7.04738 15.0711 6.65685L8.70711 0.292893ZM9 18L9 1H7L7 18H9Z"
-                      ></path>
-                    </svg>
+                  <button id="btnLimparSelecao" type="button" class="rt-btn rt-btn-ghost">
+                    Limpar
                   </button>
                 </div>
 
-                <div class="resumo-selecionados" id="resumoSelecionados">
+                <div class="rt-resumo" id="resumoSelecionados">
                   Nenhum cliente selecionado.
                 </div>
 
                 <div class="clientes-lista" id="listaClientes"></div>
               </div>
 
-              <!-- ========= BLOCO CARREGAMENTO MANUAL ========= -->
-              <div class="sidebar-section">
-                <h2>Carregamento manual</h2>
-
+              <!-- ========= ABA CARREGAMENTO ========= -->
+              <div class="rt-tab-panel" data-panel="carga">
                 <div class="field-group">
-                  <label>Resumo da carga selecionada:</label>
-                  <div
-                    id="resumoCargaSelecionada"
-                    class="resumo-selecionados resumo-carga-manual"
-                  >
+                  <label>Resumo da carga</label>
+                  <div id="resumoCargaSelecionada" class="rt-resumo rt-resumo-carga">
                     Nenhum pedido selecionado para carregamento.
                   </div>
                 </div>
 
                 <div class="field-group">
-                  <label for="selectCaminhaoCarga">Caminhão sugerido / escolhido:</label>
+                  <label for="selectCaminhaoCarga">Caminhão</label>
                   <select id="selectCaminhaoCarga">
-                    <option value="">Sugestão será carregada ao realizar carregamento...</option>
+                    <option value="">Será carregado após "Realizar carregamento"</option>
                   </select>
                 </div>
 
-                <div class="toolbar-row toolbar-row-carregamento">
-                  <button
-                    id="btnRealizarCarregamento"
-                    type="button"
-                    class="uni-btn uni-btn-secondary uni-btn-sm uni-btn-full"
-                  >
-                    Realizar carregamento
-                  </button>
-                </div>
-
-                <div class="toolbar-row toolbar-row-carregamento">
-                  <button
-                    id="btnMontarCarga3D"
-                    type="button"
-                    class="uni-btn uni-btn-primary uni-btn-sm uni-btn-full"
-                    disabled
-                  >
-                    Montar carga 3D
-                  </button>
-                </div>
-              </div>
-
-              <!-- ========= BLOCO LINK MAPS ========= -->
-              <div class="sidebar-section">
-                <h2>Link Google Maps</h2>
-                <button
-                  id="btnGerarLinkMapsSidebar"
-                  type="button"
-                  class="uni-btn uni-btn-secondary uni-btn-full"
-                  disabled
-                >
-                  Gerar link
-                  <svg
-                    class="uni-btn-icon"
-                    viewBox="0 0 16 19"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      d="M7 18C7 18.5523 7.44772 19 8 19C8.55228 19 9 18.5523 9 18H7ZM8.70711 0.292893C8.31658 -0.0976311 7.68342 -0.0976311 7.29289 0.292893L0.928932 6.65685C0.538408 7.04738 0.538408 7.68054 0.928932 8.07107C1.31946 8.46159 1.95262 8.46159 2.34315 8.07107L8 2.41421L13.6569 8.07107C14.0474 8.46159 14.6805 8.46159 15.0711 8.07107C15.4616 7.68054 15.4616 7.04738 15.0711 6.65685L8.70711 0.292893ZM9 18L9 1H7L7 18H9Z"
-                    ></path>
-                  </svg>
+                <button id="btnRealizarCarregamento" type="button" class="rt-btn rt-btn-full">
+                  Realizar carregamento
                 </button>
-                <div id="linkMaps" class="link-output">
-                  Nenhum link gerado ainda.
-                </div>
+
+                <button id="btnMontarCarga3D" type="button" class="rt-btn rt-btn-primary rt-btn-full" disabled style="margin-top: 8px;">
+                  Montar carga 3D
+                </button>
               </div>
 
-              <div class="sidebar-section">
-                <h2>Alertas da rota</h2>
-                <div id="alertasRotaSidebar" class="alertas-rota">
-                  Nenhuma rota analisada ainda.
+              <!-- ========= ABA LINK & ALERTAS ========= -->
+              <div class="rt-tab-panel" data-panel="link">
+                <div class="field-group">
+                  <label>Link Google Maps</label>
+                  <button id="btnGerarLinkMapsSidebar" type="button" class="rt-btn rt-btn-full" disabled>
+                    Gerar link
+                  </button>
+                  <div id="linkMaps" class="rt-link-output">
+                    Nenhum link gerado ainda.
+                  </div>
+                </div>
+
+                <div class="field-group">
+                  <label>Alertas da rota</label>
+                  <div id="alertasRotaSidebar" class="rt-resumo rt-resumo-alertas">
+                    Nenhuma rota analisada ainda.
+                  </div>
                 </div>
               </div>
             </div>
@@ -250,6 +180,7 @@
 
         <div id="sidebar-resizer"></div>
 
+        <!-- MAPA -->
         <div id="map-container">
           <div id="map"></div>
 
@@ -257,27 +188,21 @@
             <div id="rota-panel-header" class="rota-header">
               <div class="rota-header-main">
                 <span class="rota-title">Pontos da rota</span>
-                <span class="rota-subtitle">Arraste para alterar a ordem</span>
+                <span class="rota-subtitle">Arraste para reordenar</span>
               </div>
-              <button
-                id="rotaPanelMinimize"
-                class="rota-header-btn"
-                title="Minimizar / expandir"
-              >−</button>
+              <button id="rotaPanelMinimize" class="rota-header-btn" title="Minimizar / expandir">−</button>
             </div>
 
             <div class="rota-body">
-              <div class="rota-section rota-section-origem">
+              <div class="rota-section">
                 <div class="rota-section-label">Origem</div>
                 <div class="rota-origem-chip">
                   <span class="rota-origem-icon">📍</span>
-                  <span class="rota-origem-text">
-                    Ponto inicial (arraste o pin vermelho)
-                  </span>
+                  <span>Ponto inicial — arraste o pin no mapa</span>
                 </div>
               </div>
 
-              <div class="rota-section rota-section-pontos">
+              <div class="rota-section">
                 <div class="rota-section-label">Paradas</div>
 
                 <div class="rota-lista-wrapper">
@@ -285,162 +210,63 @@
                 </div>
 
                 <div class="rota-add">
-                  <input
-                    type="text"
-                    id="novoPontoInput"
-                    placeholder="Adicionar parada (endereço ou lat,lng)"
-                  />
-                  <button
-                    id="btnAdicionarPonto"
-                    type="button"
-                    class="uni-btn uni-btn-primary uni-btn-sm"
-                  >
+                  <input type="text" id="novoPontoInput" placeholder="endereço ou lat,lng" />
+                  <button id="btnAdicionarPonto" type="button" class="rt-btn rt-btn-primary">
                     Adicionar
-                    <svg
-                      class="uni-btn-icon"
-                      viewBox="0 0 16 19"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        d="M7 18C7 18.5523 7.44772 19 8 19C8.55228 19 9 18.5523 9 18H7ZM8.70711 0.292893C8.31658 -0.0976311 7.68342 -0.0976311 7.29289 0.292893L0.928932 6.65685C0.538408 7.04738 0.538408 7.68054 0.928932 8.07107C1.31946 8.46159 1.95262 8.46159 2.34315 8.07107L8 2.41421L13.6569 8.07107C14.0474 8.46159 14.6805 8.46159 15.0711 8.07107C15.4616 7.68054 15.4616 7.04738 15.0711 6.65685L8.70711 0.292893ZM9 18L9 1H7L7 18H9Z"
-                      ></path>
-                    </svg>
                   </button>
-                </div>
-
-                <div class="rota-section rota-section-flags">
-                  <div class="rota-section-label">Preferências</div>
-
-                  <label class="checkbox-wrapper">
-                    <input type="checkbox" id="chkEvitarPedagios" />
-                    <div class="checkmark">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <path
-                          d="M20 6L9 17L4 12"
-                          stroke-width="3"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                        ></path>
-                      </svg>
-                    </div>
-                    <span class="label">Evitar pedágios (Google Maps)</span>
-                  </label>
-
-                  <label class="checkbox-wrapper">
-                    <input type="checkbox" id="chkEvitarPontes" />
-                    <div class="checkmark">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <path
-                          d="M20 6L9 17L4 12"
-                          stroke-width="3"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                        ></path>
-                      </svg>
-                    </div>
-                    <span class="label">Evitar pontes / perigos (futuro)</span>
-                  </label>
-
-                  <label class="checkbox-wrapper">
-                    <input type="checkbox" id="chkVerTransito" />
-                    <div class="checkmark">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <path
-                          d="M20 6L9 17L4 12"
-                          stroke-width="3"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                        ></path>
-                      </svg>
-                    </div>
-                    <span class="label">Ver trânsito (TomTom)</span>
-                  </label>
                 </div>
               </div>
 
-              <div class="rota-section rota-section-destino">
-                <div class="rota-section-label">Destino</div>
+              <div class="rota-section">
+                <div class="rota-section-label">Preferências</div>
+
+                <label class="rt-check">
+                  <input type="checkbox" id="chkEvitarPedagios" />
+                  <span class="rt-check-box"></span>
+                  <span class="rt-check-label">Evitar pedágios</span>
+                </label>
+
+                <label class="rt-check">
+                  <input type="checkbox" id="chkEvitarPontes" />
+                  <span class="rt-check-box"></span>
+                  <span class="rt-check-label">Evitar pontes / perigos</span>
+                </label>
+
+                <label class="rt-check">
+                  <input type="checkbox" id="chkVerTransito" />
+                  <span class="rt-check-box"></span>
+                  <span class="rt-check-label">Ver trânsito (TomTom)</span>
+                </label>
+              </div>
+
+              <div class="rota-section">
+                <div class="rota-section-label">Destino final</div>
                 <input
                   type="text"
                   id="destinoCampoPainel"
                   class="rota-destino-input"
-                  placeholder="Lat,lng ou vazio p/ última parada"
+                  placeholder="lat,lng ou vazio para usar última parada"
                 />
               </div>
 
               <div class="rota-section rota-section-acoes">
-                <button
-                  id="btnOtimizarRota"
-                  type="button"
-                  class="uni-btn uni-btn-secondary uni-btn-full"
-                >
-                  Otimizar ordem das paradas
-                  <svg
-                    class="uni-btn-icon"
-                    viewBox="0 0 16 19"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      d="M7 18C7 18.5523 7.44772 19 8 19C8.55228 19 9 18.5523 9 18H7ZM8.70711 0.292893C8.31658 -0.0976311 7.68342 -0.0976311 7.29289 0.292893L0.928932 6.65685C0.538408 7.04738 0.538408 7.68054 0.928932 8.07107C1.31946 8.46159 1.95262 8.46159 2.34315 8.07107L8 2.41421L13.6569 8.07107C14.0474 8.46159 14.6805 8.46159 15.0711 8.07107C15.4616 7.68054 15.4616 7.04738 15.0711 6.65685L8.70711 0.292893ZM9 18L9 1H7L7 18H9Z"
-                    ></path>
-                  </svg>
+                <button id="btnOtimizarRota" type="button" class="rt-btn rt-btn-full">
+                  Otimizar ordem
                 </button>
-
-                <button
-                  id="btnGerarRota"
-                  type="button"
-                  class="uni-btn uni-btn-primary uni-btn-full"
-                >
+                <button id="btnGerarRota" type="button" class="rt-btn rt-btn-primary rt-btn-full">
                   Atualizar rota
-                  <svg
-                    class="uni-btn-icon"
-                    viewBox="0 0 16 19"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      d="M7 18C7 18.5523 7.44772 19 8 19C8.55228 19 9 18.5523 9 18H7ZM8.70711 0.292893C8.31658 -0.0976311 7.68342 -0.0976311 7.29289 0.292893L0.928932 6.65685C0.538408 7.04738 0.538408 7.68054 0.928932 8.07107C1.31946 8.46159 1.95262 8.46159 2.34315 8.07107L8 2.41421L13.6569 8.07107C14.0474 8.46159 14.6805 8.46159 15.0711 8.07107C15.4616 7.68054 15.4616 7.04738 15.0711 6.65685L8.70711 0.292893ZM9 18L9 1H7L7 18H9Z"
-                    ></path>
-                  </svg>
                 </button>
-
-                <button
-                  id="btnPlanejarIA"
-                  type="button"
-                  class="uni-btn uni-btn-secondary uni-btn-full"
-                >
+                <button id="btnPlanejarIA" type="button" class="rt-btn rt-btn-full">
                   Planejar com IA
-                  <svg
-                    class="uni-btn-icon"
-                    viewBox="0 0 16 19"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      d="M7 18C7 18.5523 7.44772 19 8 19C8.55228 19 9 18.5523 9 18H7ZM8.70711 0.292893C8.31658 -0.0976311 7.68342 -0.0976311 7.29289 0.292893L0.928932 6.65685C0.538408 7.04738 0.538408 7.68054 0.928932 8.07107C1.31946 8.46159 1.95262 8.46159 2.34315 8.07107L8 2.41421L13.6569 8.07107C14.0474 8.46159 14.6805 8.46159 15.0711 8.07107C15.4616 7.68054 15.4616 7.04738 15.0711 6.65685L8.70711 0.292893ZM9 18L9 1H7L7 18H9Z"
-                    ></path>
-                  </svg>
                 </button>
-
-                <button
-                  id="btnGerarLinkMaps"
-                  type="button"
-                  class="uni-btn uni-btn-secondary uni-btn-full"
-                  disabled
-                >
+                <button id="btnGerarLinkMaps" type="button" class="rt-btn rt-btn-full" disabled>
                   Abrir no Google Maps
-                  <svg
-                    class="uni-btn-icon"
-                    viewBox="0 0 16 19"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      d="M7 18C7 18.5523 7.44772 19 8 19C8.55228 19 9 18.5523 9 18H7ZM8.70711 0.292893C8.31658 -0.0976311 7.68342 -0.0976311 7.29289 0.292893L0.928932 6.65685C0.538408 7.04738 0.538408 7.68054 0.928932 8.07107C1.31946 8.46159 1.95262 8.46159 2.34315 8.07107L8 2.41421L13.6569 8.07107C14.0474 8.46159 14.6805 8.46159 15.0711 8.07107C15.4616 7.68054 15.4616 7.04738 15.0711 6.65685L8.70711 0.292893ZM9 18L9 1H7L7 18H9Z"
-                    ></path>
-                  </svg>
                 </button>
               </div>
 
-              <div class="rota-section rota-section-resumo">
-                <div class="rota-resumo" id="alertasRota">
+              <div class="rota-section">
+                <div class="rota-section-label">Resumo da rota</div>
+                <div class="rt-resumo rt-resumo-rota" id="alertasRota">
                   Nenhuma rota analisada ainda.
                 </div>
               </div>
@@ -451,14 +277,38 @@
     </section>
   </main>
 
-  <div id="toast-copiar-link" class="toast-copiar-link" style="display:none;">
-    Link copiado para a área de transferência.
+  <!-- MODAL CONFIRMAÇÃO -->
+  <div id="modalRotasConfirm" class="rt-modal-backdrop" aria-hidden="true">
+    <div class="rt-modal">
+      <button type="button" class="rt-modal-close" id="btnFecharConfirm" aria-label="Fechar">✕</button>
+      <p class="modal-kicker">Confirmação</p>
+      <h2 class="rt-modal-title" id="confirmTitulo">Confirmar ação</h2>
+      <p class="rt-modal-msg" id="confirmMensagem">Tem certeza?</p>
+      <div class="modal-actions">
+        <button type="button" class="rt-btn" id="btnConfirmCancelar">Cancelar</button>
+        <button type="button" class="rt-btn rt-btn-primary" id="btnConfirmOk">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL ITENS DO PEDIDO -->
+  <div id="modalItensPedido" class="rt-modal-backdrop" aria-hidden="true">
+    <div class="rt-modal rt-modal-lg">
+      <button type="button" class="rt-modal-close" id="btnFecharModalItens" aria-label="Fechar">✕</button>
+      <p class="modal-kicker">Pedido</p>
+      <h2 class="rt-modal-title" id="modalItensTitulo">Itens do pedido</h2>
+      <p class="rt-modal-sub" id="modalItensSub">—</p>
+
+      <div class="modal-itens-wrapper">
+        <div id="modalItensCorpo" class="modal-itens-corpo"></div>
+      </div>
+
+      <div class="modal-itens-totais" id="modalItensTotais">—</div>
+    </div>
   </div>
 
   <div id="rotas-loader-overlay" class="rotas-loader-overlay" style="display:none;">
-    <div class="rotas-loader-spinner">
-      Carregando rota...
-    </div>
+    <div class="rotas-loader-spinner">Carregando rota...</div>
   </div>
 
   <div id="loaderOverlay" style="display:none;"></div>
@@ -471,32 +321,22 @@
   <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.min.js"></script>
 
   <script>
-    const THEME_KEY = 'visya-sidebar-theme';
+    const THEME_KEY = "visya-sidebar-theme";
 
     function applyLocalThemeRotas() {
       let saved = null;
-      try {
-        saved = localStorage.getItem(THEME_KEY);
-      } catch (e) {
-        console.warn('[ROTAS] erro ao ler tema do localStorage:', e);
-      }
-      const theme = saved === 'light' || saved === 'dark' ? saved : 'dark';
-      const isLight = theme === 'light';
-      document.body.classList.toggle('light-theme', isLight);
+      try { saved = localStorage.getItem(THEME_KEY); } catch (e) {}
+      const theme = saved === "light" || saved === "dark" ? saved : "dark";
+      document.body.classList.toggle("light-theme", theme === "light");
     }
 
     applyLocalThemeRotas();
 
-    window.addEventListener('message', (event) => {
-      if (!event.data || event.data.type !== 'visya-theme') return;
-      const theme = event.data.theme;
-      const isLight = theme === 'light';
-      document.body.classList.toggle('light-theme', isLight);
-      try {
-        localStorage.setItem(THEME_KEY, theme);
-      } catch (e) {
-        console.warn('[ROTAS] erro ao salvar tema:', e);
-      }
+    window.addEventListener("message", (event) => {
+      if (!event.data || event.data.type !== "visya-theme") return;
+      const isLight = event.data.theme === "light";
+      document.body.classList.toggle("light-theme", isLight);
+      try { localStorage.setItem(THEME_KEY, event.data.theme); } catch (e) {}
     });
   </script>
 </body>

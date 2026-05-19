@@ -1,14 +1,11 @@
 // assets/js/rotas.js
 
-
 // ================== CONFIG API BASE ==================
-
 
 if (!window.API_BASE && window.APIBASE === undefined) {
   window.API_BASE =
     "https://org-dash-api-e4epa4anfpguandz.canadacentral-01.azurewebsites.net/api/v1";
 }
-
 
 if (window.APIBASE === undefined) {
   const DEFAULT_LOGISTICA_API_BASE =
@@ -20,71 +17,88 @@ if (window.APIBASE === undefined) {
   window.APIBASE = LOGISTICA_API_BASE;
 }
 
-
 console.log("[ROTAS] rotas.js carregado. APIBASE =", window.APIBASE);
 
+// ================== TOAST + MODAL CONFIRMAÇÃO ==================
 
-// ================== LOADER LOCAL DE ROTAS ==================
+function mostrarToast(msg, isError = false) {
+  const toast = document.getElementById("toastRotas");
+  const span = document.getElementById("toastRotasMsg");
+  if (!toast || !span) return;
+  span.textContent = msg;
+  toast.classList.toggle("toast-ano-error", !!isError);
+  toast.classList.add("toast-ano-visible");
+  toast.setAttribute("aria-hidden", "false");
+  setTimeout(() => {
+    toast.classList.remove("toast-ano-visible");
+    toast.setAttribute("aria-hidden", "true");
+  }, 3500);
+}
 
+let _confirmCallback = null;
+
+function abrirConfirmacao(titulo, mensagem, callback) {
+  const modal = document.getElementById("modalRotasConfirm");
+  const tit = document.getElementById("confirmTitulo");
+  const msg = document.getElementById("confirmMensagem");
+  if (!modal || !tit || !msg) return;
+  tit.textContent = titulo || "Confirmar ação";
+  msg.textContent = mensagem || "Tem certeza?";
+  _confirmCallback = callback;
+  modal.classList.add("is-open");
+  modal.setAttribute("aria-hidden", "false");
+}
+
+function fecharConfirmacao() {
+  const modal = document.getElementById("modalRotasConfirm");
+  if (modal) {
+    modal.classList.remove("is-open");
+    modal.setAttribute("aria-hidden", "true");
+  }
+  _confirmCallback = null;
+}
+
+// ================== LOADER LOCAL ==================
 
 let rotasLoaderTimerId = null;
-
 
 function showRotasLoader() {
   const overlay =
     document.getElementById("loaderOverlay") ||
     document.getElementById("rotas-loader-overlay");
-  if (!overlay) {
-    console.warn("[ROTAS] loaderOverlay global não encontrado no DOM");
-    return;
-  }
-
-
-  if (rotasLoaderTimerId !== null) {
-    clearTimeout(rotasLoaderTimerId);
-  }
+  if (!overlay) return;
+  if (rotasLoaderTimerId !== null) clearTimeout(rotasLoaderTimerId);
   rotasLoaderTimerId = setTimeout(() => {
     overlay.setAttribute("aria-hidden", "false");
     overlay.style.display = "flex";
   }, 50);
 }
 
-
 function hideRotasLoader() {
   const overlay =
     document.getElementById("loaderOverlay") ||
     document.getElementById("rotas-loader-overlay");
   if (!overlay) return;
-
-
   if (rotasLoaderTimerId !== null) {
     clearTimeout(rotasLoaderTimerId);
     rotasLoaderTimerId = null;
   }
-
-
   overlay.setAttribute("aria-hidden", "true");
   overlay.style.display = "none";
 }
 
-
-// ================== AUTH HELPER JWT ==================
-
+// ================== AUTH ==================
 
 function getAuthHeadersRotas() {
   try {
     const token =
       (window.sessionStorage && sessionStorage.getItem("authToken")) || null;
     if (!token) return;
-    return {
-      Authorization: "Bearer " + token
-    };
+    return { Authorization: "Bearer " + token };
   } catch (e) {
-    console.warn("[ROTAS] Erro ao recuperar authToken do sessionStorage:", e);
     return;
   }
 }
-
 
 async function apiFetch(path, options = {}) {
   const url = window.APIBASE + path;
@@ -100,61 +114,37 @@ async function apiFetch(path, options = {}) {
   return resp;
 }
 
-
-// CONSTANTES DE LIMITE
 const LIMITE_PONTOS_ROTA = 80;
 
-
-// TOMTOM TRAFFIC FLOW
+// TOMTOM
 const TOMTOM_API_KEY = "l22aGTuKjY30e1lAcUqAup3XZ8pYzCOb";
-
 
 const tomtomTrafficLayer = L.tileLayer(
   "https://api.tomtom.com/traffic/map/4/tile/flow/absolute/{z}/{x}/{y}.png?key=" +
     TOMTOM_API_KEY,
-  {
-    opacity: 0.7,
-    attribution: "© TomTom"
-  }
+  { opacity: 0.7, attribution: "© TomTom" }
 );
 
-
 function toggleTraffic(ativo) {
-  if (ativo) {
-    tomtomTrafficLayer.addTo(map);
-  } else {
-    map.removeLayer(tomtomTrafficLayer);
-  }
+  if (ativo) tomtomTrafficLayer.addTo(map);
+  else map.removeLayer(tomtomTrafficLayer);
 }
 
-
-// TOMTOM TRAFFIC INCIDENTS
 let incidentMarkers = [];
 
-
 function escolherIconePorCategoria(cat) {
-  let color = "#2563eb";
-  if (cat === 1) color = "#ef4444";
-  else if (cat === 6) color = "#f97316";
-  else if (cat === 8) color = "#111827";
-  else if (cat === 9) color = "#eab308";
-
-
+  let color = "#6ea3d1";
+  if (cat === 1) color = "#c25450";
+  else if (cat === 6) color = "#d4a056";
+  else if (cat === 8) color = "#0f172a";
+  else if (cat === 9) color = "#d4a056";
   return L.divIcon({
     className: "incident-marker-wrapper",
-    html: `<div class="incident-marker" style="
-        width:14px;
-        height:14px;
-        border-radius:50%;
-        background:${color};
-        border:2px solid #0f172a;
-        box-shadow:0 0 6px rgba(15,23,42,0.8);
-      "></div>`,
+    html: `<div class="incident-marker" style="width:14px;height:14px;border-radius:50%;background:${color};border:2px solid #07090c;box-shadow:0 0 6px rgba(0,0,0,0.7);"></div>`,
     iconSize: [14, 14],
     iconAnchor: [7, 7]
   });
 }
-
 
 function traduzirDescricaoTomTom(desc) {
   if (!desc) return "Incidente de trânsito";
@@ -164,83 +154,47 @@ function traduzirDescricaoTomTom(desc) {
   return desc;
 }
 
-
 async function carregarIncidentesTomTom() {
   showRotasLoader();
   try {
-    incidentMarkers.forEach(m => map.removeLayer(m));
+    incidentMarkers.forEach((m) => map.removeLayer(m));
     incidentMarkers = [];
 
-
     const bounds = map.getBounds();
-    const minLat = bounds.getSouth();
-    const minLon = bounds.getWest();
-    const maxLat = bounds.getNorth();
-    const maxLon = bounds.getEast();
+    if (map.getZoom() < 9) return;
 
-
-    if (map.getZoom() < 9) {
-      console.log(
-        "[ROTAS] Zoom muito baixo para incidentes, pulando chamada TomTom"
-      );
-      return;
-    }
-
-
-    const bbox = `${minLon},${minLat},${maxLon},${maxLat}`;
-    const path = `/logistica/tomtom/incidentes?bbox=${encodeURIComponent(
-      bbox
-    )}`;
-
-
+    const bbox = `${bounds.getWest()},${bounds.getSouth()},${bounds.getEast()},${bounds.getNorth()}`;
+    const path = `/logistica/tomtom/incidentes?bbox=${encodeURIComponent(bbox)}`;
     const resp = await apiFetch(path);
-    if (!resp.ok) {
-      console.warn("[ROTAS] Incidentes HTTP", resp.status);
-      return;
-    }
+    if (!resp.ok) return;
     const data = await resp.json();
-    (data.incidents || []).forEach(inc => {
+    (data.incidents || []).forEach((inc) => {
       const props = inc.properties;
       const geom = inc.geometry;
       const cat = props.iconCategory;
       const evt = props.events && props.events[0];
-      const descrOriginal = evt?.description || "Incidente de trânsito";
-      const descr = traduzirDescricaoTomTom(descrOriginal);
-
-
-      let lat = null;
-      let lon = null;
-      if (geom.type === "Point") {
-        const coords = geom.coordinates;
-        lon = coords[0];
-        lat = coords[1];
-      } else if (geom.type === "LineString") {
-        const coords = geom.coordinates || [];
-        if (coords.length === 0) return;
-        const mid = Math.floor(coords.length / 2);
-        lon = coords[mid][0];
-        lat = coords[mid][1];
+      const descr = traduzirDescricaoTomTom(evt?.description);
+      let lat = null, lon = null;
+      if (geom.type === "Point") { lon = geom.coordinates[0]; lat = geom.coordinates[1]; }
+      else if (geom.type === "LineString" && geom.coordinates?.length) {
+        const mid = Math.floor(geom.coordinates.length / 2);
+        lon = geom.coordinates[mid][0];
+        lat = geom.coordinates[mid][1];
       }
       if (lat == null || lon == null) return;
-
-
-      const marker = L.marker([lat, lon], {
-        icon: escolherIconePorCategoria(cat)
-      }).bindPopup(descr);
-
-
+      const marker = L.marker([lat, lon], { icon: escolherIconePorCategoria(cat) }).bindPopup(descr);
       marker.addTo(map);
       incidentMarkers.push(marker);
     });
   } catch (e) {
-    console.warn("[ROTAS] Erro ao carregar incidentes TomTom:", e);
+    console.warn("[ROTAS] Erro TomTom:", e);
   } finally {
     hideRotasLoader();
   }
 }
 
+// ================== MAPA ==================
 
-// MAPA
 const map = L.map("map", {
   zoomSnap: 0.25,
   zoomDelta: 0.5,
@@ -249,32 +203,126 @@ const map = L.map("map", {
   attributionControl: false
 }).setView([-19.5, -40.3], 7);
 
+L.Marker.prototype.options.icon = L.divIcon({ className: "", html: "", iconSize: null });
 
-L.Marker.prototype.options.icon = L.divIcon({
-  className: "",
-  html: "",
-  iconSize: null
-});
+// ================== CAMADAS DE MAPA ==================
 
-
-const OpenStreetMapFrance = L.tileLayer(
+// OSM Standard (padrão, vetorial leve)
+const tileOSM = L.tileLayer(
   "https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png",
   {
     maxZoom: 20,
-    attribution:
-      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    attribution: '&copy; OpenStreetMap contributors'
   }
 );
-OpenStreetMapFrance.addTo(map);
+
+// Satélite Google (gratuito via tile público, sem API key, cobertura muito melhor que ESRI)
+// Usa 4 subdomínios em paralelo (mt0-mt3) pra acelerar carregamento
+const tileSatelite = L.tileLayer(
+  "https://mt{s}.google.com/vt/lyrs=s&hl=pt-BR&x={x}&y={y}&z={z}",
+  {
+    maxZoom: 20,
+    subdomains: ["0", "1", "2", "3"],
+    attribution: "&copy; Google"
+  }
+);
+
+// Híbrido Google (satélite + ruas + nomes em pt-BR)
+const tileHibrido = L.tileLayer(
+  "https://mt{s}.google.com/vt/lyrs=y&hl=pt-BR&x={x}&y={y}&z={z}",
+  {
+    maxZoom: 20,
+    subdomains: ["0", "1", "2", "3"],
+    attribution: "&copy; Google"
+  }
+);
+
+// Mantém variável (não usada agora, mas evita break em referências antigas)
+const tileSateliteLabels = null;
+
+// MapTiler 3D (opcional, requer window.MAPTILER_KEY)
+let tileMapTiler3D = null;
+if (window.MAPTILER_KEY) {
+  tileMapTiler3D = L.tileLayer(
+    `https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=${window.MAPTILER_KEY}`,
+    {
+      maxZoom: 22,
+      attribution: '&copy; <a href="https://www.maptiler.com/copyright/">MapTiler</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    }
+  );
+}
+
+let camadaAtualMapa = "osm";
+tileOSM.addTo(map);
 map.doubleClickZoom.disable();
 
+function trocarCamadaMapa(novaCamada) {
+  // Remove todas as camadas base
+  [tileOSM, tileSatelite, tileHibrido].forEach((t) => {
+    if (t && map.hasLayer(t)) map.removeLayer(t);
+  });
+  if (tileMapTiler3D && map.hasLayer(tileMapTiler3D)) map.removeLayer(tileMapTiler3D);
 
-// ESTADO
+  // Adiciona a escolhida
+  if (novaCamada === "osm") tileOSM.addTo(map);
+  else if (novaCamada === "satelite") tileSatelite.addTo(map);
+  else if (novaCamada === "hibrido") tileHibrido.addTo(map);
+  else if (novaCamada === "3d" && tileMapTiler3D) tileMapTiler3D.addTo(map);
+
+  camadaAtualMapa = novaCamada;
+
+  // Atualiza botões
+  document.querySelectorAll(".mapa-camada-btn").forEach((b) => {
+    b.classList.toggle("is-active", b.dataset.camada === novaCamada);
+  });
+}
+
+// Control customizado de troca de camadas + Street View
+const MapaCamadasControl = L.Control.extend({
+  options: { position: "topright" },
+  onAdd: function () {
+    const div = L.DomUtil.create("div", "mapa-camadas-control");
+    const has3D = !!tileMapTiler3D;
+
+    div.innerHTML = `
+      <button type="button" class="mapa-camada-btn is-active" data-camada="osm" title="Mapa">2D</button>
+      <button type="button" class="mapa-camada-btn" data-camada="satelite" title="Satélite">Sat</button>
+      <button type="button" class="mapa-camada-btn" data-camada="hibrido" title="Híbrido (satélite + ruas)">Hib</button>
+      ${has3D ? '<button type="button" class="mapa-camada-btn" data-camada="3d" title="3D">3D</button>' : ''}
+      <button type="button" class="mapa-camada-btn mapa-camada-sv" data-acao="streetview" title="Abrir Street View no centro do mapa">SV</button>
+    `;
+
+    L.DomEvent.disableClickPropagation(div);
+
+    div.querySelectorAll("[data-camada]").forEach((b) => {
+      b.addEventListener("click", () => trocarCamadaMapa(b.dataset.camada));
+    });
+
+    div.querySelector("[data-acao='streetview']")?.addEventListener("click", abrirStreetViewCentro);
+
+    return div;
+  }
+});
+
+map.addControl(new MapaCamadasControl());
+
+function abrirStreetViewCentro() {
+  const c = map.getCenter();
+  const url = `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${c.lat},${c.lng}`;
+  window.open(url, "_blank");
+}
+
+function abrirStreetViewCoord(lat, lng) {
+  const url = `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}`;
+  window.open(url, "_blank");
+}
+
+// ================== ESTADO ==================
+
 let routingControl = null;
 let clienteMarkers = {};
 let todosMarkersRota = [];
 let ultimaRotaWaypoints = null;
-
 
 let cacheClientes = null;
 let cachePedidosPendentes = null;
@@ -282,39 +330,28 @@ let cacheCarteira = null;
 let cacheVendedores = null;
 let cachePedidosItens = new Map();
 
-
 let clientesFiltradosAtuais = null;
 let paginaClientes = 0;
 const TAMANHO_PAGINA = 30;
 let carregandoMais = false;
 
-
 let ultimaAnaliseRota = null;
-let rotaDebounceTimeout = null;
 let dragListaConfigurado = false;
-
 
 let idsSelecionados = new Set();
 let origemAtual = "pedidos";
 
-
-// FILTRO VENDEDOR PEDIDOS PENDENTES
 let filtroVendedorAtivo = null;
 
-
-const ORIGEM_FIXA = {
-  lat: -19.383869647653956,
-  lng: -40.067551247607746
-};
-
+const ORIGEM_FIXA = { lat: -19.383869647653956, lng: -40.067551247607746 };
 
 let marcadorLocalizacao = null;
 let origemManual = { ...ORIGEM_FIXA };
 
-
 let pontosManuais = [];
 let manualIdSeq = 1;
 
+let filtroBuscaDebounce = null;
 
 const myLocationIcon = L.divIcon({
   className: "",
@@ -323,38 +360,31 @@ const myLocationIcon = L.divIcon({
   iconAnchor: [13, 26]
 });
 
+// ================== DOM ==================
 
-// DOM
 const listaClientesDiv = document.getElementById("listaClientes");
 const contadorClientesSpan = document.getElementById("contadorClientes");
-const contadorSelecionadosSpan = document.getElementById(
-  "contadorSelecionados"
-);
+const contadorSelecionadosSpan = document.getElementById("contadorSelecionados");
 const resumoSelecionadosDiv = document.getElementById("resumoSelecionados");
 const alertasRota = document.getElementById("alertasRota");
 const alertasRotaSidebar = document.getElementById("alertasRotaSidebar");
 const filtroNomeInput = document.getElementById("filtroNome");
-const btnGerarLinkMapsSidebar = document.getElementById(
-  "btnGerarLinkMapsSidebar"
-);
+const btnGerarLinkMapsSidebar = document.getElementById("btnGerarLinkMapsSidebar");
 const chkEvitarPedagios = document.getElementById("chkEvitarPedagios");
 const chkEvitarPontes = document.getElementById("chkEvitarPontes");
 const linkMapsDiv = document.getElementById("linkMaps");
 
-
 const tipoOrigemSelect = document.getElementById("tipoOrigem");
 const grupoVendedoresDiv = document.getElementById("grupoVendedores");
+const grupoChipsVendedor = document.getElementById("grupoChipsVendedor");
 const selectVendedor = document.getElementById("selectVendedor");
-
 
 let chkVerTransito = document.getElementById("chkVerTransito");
 if (!chkVerTransito) chkVerTransito = chkEvitarPontes;
 
-
 const novoPontoInput = document.getElementById("novoPontoInput");
 const btnAdicionarPonto = document.getElementById("btnAdicionarPonto");
 const rotaPanel = document.getElementById("rota-panel");
-const rotaPanelHeader = document.getElementById("rota-panel-header");
 const rotaPanelMinimize = document.getElementById("rotaPanelMinimize");
 const destinoCampoPainel = document.getElementById("destinoCampoPainel");
 const btnGerarRota = document.getElementById("btnGerarRota");
@@ -363,47 +393,33 @@ const btnSelecionarTodos = document.getElementById("btnSelecionarTodos");
 const btnLimparSelecao = document.getElementById("btnLimparSelecao");
 const btnOtimizarRota = document.getElementById("btnOtimizarRota");
 
-
 const btnRealizarCarregamento = document.getElementById("btnRealizarCarregamento");
 const btnMontarCarga3D = document.getElementById("btnMontarCarga3D");
 const campoResumoCarga = document.getElementById("resumoCargaSelecionada");
 const selectCaminhaoCarga = document.getElementById("selectCaminhaoCarga");
 
+function getRotaListaDiv() { return document.getElementById("rotaListaPontos"); }
 
-function getRotaListaDiv() {
-  return document.getElementById("rotaListaPontos");
-}
+// ================== HELPERS ==================
 
-
-// HELPERS
-function getDestinoCampo() {
-  return destinoCampoPainel.value.trim();
-}
-
+function getDestinoCampo() { return destinoCampoPainel.value.trim(); }
 
 function setAlertasTexto(texto) {
   alertasRota.textContent = texto;
   alertasRotaSidebar.textContent = texto;
 }
 
-
 function setLinkMapsEnabled(enabled) {
   btnGerarLinkMaps.disabled = !enabled;
   btnGerarLinkMapsSidebar.disabled = !enabled;
 }
 
-
 function removerTodosMarkersDoMapa() {
-  todosMarkersRota.forEach(m => {
-    if (map.hasLayer(m)) map.removeLayer(m);
-  });
+  todosMarkersRota.forEach((m) => { if (map.hasLayer(m)) map.removeLayer(m); });
   todosMarkersRota = [];
-  Object.values(clienteMarkers).forEach(m => {
-    if (map.hasLayer(m)) map.removeLayer(m);
-  });
+  Object.values(clienteMarkers).forEach((m) => { if (map.hasLayer(m)) map.removeLayer(m); });
   clienteMarkers = {};
 }
-
 
 function montarEnderecoPadrao(item) {
   const partes = [];
@@ -421,46 +437,27 @@ function montarEnderecoPadrao(item) {
   return partes.join(" | ");
 }
 
-
 function getNomeVendedorPorCodigo(codvend) {
   if (codvend == null || codvend === "") return "";
   const cod = String(codvend);
   const lista = cacheVendedores || [];
-  const vendedor = lista.find(v => String(v.codvend) === cod);
+  const vendedor = lista.find((v) => String(v.codvend) === cod);
   if (!vendedor) return "";
   return (
-    vendedor.nome_vendedor ||
-    vendedor.nomevendedor ||
-    vendedor.nome ||
-    vendedor.descricao ||
-    ""
+    vendedor.nome_vendedor || vendedor.nomevendedor ||
+    vendedor.nome || vendedor.descricao || ""
   );
 }
 
-
 function getNomeExibicaoVendedor(pedido) {
   const nomeDireto =
-    pedido?.nomevendedor ||
-    pedido?.nome_vendedor ||
-    pedido?.NOMEVENDEDOR ||
-    pedido?.nomeVendedor ||
-    "";
-
-
-  if (String(nomeDireto).trim()) {
-    return String(nomeDireto).trim();
-  }
-
-
+    pedido?.nomevendedor || pedido?.nome_vendedor ||
+    pedido?.NOMEVENDEDOR || pedido?.nomeVendedor || "";
+  if (String(nomeDireto).trim()) return String(nomeDireto).trim();
   const nomeCache = getNomeVendedorPorCodigo(pedido?.codvend ?? pedido?.CODVEND);
-  if (String(nomeCache).trim()) {
-    return String(nomeCache).trim();
-  }
-
-
+  if (String(nomeCache).trim()) return String(nomeCache).trim();
   return String(pedido?.codvend ?? pedido?.CODVEND ?? "").trim();
 }
-
 
 function getChaveSelecao(item) {
   if (!item) return "";
@@ -473,50 +470,219 @@ function getChaveSelecao(item) {
   return String(item.id ?? "");
 }
 
-
 function criarMarkerNumerado(lat, lng, numero, titulo, pontoRef) {
-  const html = `
-    <div class="marker-numero">
-      <div class="marker-numero-label">${numero}</div>
-    </div>
-  `;
+  const html = `<div class="marker-numero"><div class="marker-numero-label">${numero}</div></div>`;
   const icon = L.divIcon({
     className: "marker-numero-wrapper",
     html,
     iconSize: [26, 26],
     iconAnchor: [13, 26]
   });
-
-
-  const marker = L.marker([lat, lng], {
-    icon,
-    draggable: true
-  }).bindPopup(titulo);
-
-
-  marker.on("dragend", e => {
+  const marker = L.marker([lat, lng], { icon, draggable: true }).bindPopup(titulo);
+  marker.on("dragend", (e) => {
     const { lat: newLat, lng: newLng } = e.target.getLatLng();
     if (pontoRef.tipo === "cliente") {
       const base = getCacheAtual();
-      const c = base.find(x => getChaveSelecao(x) === pontoRef.id);
-      if (c) {
-        c.lat = newLat;
-        c.lng = newLng;
-      }
+      const c = base.find((x) => getChaveSelecao(x) === pontoRef.id);
+      if (c) { c.lat = newLat; c.lng = newLng; }
     } else if (pontoRef.tipo === "manual") {
-      const p = pontosManuais.find(x => x.id === pontoRef.id);
-      if (p) {
-        p.lat = newLat;
-        p.lng = newLng;
-      }
+      const p = pontosManuais.find((x) => x.id === pontoRef.id);
+      if (p) { p.lat = newLat; p.lng = newLng; }
     }
     gerarRotaAuto();
   });
-
-
   return marker;
 }
 
+// Agrupa pontos por coordenada (com tolerância) e cria 1 marker por grupo
+// Cada grupo terá um marker que mostra:
+// - número da parada (se 1 ponto)
+// - badge com contagem + animação pulse (se >1 pontos no mesmo lugar)
+function criarMarkersAgrupadosPorCoord(pontosPainel) {
+  // Tolerância pra considerar "mesma coordenada" (~11m)
+  const TOL = 0.0001;
+
+  // Agrupa pontos por chave aproximada (lat, lng arredondados)
+  const grupos = new Map();
+  pontosPainel.forEach((p, idx) => {
+    const chaveLat = Math.round(p.lat / TOL) * TOL;
+    const chaveLng = Math.round(p.lng / TOL) * TOL;
+    const chave = `${chaveLat.toFixed(4)},${chaveLng.toFixed(4)}`;
+    if (!grupos.has(chave)) {
+      grupos.set(chave, { lat: p.lat, lng: p.lng, pontos: [] });
+    }
+    grupos.get(chave).pontos.push({ ...p, idxOriginal: idx });
+  });
+
+  const markers = [];
+
+  grupos.forEach((grupo) => {
+    const qtd = grupo.pontos.length;
+    const primeiro = grupo.pontos[0];
+    const numeros = grupo.pontos.map((p) => p.idxOriginal + 1);
+
+    let html;
+    let className;
+
+    if (qtd === 1) {
+      // Marker normal verde com número
+      html = `<div class="marker-numero"><div class="marker-numero-label">${primeiro.idxOriginal + 1}</div></div>`;
+      className = "marker-numero-wrapper";
+    } else {
+      // Marker em alerta: laranja piscando + badge com contagem
+      const listaNums = numeros.join(",");
+      html = `
+        <div class="marker-numero marker-numero-grupo" data-count="${qtd}">
+          <div class="marker-numero-label">${listaNums}</div>
+          <div class="marker-grupo-badge">${qtd}</div>
+        </div>
+      `;
+      className = "marker-numero-wrapper";
+    }
+
+    const icon = L.divIcon({
+      className,
+      html,
+      iconSize: qtd > 1 ? [34, 34] : [26, 26],
+      iconAnchor: qtd > 1 ? [17, 30] : [13, 26]
+    });
+
+    // Conteúdo do popup
+    let popupHtml;
+    if (qtd === 1) {
+      popupHtml = montarPopupPonto(primeiro);
+    } else {
+      popupHtml = montarPopupGrupo(grupo.pontos);
+    }
+
+    const marker = L.marker([grupo.lat, grupo.lng], {
+      icon,
+      draggable: qtd === 1 // só permite arrastar se não for grupo
+    });
+
+    marker.bindPopup(popupHtml, { maxWidth: 320, className: "popup-rota" });
+
+    // Após abrir popup, conecta os botões "ver itens" e "street view"
+    marker.on("popupopen", (e) => {
+      const node = e.popup.getElement();
+      if (!node) return;
+      node.querySelectorAll("[data-acao='ver-itens']").forEach((btn) => {
+        btn.addEventListener("click", (ev) => {
+          ev.preventDefault();
+          const nunota = btn.getAttribute("data-nunota");
+          abrirModalItensPedido(nunota);
+        });
+      });
+      node.querySelectorAll("[data-acao='street-view']").forEach((btn) => {
+        btn.addEventListener("click", (ev) => {
+          ev.preventDefault();
+          const lat = parseFloat(btn.getAttribute("data-lat"));
+          const lng = parseFloat(btn.getAttribute("data-lng"));
+          if (Number.isFinite(lat) && Number.isFinite(lng)) {
+            abrirStreetViewCoord(lat, lng);
+          }
+        });
+      });
+    });
+
+    if (qtd === 1) {
+      marker.on("dragend", (ev) => {
+        const { lat: newLat, lng: newLng } = ev.target.getLatLng();
+        if (primeiro.tipo === "cliente") {
+          const base = getCacheAtual();
+          const c = base.find((x) => getChaveSelecao(x) === primeiro.id);
+          if (c) { c.lat = newLat; c.lng = newLng; }
+        } else if (primeiro.tipo === "manual") {
+          const p = pontosManuais.find((x) => x.id === primeiro.id);
+          if (p) { p.lat = newLat; p.lng = newLng; }
+        }
+        gerarRotaAuto();
+      });
+    }
+
+    markers.push(marker);
+  });
+
+  return markers;
+}
+
+function montarPopupPonto(ponto) {
+  const isCliente = ponto.tipo === "cliente";
+  const isPedido = isCliente && String(ponto.id).startsWith("pedido:");
+  const nunota = isPedido ? String(ponto.id).replace("pedido:", "") : null;
+
+  let html = `
+    <div class="popup-rota-content">
+      <div class="popup-rota-num">Parada ${ponto.idxOriginal + 1}</div>
+      <div class="popup-rota-titulo">${escapeHtml(ponto.label)}</div>
+      <div class="popup-rota-endereco">${escapeHtml(ponto.endereco || "—")}</div>
+      <div class="popup-rota-acoes">
+  `;
+
+  if (nunota) {
+    html += `
+        <button type="button" class="popup-rota-btn" data-acao="ver-itens" data-nunota="${escapeHtml(nunota)}">
+          Ver itens
+        </button>
+    `;
+  }
+
+  html += `
+        <button type="button" class="popup-rota-btn popup-rota-btn-ghost" data-acao="street-view" data-lat="${ponto.lat}" data-lng="${ponto.lng}">
+          Street View
+        </button>
+      </div>
+    </div>
+  `;
+  return html;
+}
+
+function montarPopupGrupo(pontos) {
+  const qtd = pontos.length;
+  const primeiroLat = pontos[0].lat;
+  const primeiroLng = pontos[0].lng;
+
+  let html = `
+    <div class="popup-rota-content">
+      <div class="popup-rota-alerta">
+        <span class="popup-rota-alerta-icon">⚠</span>
+        <span>${qtd} paradas na mesma coordenada</span>
+      </div>
+      <div class="popup-rota-acoes" style="margin-bottom: 6px;">
+        <button type="button" class="popup-rota-btn popup-rota-btn-ghost popup-rota-btn-sm" data-acao="street-view" data-lat="${primeiroLat}" data-lng="${primeiroLng}">
+          Ver no Street View
+        </button>
+      </div>
+      <div class="popup-rota-lista">
+  `;
+
+  pontos.forEach((p) => {
+    const isPedido = p.tipo === "cliente" && String(p.id).startsWith("pedido:");
+    const nunota = isPedido ? String(p.id).replace("pedido:", "") : null;
+
+    html += `
+      <div class="popup-rota-item">
+        <div class="popup-rota-item-num">${p.idxOriginal + 1}</div>
+        <div class="popup-rota-item-body">
+          <div class="popup-rota-item-titulo">${escapeHtml(p.label)}</div>
+          <div class="popup-rota-item-end">${escapeHtml(p.endereco || "—")}</div>
+        </div>
+    `;
+
+    if (nunota) {
+      html += `
+        <button type="button" class="popup-rota-btn popup-rota-btn-sm" data-acao="ver-itens" data-nunota="${escapeHtml(nunota)}">
+          Itens
+        </button>
+      `;
+    }
+
+    html += `</div>`;
+  });
+
+  html += `</div></div>`;
+  return html;
+}
 
 function normalizarLat(valor) {
   if (valor == null) return null;
@@ -531,13 +697,10 @@ function normalizarLat(valor) {
   return n;
 }
 
-
 function normalizarLng(valor) {
   if (valor == null) return null;
   if (typeof valor === "number") {
-    return Number.isFinite(valor) && valor >= -180 && valor <= 180
-      ? valor
-      : null;
+    return Number.isFinite(valor) && valor >= -180 && valor <= 180 ? valor : null;
   }
   const s = String(valor).trim();
   if (!s) return null;
@@ -546,7 +709,6 @@ function normalizarLng(valor) {
   if (!Number.isFinite(n) || n < -180 || n > 180) return null;
   return n;
 }
-
 
 function parseLatLngText(txt) {
   if (!txt) return null;
@@ -558,73 +720,63 @@ function parseLatLngText(txt) {
   return { lat, lng };
 }
 
-
 async function geocodeTexto(texto) {
   const path = `/geocode?q=${encodeURIComponent(texto)}`;
   showRotasLoader();
   try {
     const resp = await apiFetch(path);
-    if (!resp.ok) {
-      console.error("[ROTAS] Erro HTTP no geocode:", resp.status);
-      return null;
-    }
+    if (!resp.ok) return null;
     const data = await resp.json();
     if (data && data.lat != null && data.lng != null) {
-      return {
-        lat: data.lat,
-        lng: data.lng,
-        label: texto
-      };
+      return { lat: data.lat, lng: data.lng, label: texto };
     }
     return null;
   } catch (e) {
-    console.error("[ROTAS] Erro ao chamar geocode:", e);
     return null;
   } finally {
     hideRotasLoader();
   }
 }
 
-
-// ================== FILTRO VENDEDOR – CHIPS ==================
-
+// ================== CHIPS VENDEDOR (com contagem) ==================
 
 function extrairVendedoresDoPedidos(pedidos) {
   const mapa = new Map();
-  pedidos.forEach(p => {
+  pedidos.forEach((p) => {
     if (!p.codvend) return;
     const cod = String(p.codvend);
     if (!mapa.has(cod)) {
-      mapa.set(cod, getNomeExibicaoVendedor(p));
+      // tenta: nome direto no pedido > nome no cache de vendedores > "Sem nome"
+      let nome =
+        String(p.nomevendedor || p.nome_vendedor || "").trim() ||
+        String(getNomeVendedorPorCodigo(cod) || "").trim();
+      if (!nome) nome = "Sem nome";
+      mapa.set(cod, { nome, count: 0 });
     }
+    mapa.get(cod).count++;
   });
   return Array.from(mapa.entries())
-    .map(([codvend, nome]) => ({ codvend, nome }))
-    .sort((a, b) => a.nome.localeCompare(b.nome));
+    .map(([codvend, info]) => ({ codvend, nome: info.nome, count: info.count }))
+    .sort((a, b) => b.count - a.count || a.nome.localeCompare(b.nome));
 }
-
 
 function renderizarChipsVendedor(vendedores) {
   const container = document.getElementById("filtroVendedorChips");
   if (!container) return;
-
-
   container.innerHTML = "";
 
-
   if (!vendedores || vendedores.length === 0) {
-    container.style.display = "none";
+    if (grupoChipsVendedor) grupoChipsVendedor.style.display = "none";
     return;
   }
+  if (grupoChipsVendedor) grupoChipsVendedor.style.display = "";
 
-
-  container.style.display = "flex";
-
+  const totalPedidos = vendedores.reduce((s, v) => s + v.count, 0);
 
   const chipTodos = document.createElement("button");
   chipTodos.type = "button";
   chipTodos.className = "chip-vendedor" + (filtroVendedorAtivo === null ? " chip-vendedor-ativo" : "");
-  chipTodos.textContent = "Todos";
+  chipTodos.innerHTML = `<span>Todos</span><span class="chip-vendedor-count">${totalPedidos}</span>`;
   chipTodos.addEventListener("click", () => {
     filtroVendedorAtivo = null;
     aplicarFiltroVendedorLocal();
@@ -632,19 +784,14 @@ function renderizarChipsVendedor(vendedores) {
   });
   container.appendChild(chipTodos);
 
-
-  vendedores.forEach(v => {
+  vendedores.forEach((v) => {
     const chip = document.createElement("button");
     chip.type = "button";
     chip.className = "chip-vendedor" + (filtroVendedorAtivo === v.codvend ? " chip-vendedor-ativo" : "");
-    chip.textContent = v.nome;
+    chip.innerHTML = `<span>${escapeHtml(v.nome)}</span><span class="chip-vendedor-count">${v.count}</span>`;
     chip.dataset.codvend = v.codvend;
     chip.addEventListener("click", () => {
-      if (filtroVendedorAtivo === v.codvend) {
-        filtroVendedorAtivo = null;
-      } else {
-        filtroVendedorAtivo = v.codvend;
-      }
+      filtroVendedorAtivo = filtroVendedorAtivo === v.codvend ? null : v.codvend;
       aplicarFiltroVendedorLocal();
       atualizarChipsVendedorAtivo();
     });
@@ -652,31 +799,26 @@ function renderizarChipsVendedor(vendedores) {
   });
 }
 
-
 function atualizarChipsVendedorAtivo() {
   const container = document.getElementById("filtroVendedorChips");
   if (!container) return;
-  container.querySelectorAll(".chip-vendedor").forEach(chip => {
+  container.querySelectorAll(".chip-vendedor").forEach((chip) => {
     const cod = chip.dataset.codvend || null;
-    const ativo = filtroVendedorAtivo === cod;
-    chip.classList.toggle("chip-vendedor-ativo", ativo);
+    chip.classList.toggle("chip-vendedor-ativo", filtroVendedorAtivo === cod);
   });
 }
-
 
 function aplicarFiltroVendedorLocal() {
   listaClientesDiv.scrollTop = 0;
   const base = cachePedidosPendentes || [];
 
-
   let resultado = filtroVendedorAtivo
-    ? base.filter(p => String(p.codvend) === String(filtroVendedorAtivo))
+    ? base.filter((p) => String(p.codvend) === String(filtroVendedorAtivo))
     : base;
-
 
   const filtroNome = filtroNomeInput.value.trim().toLowerCase();
   if (filtroNome) {
-    resultado = resultado.filter(c => {
+    resultado = resultado.filter((c) => {
       const cod = String(c.codigo || "").toLowerCase();
       const nome = String(c.nome || "").toLowerCase();
       const end = String(c.endereco || "").toLowerCase();
@@ -684,12 +826,11 @@ function aplicarFiltroVendedorLocal() {
     });
   }
 
-
   renderClientes(resultado);
 }
 
+// ================== LISTA / SELEÇÃO ==================
 
-// LISTA / SELEÇÃO
 function atualizarResumoSelecionados() {
   const qtde = idsSelecionados.size;
   if (qtde === 0) {
@@ -701,12 +842,10 @@ function atualizarResumoSelecionados() {
   }
 }
 
-
 function atualizarContadorSelecionados() {
   const qtde = idsSelecionados.size;
   contadorSelecionadosSpan.textContent = qtde + " selecionados";
   atualizarResumoSelecionados();
-
 
   if (qtde === 0 && pontosManuais.length === 0) {
     limparRota();
@@ -718,7 +857,6 @@ function atualizarContadorSelecionados() {
   gerarRotaAuto();
 }
 
-
 function marcarTodosVisiveis(marcar) {
   const itens = Array.from(
     listaClientesDiv.querySelectorAll(".cliente-item .cliente-checkbox")
@@ -726,8 +864,7 @@ function marcarTodosVisiveis(marcar) {
   const limite = 50;
   let count = 0;
 
-
-  itens.forEach(cb => {
+  itens.forEach((cb) => {
     const id = String(cb.value);
     const wrapper = cb.closest(".cliente-item");
     const semLoc = wrapper?.classList.contains("cliente-sem-localizacao");
@@ -736,8 +873,6 @@ function marcarTodosVisiveis(marcar) {
       idsSelecionados.delete(id);
       return;
     }
-
-
     if (marcar) {
       if (count >= limite) return;
       cb.checked = true;
@@ -751,10 +886,8 @@ function marcarTodosVisiveis(marcar) {
     }
   });
 
-
   atualizarContadorSelecionados();
 }
-
 
 function criarItemCliente(c) {
   const div = document.createElement("div");
@@ -762,72 +895,39 @@ function criarItemCliente(c) {
   div.draggable = false;
   div.dataset.id = getChaveSelecao(c);
 
-
-  const checkWrap = document.createElement("label");
-  checkWrap.className = "checkbox-wrapper checkbox-sm checkbox-cliente";
-
-
   const checkbox = document.createElement("input");
   checkbox.type = "checkbox";
   checkbox.className = "cliente-checkbox";
   checkbox.value = getChaveSelecao(c);
 
-
-  const checkmark = document.createElement("div");
-  checkmark.className = "checkmark";
-  checkmark.innerHTML = `
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-      <path d="M20 6L9 17L4 12" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>
-  `;
-
-
-  const spanLabelVis = document.createElement("span");
-  spanLabelVis.className = "label";
-  spanLabelVis.textContent = "";
-
-
-  checkWrap.appendChild(checkbox);
-  checkWrap.appendChild(checkmark);
-  checkWrap.appendChild(spanLabelVis);
-
-
   const textos = document.createElement("div");
   textos.className = "cliente-textos";
-
 
   const spanNome = document.createElement("span");
   spanNome.className = "nome";
   const nomePrincipal =
-    c.origemTipo === "pedido"
-      ? `${c.nunota} - ${c.nome}`
-      : `${c.codigo} - ${c.nome}`;
+    c.origemTipo === "pedido" ? `${c.nunota} · ${c.nome}` : `${c.codigo} · ${c.nome}`;
   spanNome.textContent = nomePrincipal;
-
 
   const spanBadge = document.createElement("span");
   spanBadge.className = "badge";
-  spanBadge.textContent = c.endereco || "";
-
+  spanBadge.textContent = c.endereco || "—";
 
   const spanAlerta = document.createElement("span");
   spanAlerta.className = "badge alerta";
   spanAlerta.style.display = "none";
   spanAlerta.textContent = "endereço não localizado";
 
-
   const latValida = normalizarLat(c.lat) != null;
   const lngValida = normalizarLng(c.lng) != null;
   const semLocalizacao = !latValida || !lngValida;
-
 
   if (semLocalizacao) {
     spanAlerta.style.display = "inline-block";
     div.classList.add("cliente-sem-localizacao");
     checkbox.disabled = true;
-    checkWrap.classList.add("checkbox-desabilitado");
+    checkbox.classList.add("checkbox-desabilitado");
   }
-
 
   function handleToggleSelecao(novoEstado) {
     if (semLocalizacao) {
@@ -836,120 +936,50 @@ function criarItemCliente(c) {
     }
     const chave = getChaveSelecao(c);
     checkbox.checked = novoEstado;
-    if (novoEstado) {
-      idsSelecionados.add(chave);
-    } else {
-      idsSelecionados.delete(chave);
-    }
+    if (novoEstado) idsSelecionados.add(chave);
+    else idsSelecionados.delete(chave);
     div.classList.toggle("selecionado", novoEstado);
     atualizarContadorSelecionados();
   }
 
-
-  checkbox.addEventListener("change", e => {
+  checkbox.addEventListener("change", (e) => {
     e.stopPropagation();
     handleToggleSelecao(checkbox.checked);
   });
 
+  checkbox.addEventListener("click", (e) => e.stopPropagation());
 
-  checkbox.addEventListener("click", e => {
-    e.stopPropagation();
-  });
-
-
-  checkWrap.addEventListener("click", e => {
-    e.stopPropagation();
+  div.addEventListener("click", (e) => {
     if (e.target === checkbox) return;
-    e.preventDefault();
+    if (e.target.closest("[data-acao='ver-itens']")) return; // não togglar quando clica em "Itens"
     if (semLocalizacao) return;
     handleToggleSelecao(!checkbox.checked);
   });
 
-
   textos.appendChild(spanNome);
   textos.appendChild(spanBadge);
   textos.appendChild(spanAlerta);
-  div.appendChild(checkWrap);
+  div.appendChild(checkbox);
   div.appendChild(textos);
 
+  // Botão "Itens" inline (só pra pedidos)
+  if (c.origemTipo === "pedido" && c.nunota) {
+    const btnItens = document.createElement("button");
+    btnItens.type = "button";
+    btnItens.className = "cliente-btn-itens";
+    btnItens.setAttribute("data-acao", "ver-itens");
+    btnItens.setAttribute("data-nunota", String(c.nunota));
+    btnItens.textContent = "Itens";
+    btnItens.title = "Ver itens do pedido";
+    btnItens.addEventListener("click", (e) => {
+      e.stopPropagation();
+      abrirModalItensPedido(String(c.nunota));
+    });
+    div.appendChild(btnItens);
+  }
 
   return div;
 }
-
-
-function configurarDragAndDropLista() {
-  if (dragListaConfigurado) return;
-  dragListaConfigurado = true;
-
-
-  let draggingItem = null;
-  let mouseDownX = 0;
-  let mouseDownY = 0;
-  let dragAtivo = false;
-
-
-  listaClientesDiv.addEventListener("mousedown", e => {
-    const item = e.target.closest(".cliente-item");
-    if (!item) return;
-
-
-    if (e.target.closest(".checkbox-wrapper")) return;
-    if (e.target.closest("input")) return;
-
-
-    mouseDownX = e.clientX;
-    mouseDownY = e.clientY;
-    draggingItem = item;
-    dragAtivo = false;
-
-
-    document.addEventListener("mousemove", onMouseMove);
-    document.addEventListener("mouseup", onMouseUp);
-  });
-
-
-  function onMouseMove(e) {
-    if (!draggingItem) return;
-
-
-    if (!dragAtivo) {
-      const dx = Math.abs(e.clientX - mouseDownX);
-      const dy = Math.abs(e.clientY - mouseDownY);
-      if (dx < 5 && dy < 5) return;
-      dragAtivo = true;
-      draggingItem.classList.add("dragging");
-      document.body.style.userSelect = "none";
-    }
-
-
-    const afterElement = getDragAfterElement(
-      listaClientesDiv,
-      e.clientY,
-      ".cliente-item:not(.dragging)"
-    );
-
-
-    if (!afterElement) {
-      listaClientesDiv.appendChild(draggingItem);
-    } else {
-      listaClientesDiv.insertBefore(draggingItem, afterElement);
-    }
-  }
-
-
-  function onMouseUp() {
-    if (!draggingItem) return;
-    if (dragAtivo) {
-      draggingItem.classList.remove("dragging");
-      document.body.style.userSelect = "";
-    }
-    draggingItem = null;
-    dragAtivo = false;
-    document.removeEventListener("mousemove", onMouseMove);
-    document.removeEventListener("mouseup", onMouseUp);
-  }
-}
-
 
 function limparListaClientesVisual() {
   listaClientesDiv.innerHTML = "";
@@ -957,26 +987,21 @@ function limparListaClientesVisual() {
   atualizarResumoSelecionados();
 }
 
-
 function renderClientesPagina() {
   if (!clientesFiltradosAtuais || clientesFiltradosAtuais.length === 0) {
     limparListaClientesVisual();
     contadorClientesSpan.textContent = "0 clientes";
+    listaClientesDiv.innerHTML =
+      '<div style="text-align:center;padding:18px;font-family:\'JetBrains Mono\',monospace;font-size:11px;color:var(--text-3);letter-spacing:0.06em;">Nenhum cliente encontrado</div>';
     return;
   }
-
 
   const inicio = paginaClientes * TAMANHO_PAGINA;
   if (inicio >= clientesFiltradosAtuais.length) return;
 
-
-  const fim = Math.min(
-    inicio + TAMANHO_PAGINA,
-    clientesFiltradosAtuais.length
-  );
-
-
+  const fim = Math.min(inicio + TAMANHO_PAGINA, clientesFiltradosAtuais.length);
   const frag = document.createDocumentFragment();
+
   for (let i = inicio; i < fim; i++) {
     const c = clientesFiltradosAtuais[i];
     const div = criarItemCliente(c);
@@ -992,35 +1017,27 @@ function renderClientesPagina() {
     frag.appendChild(div);
   }
 
-
   listaClientesDiv.appendChild(frag);
   paginaClientes += 1;
 
-
-  contadorClientesSpan.textContent =
-    clientesFiltradosAtuais.length + " clientes";
+  contadorClientesSpan.textContent = clientesFiltradosAtuais.length + " clientes";
 }
-
 
 function renderClientes(clientes) {
   clientesFiltradosAtuais = clientes;
   paginaClientes = 0;
   limparListaClientesVisual();
   renderClientesPagina();
-  configurarDragAndDropLista();
 }
-
 
 function configurarInfiniteScrollClientes() {
   listaClientesDiv.addEventListener("scroll", () => {
     if (carregandoMais) return;
-    const scrollBottom =
-      listaClientesDiv.scrollTop + listaClientesDiv.clientHeight;
+    const scrollBottom = listaClientesDiv.scrollTop + listaClientesDiv.clientHeight;
     const limite = listaClientesDiv.scrollHeight - 40;
     if (scrollBottom >= limite) {
       const inicio = paginaClientes * TAMANHO_PAGINA;
-      if (!clientesFiltradosAtuais || inicio >= clientesFiltradosAtuais.length)
-        return;
+      if (!clientesFiltradosAtuais || inicio >= clientesFiltradosAtuais.length) return;
       carregandoMais = true;
       setTimeout(() => {
         renderClientesPagina();
@@ -1030,15 +1047,14 @@ function configurarInfiniteScrollClientes() {
   });
 }
 
+// ================== ORIGENS / APIS ==================
 
-// ORIGENS / APIS
 function getCacheAtual() {
   if (origemAtual === "pedidos") return cachePedidosPendentes || [];
   if (origemAtual === "clientes") return cacheClientes || [];
   if (origemAtual === "carteira") return cacheCarteira || [];
   return [];
 }
-
 
 async function carregarPedidosPendentesItens(filtros = {}) {
   const params = [];
@@ -1047,113 +1063,69 @@ async function carregarPedidosPendentesItens(filtros = {}) {
   if (filtros.codparc) params.push(`codparc=${encodeURIComponent(filtros.codparc)}`);
   if (filtros.codvend) params.push(`codvend=${encodeURIComponent(filtros.codvend)}`);
 
-
   const qs = params.length ? `?${params.join("&")}` : "";
   const path = `/pedidos-pendentes-itens${qs}`;
 
-
-  console.log("[ROTAS] GET pedidos-pendentes-itens em", window.APIBASE + path);
-
-
   try {
     const resp = await apiFetch(path);
-    if (!resp.ok) {
-      console.warn("[ROTAS] Erro HTTP em pedidos-pendentes-itens:", resp.status);
-      return;
-    }
+    if (!resp.ok) return;
     const data = await resp.json();
     const pedidos = data.pedidos || [];
-
-
     cachePedidosItens.clear();
-
-
-    pedidos.forEach(p => {
+    pedidos.forEach((p) => {
       const nunota = p.nunota;
       if (!nunota || !Array.isArray(p.itens)) return;
-
-
       let pesoTotalKg = 0;
       let volumeTotalM3 = 0;
-
-
-      const itensEnriquecidos = p.itens.map(it => {
+      const itensEnriquecidos = p.itens.map((it) => {
         const pesoBruto = Number(it.pesobruto) || 0;
         const qtd = Number(it.qtdneg) || 1;
-        const m3Unit =
-          Number(it.m3_calc) ||
-          Number(it.m3_erp) ||
-          0;
-
-
+        const m3Unit = Number(it.m3_calc) || Number(it.m3_erp) || 0;
         pesoTotalKg += pesoBruto * qtd;
         volumeTotalM3 += m3Unit * qtd;
-
-
-        return {
-          ...it,
-          pesoUnitKg: pesoBruto,
-          volumeUnitM3: m3Unit
-        };
+        return { ...it, pesoUnitKg: pesoBruto, volumeUnitM3: m3Unit };
       });
-
-
       cachePedidosItens.set(String(nunota), {
-        pesoTotalKg,
-        volumeTotalM3,
-        itens: itensEnriquecidos
+        pesoTotalKg, volumeTotalM3, itens: itensEnriquecidos
       });
     });
-
-
-    console.log("[ROTAS] cachePedidosItens populado com", cachePedidosItens.size, "pedidos");
   } catch (e) {
-    console.error("[ROTAS] Exception em pedidos-pendentes-itens:", e);
+    console.error("[ROTAS] Erro pedidos-pendentes-itens:", e);
   }
 }
-
 
 async function carregarPedidosPendentes(codvendFiltro) {
   showRotasLoader();
   try {
     listaClientesDiv.innerHTML = "";
 
-
     let path = "/pedidos-pendentes";
     if (codvendFiltro) {
       const sep = path.includes("?") ? "&" : "?";
       path += `${sep}codvend=${encodeURIComponent(codvendFiltro)}`;
     }
-    console.log("[ROTAS] GET pedidos pendentes em", window.APIBASE + path);
 
+    // Paraleliza as 2 chamadas
+    const [respPedidos] = await Promise.all([
+      apiFetch(path),
+      carregarPedidosPendentesItens(codvendFiltro ? { codvend: codvendFiltro } : {})
+    ]);
 
-    const resp = await apiFetch(path);
-    if (!resp.ok) {
-      console.error("[ROTAS] Erro HTTP em pedidos pendentes:", resp.status);
+    if (!respPedidos.ok) {
       cachePedidosPendentes = [];
+      mostrarToast("Erro ao carregar pedidos pendentes.", true);
       return;
     }
 
-
-    const data = await resp.json();
+    const data = await respPedidos.json();
     const pedidosApi = data.pedidos || [];
 
-
-    await carregarPedidosPendentesItens(
-      codvendFiltro ? { codvend: codvendFiltro } : {}
-    );
-
-
-    cachePedidosPendentes = pedidosApi.map(p => {
+    cachePedidosPendentes = pedidosApi.map((p) => {
       const endereco = montarEnderecoPadrao(p);
       const chave = String(p.NUNOTA);
       const agregados = cachePedidosItens.get(chave) || {
-        pesoTotalKg: 0,
-        volumeTotalM3: 0,
-        itens: []
+        pesoTotalKg: 0, volumeTotalM3: 0, itens: []
       };
-
-
       return {
         id: p.NUNOTA,
         chaveSelecao: `pedido:${String(p.NUNOTA)}`,
@@ -1182,47 +1154,33 @@ async function carregarPedidosPendentes(codvendFiltro) {
       };
     });
 
-
     filtroVendedorAtivo = null;
-
-
     const vendedoresComPedidos = extrairVendedoresDoPedidos(cachePedidosPendentes);
     renderizarChipsVendedor(vendedoresComPedidos);
-
 
     idsSelecionados.clear();
     pontosManuais = [];
     limparRota();
     renderClientes(cachePedidosPendentes);
   } catch (e) {
-    console.error("[ROTAS] Exception em pedidos pendentes:", e);
+    console.error("[ROTAS] Exception pedidos pendentes:", e);
     cachePedidosPendentes = [];
+    mostrarToast("Erro ao carregar pedidos pendentes.", true);
   } finally {
     hideRotasLoader();
   }
 }
 
-
 async function carregarClientesNormais() {
   showRotasLoader();
   try {
     listaClientesDiv.innerHTML = "";
+    if (grupoChipsVendedor) grupoChipsVendedor.style.display = "none";
 
-
-    const container = document.getElementById("filtroVendedorChips");
-    if (container) container.style.display = "none";
-
-
-    const path = "/logistica/clientes";
-    console.log("[ROTAS] GET clientes em", window.APIBASE + path);
-
-
-    const resp = await apiFetch(path);
-    if (!resp.ok) {
-      throw new Error("HTTP " + resp.status);
-    }
+    const resp = await apiFetch("/logistica/clientes");
+    if (!resp.ok) throw new Error("HTTP " + resp.status);
     const data = await resp.json();
-    cacheClientes = (data.clientes || []).map(r => {
+    cacheClientes = (data.clientes || []).map((r) => {
       const endereco = montarEnderecoPadrao(r);
       return {
         id: r.id,
@@ -1247,47 +1205,47 @@ async function carregarClientesNormais() {
       };
     });
 
-
     idsSelecionados.clear();
     pontosManuais = [];
     limparRota();
     renderClientes(cacheClientes);
   } catch (e) {
-    console.error("[ROTAS] Erro em carregarClientesNormais:", e);
+    console.error("[ROTAS] Erro clientes:", e);
     cacheClientes = [];
+    mostrarToast("Erro ao carregar clientes.", true);
   } finally {
     hideRotasLoader();
   }
 }
 
-
 async function carregarVendedores() {
   showRotasLoader();
   try {
-    const path = "/vendedores";
-    console.log("[ROTAS] GET vendedores em", window.APIBASE + path);
-    const resp = await apiFetch(path);
+    const resp = await apiFetch("/vendedores");
     if (!resp.ok) throw new Error("HTTP " + resp.status);
     const data = await resp.json();
     cacheVendedores = data.vendedores || [];
 
-
-    selectVendedor.innerHTML =
-      '<option value="">Selecione um vendedor...</option>';
-    cacheVendedores.forEach(v => {
+    selectVendedor.innerHTML = '<option value="">Selecione um vendedor...</option>';
+    cacheVendedores.forEach((v) => {
       const opt = document.createElement("option");
       opt.value = v.codvend;
       opt.textContent = `${v.codvend} - ${v.nome_vendedor || v.nomevendedor || ""}`;
       selectVendedor.appendChild(opt);
     });
+
+    // Se já carregou pedidos antes dos vendedores, re-renderiza chips com nomes corretos
+    if (cachePedidosPendentes && cachePedidosPendentes.length && origemAtual === "pedidos") {
+      const vendedoresComPedidos = extrairVendedoresDoPedidos(cachePedidosPendentes);
+      renderizarChipsVendedor(vendedoresComPedidos);
+    }
   } catch (e) {
-    console.error("[ROTAS] Erro ao carregar vendedores:", e);
+    console.error("[ROTAS] Erro vendedores:", e);
     cacheVendedores = [];
   } finally {
     hideRotasLoader();
   }
 }
-
 
 async function carregarCarteiraPorVendedor(codvend) {
   if (!codvend) {
@@ -1296,26 +1254,16 @@ async function carregarCarteiraPorVendedor(codvend) {
     return;
   }
 
-
   showRotasLoader();
   try {
     listaClientesDiv.innerHTML = "";
+    if (grupoChipsVendedor) grupoChipsVendedor.style.display = "none";
 
-
-    const container = document.getElementById("filtroVendedorChips");
-    if (container) container.style.display = "none";
-
-
-    const path = `/carteira?codvend=${encodeURIComponent(codvend)}`;
-    console.log("[ROTAS] GET carteira em", window.APIBASE + path);
-
-
-    const resp = await apiFetch(path);
+    const resp = await apiFetch(`/carteira?codvend=${encodeURIComponent(codvend)}`);
     if (!resp.ok) throw new Error("HTTP " + resp.status);
 
-
     const data = await resp.json();
-    cacheCarteira = (data.carteira || []).map(c => {
+    cacheCarteira = (data.carteira || []).map((c) => {
       const endereco = montarEnderecoPadrao(c);
       return {
         id: c.codparc,
@@ -1342,31 +1290,27 @@ async function carregarCarteiraPorVendedor(codvend) {
       };
     });
 
-
     idsSelecionados.clear();
     pontosManuais = [];
     limparRota();
     renderClientes(cacheCarteira);
   } catch (e) {
-    console.error("[ROTAS] Erro ao carregar carteira do vendedor:", e);
+    console.error("[ROTAS] Erro carteira:", e);
     cacheCarteira = [];
+    mostrarToast("Erro ao carregar carteira.", true);
   } finally {
     hideRotasLoader();
   }
 }
 
-
-// FILTRO LOCAL
 function aplicarFiltroLocalClientes() {
   if (origemAtual === "pedidos") {
     aplicarFiltroVendedorLocal();
     return;
   }
 
-
   const filtro = filtroNomeInput.value.trim().toLowerCase();
   listaClientesDiv.scrollTop = 0;
-
 
   const base = getCacheAtual();
   if (!filtro) {
@@ -1374,41 +1318,82 @@ function aplicarFiltroLocalClientes() {
     return;
   }
 
-
-  const filtrados = base.filter(c => {
+  const filtrados = base.filter((c) => {
     const cod = String(c.codigo || "").toLowerCase();
     const nome = String(c.nome || "").toLowerCase();
     const end = String(c.endereco || "").toLowerCase();
-    return (
-      cod.includes(filtro) || nome.includes(filtro) || end.includes(filtro)
-    );
+    return cod.includes(filtro) || nome.includes(filtro) || end.includes(filtro);
   });
   renderClientes(filtrados);
 }
 
+// ================== PONTOS / ROTA ==================
 
-// PONTOS / ROTA
 function getClientesSelecionados() {
   const base = getCacheAtual();
   const clientes = [];
-  base.forEach(c => {
+  base.forEach((c) => {
     if (idsSelecionados.has(getChaveSelecao(c))) clientes.push(c);
   });
   return clientes;
 }
 
+function montarLinhaPontoRota(ponto, idx) {
+  const li = document.createElement("li");
+  li.className = "rota-item";
+  li.setAttribute("draggable", "true");
+  li.dataset.tipo = ponto.tipo;
+  li.dataset.id = ponto.id;
+
+  const handle = document.createElement("div");
+  handle.className = "rota-item-handle";
+  handle.innerHTML = "⋮⋮";
+
+  const num = document.createElement("div");
+  num.className = "rota-item-num";
+  num.textContent = idx + 1;
+
+  const labelWrap = document.createElement("div");
+  labelWrap.className = "rota-item-label";
+
+  const main = document.createElement("div");
+  main.className = "rota-item-label-main";
+  main.textContent = ponto.tipo === "cliente" ? ponto.label : `Manual: ${ponto.label}`;
+
+  const sub = document.createElement("div");
+  sub.className = "rota-item-label-sub";
+  sub.textContent = `${ponto.endereco} (${ponto.lat.toFixed(5)}, ${ponto.lng.toFixed(5)})`;
+
+  labelWrap.appendChild(main);
+  labelWrap.appendChild(sub);
+
+  const remover = document.createElement("button");
+  remover.className = "rota-item-remove";
+  remover.type = "button";
+  remover.innerHTML = "&times;";
+  remover.title = "Remover ponto";
+  remover.addEventListener("click", (e) => {
+    e.stopPropagation();
+    removerPontoDaRota(ponto);
+  });
+
+  li.appendChild(handle);
+  li.appendChild(num);
+  li.appendChild(labelWrap);
+  li.appendChild(remover);
+
+  return li;
+}
 
 function reconstruirPainelRota() {
   const rotaListaDiv = getRotaListaDiv();
   if (!rotaListaDiv) return;
   rotaListaDiv.innerHTML = "";
 
-
   const clientesSelecionados = getClientesSelecionados();
   const pontos = [];
 
-
-  clientesSelecionados.forEach(c => {
+  clientesSelecionados.forEach((c) => {
     const lat = normalizarLat(c.lat);
     const lng = normalizarLng(c.lng);
     if (lat == null || lng == null) return;
@@ -1417,108 +1402,38 @@ function reconstruirPainelRota() {
       id: getChaveSelecao(c),
       label: `${c.codigo} - ${c.nome}`,
       endereco: c.endereco,
-      lat,
-      lng
+      lat, lng
     });
   });
 
-
-  pontosManuais.forEach(p => pontos.push(p));
-
+  pontosManuais.forEach((p) => pontos.push(p));
 
   if (pontos.length > LIMITE_PONTOS_ROTA - 1) {
-    alert(
-      "Você selecionou muitos pontos (" +
-        pontos.length +
-        "). Recomenda-se dividir em duas rotas (limite atual ~" +
-        (LIMITE_PONTOS_ROTA - 1) +
-        " paradas)."
+    mostrarToast(
+      `Muitos pontos (${pontos.length}). Recomendado dividir em duas rotas.`,
+      true
     );
   }
 
-
   pontos.forEach((ponto, idx) => {
-    const li = document.createElement("li");
-    li.className = "rota-item";
-    li.setAttribute("draggable", "true");
-    li.dataset.tipo = ponto.tipo;
-    li.dataset.id = ponto.id;
-
-
-    const handle = document.createElement("div");
-    handle.className = "rota-item-handle";
-    handle.innerHTML = "⋮⋮";
-
-
-    const num = document.createElement("div");
-    num.className = "rota-item-num";
-    num.textContent = idx + 1;
-
-
-    const labelWrap = document.createElement("div");
-    labelWrap.className = "rota-item-label";
-
-
-    const main = document.createElement("div");
-    main.className = "rota-item-label-main";
-    main.textContent =
-      ponto.tipo === "cliente" ? ponto.label : `Manual: ${ponto.label}`;
-
-
-    const sub = document.createElement("div");
-    sub.className = "rota-item-label-sub";
-    sub.textContent = `${ponto.endereco} (${ponto.lat.toFixed(
-      5
-    )}, ${ponto.lng.toFixed(5)})`;
-
-
-    labelWrap.appendChild(main);
-    labelWrap.appendChild(sub);
-
-
-    const remover = document.createElement("button");
-    remover.className = "rota-item-remove";
-    remover.type = "button";
-    remover.innerHTML = "&times;";
-    remover.title = "Remover ponto";
-    remover.addEventListener("click", e => {
-      e.stopPropagation();
-      removerPontoDaRota(ponto);
-    });
-
-
-    li.appendChild(handle);
-    li.appendChild(num);
-    li.appendChild(labelWrap);
-    li.appendChild(remover);
-
-
-    rotaListaDiv.appendChild(li);
+    rotaListaDiv.appendChild(montarLinhaPontoRota(ponto, idx));
   });
-
 
   configurarDragAndDropPainelRota();
 }
 
-
-// BUG FIX: remover listeners antigos antes de registrar novos
 function configurarDragAndDropPainelRota() {
   const listaAtual = getRotaListaDiv();
   if (!listaAtual || !listaAtual.parentNode) return;
 
-
   const novaLista = listaAtual.cloneNode(false);
-  while (listaAtual.firstChild) {
-    novaLista.appendChild(listaAtual.firstChild);
-  }
+  while (listaAtual.firstChild) novaLista.appendChild(listaAtual.firstChild);
   listaAtual.parentNode.replaceChild(novaLista, listaAtual);
-
 
   const lista = novaLista;
   let draggingEl = null;
 
-
-  lista.addEventListener("dragstart", e => {
+  lista.addEventListener("dragstart", (e) => {
     const item = e.target.closest(".rota-item");
     if (!item) return;
     draggingEl = item;
@@ -1529,101 +1444,63 @@ function configurarDragAndDropPainelRota() {
     }
   });
 
-
-  lista.addEventListener("dragover", e => {
+  lista.addEventListener("dragover", (e) => {
     e.preventDefault();
     if (!draggingEl) return;
-
-
-    const afterElement = getDragAfterElement(
-      lista,
-      e.clientY,
-      ".rota-item:not(.dragging)"
-    );
-
-
-    limpaDropzonesRota(lista);
-
-
-    if (!afterElement) {
-      lista.appendChild(draggingEl);
-    } else {
-      lista.insertBefore(draggingEl, afterElement);
-    }
+    const afterElement = getDragAfterElement(lista, e.clientY, ".rota-item:not(.dragging)");
+    if (!afterElement) lista.appendChild(draggingEl);
+    else lista.insertBefore(draggingEl, afterElement);
   });
 
-
-  lista.addEventListener("drop", e => {
+  lista.addEventListener("drop", (e) => {
     e.preventDefault();
     if (!draggingEl) return;
     draggingEl.classList.remove("dragging");
-    limpaDropzonesRota(lista);
     draggingEl = null;
     renumerarPontosRota(lista);
     gerarRotaAuto();
   });
 
-
   lista.addEventListener("dragend", () => {
     if (!draggingEl) return;
     draggingEl.classList.remove("dragging");
-    limpaDropzonesRota(lista);
     draggingEl = null;
   });
-
-
-  function limpaDropzonesRota(el) {
-    el.querySelectorAll(".rota-item-dropzone-before, .rota-item-dropzone-after")
-      .forEach(item => {
-        item.classList.remove("rota-item-dropzone-before", "rota-item-dropzone-after");
-      });
-  }
 }
-
 
 function getDragAfterElement(container, y, selector) {
   const draggableElements = [...container.querySelectorAll(selector)];
-
-
   return draggableElements.reduce(
     (closest, child) => {
       const box = child.getBoundingClientRect();
       const offset = y - box.top - box.height / 2;
-      if (offset < 0 && offset > closest.offset) {
-        return { offset, element: child };
-      } else {
-        return closest;
-      }
+      if (offset < 0 && offset > closest.offset) return { offset, element: child };
+      return closest;
     },
     { offset: Number.NEGATIVE_INFINITY, element: null }
   ).element;
 }
 
-
 function renumerarPontosRota(lista) {
   const alvo = lista || getRotaListaDiv();
   if (!alvo) return;
-  alvo.querySelectorAll(".rota-item-num")
-    .forEach((el, idx) => (el.textContent = idx + 1));
+  alvo.querySelectorAll(".rota-item-num").forEach((el, idx) => (el.textContent = idx + 1));
 }
-
 
 function removerPontoDaRota(ponto) {
   if (ponto.tipo === "manual") {
-    pontosManuais = pontosManuais.filter(p => p.id !== ponto.id);
+    pontosManuais = pontosManuais.filter((p) => p.id !== ponto.id);
   } else if (ponto.tipo === "cliente") {
     idsSelecionados.delete(ponto.id);
-    listaClientesDiv.querySelectorAll(".cliente-item").forEach(div => {
+    listaClientesDiv.querySelectorAll(".cliente-item").forEach((div) => {
       const cb = div.querySelector(".cliente-checkbox");
       if (!cb) return;
-      const id = String(cb.value);
-      if (id === String(ponto.id)) {
+      if (String(cb.value) === String(ponto.id)) {
         cb.checked = false;
         div.classList.remove("selecionado");
       }
     });
   }
-
 
   const temSelecionados = idsSelecionados.size > 0 || pontosManuais.length > 0;
   if (!temSelecionados) {
@@ -1636,19 +1513,16 @@ function removerPontoDaRota(ponto) {
   gerarRotaAuto();
 }
 
-
 function getPontosNaOrdemPainel() {
   const pontos = [];
   const lista = getRotaListaDiv();
   if (!lista) return pontos;
-  lista.querySelectorAll(".rota-item").forEach(div => {
+  lista.querySelectorAll(".rota-item").forEach((div) => {
     const tipo = div.dataset.tipo;
     const id = div.dataset.id;
-
-
     if (tipo === "cliente") {
       const base = getCacheAtual();
-      const c = base.find(x => getChaveSelecao(x) === String(id));
+      const c = base.find((x) => getChaveSelecao(x) === String(id));
       const lat = normalizarLat(c?.lat);
       const lng = normalizarLng(c?.lng);
       if (c && lat != null && lng != null) {
@@ -1657,23 +1531,18 @@ function getPontosNaOrdemPainel() {
           id: getChaveSelecao(c),
           label: `${c.codigo} - ${c.nome}`,
           endereco: c.endereco,
-          lat,
-          lng
+          lat, lng
         });
       }
     } else if (tipo === "manual") {
-      const p = pontosManuais.find(x => String(x.id) === String(id));
+      const p = pontosManuais.find((x) => String(x.id) === String(id));
       if (p) pontos.push({ ...p });
     }
   });
   return pontos;
 }
 
-
-// =======================
-// OTIMIZAR ROTA – Vizinho mais próximo
-// =======================
-
+// ================== OTIMIZAR ROTA ==================
 
 function distanciaEntrePontosKm(a, b) {
   const R = 6371;
@@ -1681,39 +1550,23 @@ function distanciaEntrePontosKm(a, b) {
   const dLng = ((a.lng - b.lng) * Math.PI) / 180;
   const lat1 = (a.lat * Math.PI) / 180;
   const lat2 = (b.lat * Math.PI) / 180;
-
-
   const sinDLat = Math.sin(dLat / 2);
   const sinDLng = Math.sin(dLng / 2);
-
-
-  const h =
-    sinDLat * sinDLat +
-    Math.cos(lat1) * Math.cos(lat2) * sinDLng * sinDLng;
-
-
+  const h = sinDLat * sinDLat + Math.cos(lat1) * Math.cos(lat2) * sinDLng * sinDLng;
   const c = 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
   return R * c;
 }
 
-
 function otimizarOrdemParadasVizinhoMaisProximo() {
-  console.log("[ROTAS][ROTA] Otimizando ordem de paradas (vizinho mais próximo)");
-
-
   const pontos = getPontosNaOrdemPainel();
   if (!pontos || pontos.length <= 2) {
-    alert("Selecione pelo menos 3 pontos para otimizar a rota.");
+    mostrarToast("Selecione pelo menos 3 pontos para otimizar a rota.", true);
     return;
   }
 
-
   const origem = origemManual || ORIGEM_FIXA;
-
-
-  const naoVisitados = pontos.map(p => ({ ...p }));
+  const naoVisitados = pontos.map((p) => ({ ...p }));
   const ordemOtima = [];
-
 
   let atualIndex = 0;
   if (origem && origem.lat != null && origem.lng != null) {
@@ -1723,112 +1576,41 @@ function otimizarOrdemParadasVizinhoMaisProximo() {
         { lat: origem.lat, lng: origem.lng },
         { lat: p.lat, lng: p.lng }
       );
-      if (d < melhorDist) {
-        melhorDist = d;
-        atualIndex = idx;
-      }
+      if (d < melhorDist) { melhorDist = d; atualIndex = idx; }
     });
   }
-
 
   let atual = naoVisitados.splice(atualIndex, 1)[0];
   ordemOtima.push(atual);
 
-
   while (naoVisitados.length) {
     let melhorIdx = 0;
     let melhorDist = Infinity;
-
-
     naoVisitados.forEach((p, idx) => {
       const d = distanciaEntrePontosKm(
         { lat: atual.lat, lng: atual.lng },
         { lat: p.lat, lng: p.lng }
       );
-      if (d < melhorDist) {
-        melhorDist = d;
-        melhorIdx = idx;
-      }
+      if (d < melhorDist) { melhorDist = d; melhorIdx = idx; }
     });
-
-
     atual = naoVisitados.splice(melhorIdx, 1)[0];
     ordemOtima.push(atual);
   }
-
-
-  console.log("[ROTAS][ROTA] Ordem otimizada:", ordemOtima);
-
 
   const lista = getRotaListaDiv();
   if (!lista) return;
   lista.innerHTML = "";
   ordemOtima.forEach((ponto, idx) => {
-    const li = document.createElement("li");
-    li.className = "rota-item";
-    li.setAttribute("draggable", "true");
-    li.dataset.tipo = ponto.tipo;
-    li.dataset.id = ponto.id;
-
-
-    const handle = document.createElement("div");
-    handle.className = "rota-item-handle";
-    handle.innerHTML = "⋮⋮";
-
-
-    const num = document.createElement("div");
-    num.className = "rota-item-num";
-    num.textContent = idx + 1;
-
-
-    const labelWrap = document.createElement("div");
-    labelWrap.className = "rota-item-label";
-
-
-    const main = document.createElement("div");
-    main.className = "rota-item-label-main";
-    main.textContent =
-      ponto.tipo === "cliente" ? ponto.label : `Manual: ${ponto.label}`;
-
-
-    const sub = document.createElement("div");
-    sub.className = "rota-item-label-sub";
-    sub.textContent = `${ponto.endereco} (${ponto.lat.toFixed(
-      5
-    )}, ${ponto.lng.toFixed(5)})`;
-
-
-    labelWrap.appendChild(main);
-    labelWrap.appendChild(sub);
-
-
-    const remover = document.createElement("button");
-    remover.className = "rota-item-remove";
-    remover.type = "button";
-    remover.innerHTML = "&times;";
-    remover.title = "Remover ponto";
-    remover.addEventListener("click", e => {
-      e.stopPropagation();
-      removerPontoDaRota(ponto);
-    });
-
-
-    li.appendChild(handle);
-    li.appendChild(num);
-    li.appendChild(labelWrap);
-    li.appendChild(remover);
-
-
-    lista.appendChild(li);
+    lista.appendChild(montarLinhaPontoRota(ponto, idx));
   });
-
 
   configurarDragAndDropPainelRota();
   gerarRotaAuto();
+  mostrarToast(`Rota otimizada (${ordemOtima.length} paradas).`);
 }
 
+// ================== ROTA / OSRM ==================
 
-// ROTA / OSRM
 function limparRota() {
   if (routingControl) {
     map.removeControl(routingControl);
@@ -1842,7 +1624,6 @@ function limparRota() {
   removerTodosMarkersDoMapa();
 }
 
-
 async function gerarRotaAuto() {
   const selecionados = getClientesSelecionados();
   for (const c of selecionados) {
@@ -1850,33 +1631,22 @@ async function gerarRotaAuto() {
     c.lng = normalizarLng(c.lng);
   }
 
-
   const destinoStr = getDestinoCampo();
   const pontosPainel = getPontosNaOrdemPainel();
-
 
   if (pontosPainel.length === 0) {
     limparRota();
     return;
   }
 
-
   const totalParadas = pontosPainel.length;
   const totalWaypointsPotencial = totalParadas + (destinoStr ? 1 : 0) + 1;
   if (totalWaypointsPotencial > LIMITE_PONTOS_ROTA) {
-    alert(
-      "Rota com muitos pontos (" +
-        totalParadas +
-        "). Reduza para aproximadamente " +
-        (LIMITE_PONTOS_ROTA - 2) +
-        " paradas ou divida em duas rotas."
-    );
+    mostrarToast(`Rota com muitos pontos (${totalParadas}). Reduza ou divida em duas rotas.`, true);
     return;
   }
 
-
   showRotasLoader();
-
 
   try {
     if (routingControl) {
@@ -1890,23 +1660,18 @@ async function gerarRotaAuto() {
     setAlertasTexto("Nenhuma rota analisada ainda.");
     removerTodosMarkersDoMapa();
 
-
     const waypoints = [];
-
 
     if (!origemManual) origemManual = { ...ORIGEM_FIXA };
     const origemLatLng = L.latLng(origemManual.lat, origemManual.lng);
     waypoints.push(origemLatLng);
 
-
     if (!marcadorLocalizacao) {
       marcadorLocalizacao = L.marker(origemLatLng, {
         icon: myLocationIcon,
         draggable: true
-      })
-        .addTo(map)
-        .bindPopup("Ponto de partida (arraste para ajustar)");
-      marcadorLocalizacao.on("dragend", e => {
+      }).addTo(map).bindPopup("Ponto de partida (arraste para ajustar)");
+      marcadorLocalizacao.on("dragend", (e) => {
         const pos = e.target.getLatLng();
         origemManual.lat = pos.lat;
         origemManual.lng = pos.lng;
@@ -1916,105 +1681,64 @@ async function gerarRotaAuto() {
       marcadorLocalizacao.setLatLng(origemLatLng);
     }
 
-
-    pontosPainel.forEach(p => {
+    pontosPainel.forEach((p) => {
       const lat = normalizarLat(p.lat);
       const lng = normalizarLng(p.lng);
       if (lat == null || lng == null) return;
       waypoints.push(L.latLng(lat, lng));
     });
 
-
     let destinoLatLng = null;
     if (destinoStr) {
-      let destLat = null;
-      let destLng = null;
       const parsed = parseLatLngText(destinoStr);
       if (parsed) {
-        destLat = normalizarLat(parsed.lat);
-        destLng = normalizarLng(parsed.lng);
+        const destLat = normalizarLat(parsed.lat);
+        const destLng = normalizarLng(parsed.lng);
+        if (destLat != null && destLng != null) destinoLatLng = L.latLng(destLat, destLng);
       }
-      if (destLat != null && destLng != null) {
-        destinoLatLng = L.latLng(destLat, destLng);
-      } else {
+      if (!destinoLatLng) {
         const geo = await geocodeTexto(destinoStr);
-        if (geo && geo.lat != null && geo.lng != null) {
-          destinoLatLng = L.latLng(geo.lat, geo.lng);
-        }
+        if (geo && geo.lat != null && geo.lng != null) destinoLatLng = L.latLng(geo.lat, geo.lng);
       }
-
-
-      if (destinoLatLng) {
-        waypoints.push(destinoLatLng);
-      }
+      if (destinoLatLng) waypoints.push(destinoLatLng);
     }
-
 
     ultimaRotaWaypoints = waypoints;
 
-
-    const osrmServiceUrl =
-      window.OSRM_SERVICE_URL || "https://router.project-osrm.org/route/v1";
-
+    const osrmServiceUrl = window.OSRM_SERVICE_URL || "https://router.project-osrm.org/route/v1";
 
     routingControl = L.Routing.control({
       waypoints,
-      router: L.Routing.osrmv1({
-        serviceUrl: osrmServiceUrl
-      }),
-      lineOptions: {
-        styles: [{ color: "#a855f7", weight: 5, opacity: 0.9 }]
-      },
+      router: L.Routing.osrmv1({ serviceUrl: osrmServiceUrl }),
+      lineOptions: { styles: [{ color: "#3d8c5e", weight: 5, opacity: 0.9 }] },
       show: false,
       addWaypoints: false,
       routeWhileDragging: false,
       draggableWaypoints: false
     })
-      .on("routesfound", e => {
+      .on("routesfound", (e) => {
         const route = e.routes[0];
         ultimaAnaliseRota = route;
         setAlertasTexto(
-          `Rota com ${
-            route.waypoints.length
-          } pontos, distância aproximada ${(route.summary.totalDistance / 1000).toFixed(
-            1
-          )} km, tempo ${(route.summary.totalTime / 3600).toFixed(1)} h.`
+          `${route.waypoints.length} pontos · ${(route.summary.totalDistance / 1000).toFixed(1)} km · ${(route.summary.totalTime / 3600).toFixed(1)} h`
         );
 
-
         todosMarkersRota = [];
-        pontosPainel.forEach((p, idx) => {
-          const marker = criarMarkerNumerado(
-            p.lat,
-            p.lng,
-            idx + 1,
-            `${p.label}`,
-            { tipo: p.tipo, id: p.id }
-          );
-          marker.addTo(map);
-          todosMarkersRota.push(marker);
+        const markersAgrupados = criarMarkersAgrupadosPorCoord(pontosPainel);
+        markersAgrupados.forEach((m) => {
+          m.addTo(map);
+          todosMarkersRota.push(m);
         });
-
 
         setLinkMapsEnabled(true);
       })
-      .on("routingerror", err => {
+      .on("routingerror", (err) => {
         const msg = err?.error?.message || "";
         const status = err?.error?.status;
-
-
         if (status === -1 && msg.includes("OSRM request timed out")) {
-          console.warn(
-            "[ROTAS] OSRM demo timeout, mantendo lista e pontos no mapa."
-          );
-          setAlertasTexto(
-            "Serviço de rota externo demorou a responder. Tente novamente em instantes."
-          );
+          setAlertasTexto("Serviço de rota demorou a responder. Tente novamente.");
           return;
         }
-
-
-        console.error("[ROTAS] Erro no cálculo de rota:", err);
         setAlertasTexto("Erro ao calcular rota. Verifique os pontos.");
         setLinkMapsEnabled(false);
       })
@@ -2024,79 +1748,52 @@ async function gerarRotaAuto() {
   }
 }
 
+// ================== PAINEL ROTA – DRAG/MINIMIZAR ==================
 
-// PAINEL ROTA – DRAG/MINIMIZAR
 function initPainelRota() {
   const panel = document.getElementById("rota-panel");
   const header = document.getElementById("rota-panel-header");
   const mapContainer = document.getElementById("map-container");
   if (!panel || !header || !mapContainer) return;
 
-
   let isDragging = false;
-  let startMouseX = 0;
-  let startMouseY = 0;
-  let startPanelLeft = 0;
-  let startPanelTop = 0;
-
+  let startMouseX = 0, startMouseY = 0;
+  let startPanelLeft = 0, startPanelTop = 0;
 
   function onMouseDown(e) {
-    if (e.target === rotaPanelMinimize || rotaPanelMinimize.contains(e.target)) {
-      return;
-    }
+    if (e.target === rotaPanelMinimize || rotaPanelMinimize.contains(e.target)) return;
     if (e.button !== 0) return;
-
 
     const panelRect = panel.getBoundingClientRect();
     const containerRect = mapContainer.getBoundingClientRect();
 
-
     startMouseX = e.clientX;
     startMouseY = e.clientY;
-
-
     startPanelLeft = panelRect.left - containerRect.left;
     startPanelTop = panelRect.top - containerRect.top;
-
 
     isDragging = true;
     panel.classList.add("rota-panel-dragging");
     document.addEventListener("mousemove", onMouseMove);
     document.addEventListener("mouseup", onMouseUp);
-
-
     e.preventDefault();
   }
 
-
   function onMouseMove(e) {
     if (!isDragging) return;
-
-
     const containerRect = mapContainer.getBoundingClientRect();
-
-
     const dx = e.clientX - startMouseX;
     const dy = e.clientY - startMouseY;
-
-
     let newLeft = startPanelLeft + dx;
     let newTop = startPanelTop + dy;
-
-
     const maxLeft = containerRect.width - panel.offsetWidth;
     const maxTop = containerRect.height - panel.offsetHeight;
-
-
     newLeft = Math.max(0, Math.min(newLeft, maxLeft));
     newTop = Math.max(0, Math.min(newTop, maxTop));
-
-
     panel.style.left = newLeft + "px";
     panel.style.top = newTop + "px";
     panel.style.right = "auto";
   }
-
 
   function onMouseUp() {
     if (!isDragging) return;
@@ -2106,9 +1803,7 @@ function initPainelRota() {
     document.removeEventListener("mouseup", onMouseUp);
   }
 
-
   header.addEventListener("mousedown", onMouseDown);
-
 
   rotaPanelMinimize.addEventListener("click", () => {
     rotaPanel.classList.toggle("rota-panel-minimized");
@@ -2120,21 +1815,18 @@ function initPainelRota() {
   });
 }
 
+// ================== SIDEBAR RESIZER ==================
 
-// RESIZER DA SIDEBAR
 function initSidebarResizer() {
   const wrapper = document.getElementById("sidebar-wrapper");
   const resizer = document.getElementById("sidebar-resizer");
-  const grid = document.querySelector(".logistica-grid");
+  const grid = document.querySelector(".rt-grid");
   if (!wrapper || !resizer || !grid) return;
 
-
   let isResizing = false;
-  let startX = 0;
-  let startWidth = 0;
+  let startX = 0, startWidth = 0;
 
-
-  resizer.addEventListener("mousedown", e => {
+  resizer.addEventListener("mousedown", (e) => {
     isResizing = true;
     startX = e.clientX;
     startWidth = wrapper.offsetWidth;
@@ -2143,14 +1835,12 @@ function initSidebarResizer() {
     document.addEventListener("mouseup", onMouseUp);
   });
 
-
   function onMouseMove(e) {
     if (!isResizing) return;
     const dx = e.clientX - startX;
-    const newWidth = Math.max(260, Math.min(520, startWidth + dx));
+    const newWidth = Math.max(280, Math.min(560, startWidth + dx));
     grid.style.gridTemplateColumns = `${newWidth}px 6px minmax(0, 1fr)`;
   }
-
 
   function onMouseUp() {
     if (!isResizing) return;
@@ -2161,27 +1851,32 @@ function initSidebarResizer() {
   }
 }
 
+// ================== ABAS ==================
 
-// === NOVO: Carregamento manual – sugerir caminhão e montar carga 3D
+function initTabs() {
+  const tabs = document.querySelectorAll(".rt-tab");
+  const panels = document.querySelectorAll(".rt-tab-panel");
+  tabs.forEach((tab) => {
+    tab.addEventListener("click", () => {
+      const target = tab.getAttribute("data-tab");
+      tabs.forEach((t) => t.classList.toggle("is-active", t === tab));
+      panels.forEach((p) =>
+        p.classList.toggle("is-active", p.getAttribute("data-panel") === target)
+      );
+    });
+  });
+}
 
+// ================== CARREGAMENTO MANUAL ==================
 
 async function sugerirCaminhaoParaCarga(pesoTotalKg) {
   try {
     const resp = await apiFetch("/caminhoes?ativo=true");
-    if (!resp.ok) {
-      console.warn("[ROTAS] /caminhoes HTTP", resp.status);
-      return null;
-    }
+    if (!resp.ok) return null;
     const data = await resp.json();
-    const lista = (data || []).filter(c => Number(c.capacidadeKg) > 0);
-
-
+    const lista = (data || []).filter((c) => Number(c.capacidadeKg) > 0);
     if (!lista.length) return null;
-
-
-    const candidatos = lista.filter(c => Number(c.capacidadeKg) >= pesoTotalKg);
-
-
+    const candidatos = lista.filter((c) => Number(c.capacidadeKg) >= pesoTotalKg);
     let escolhido = null;
     if (candidatos.length) {
       escolhido = candidatos.reduce((menor, c) => {
@@ -2194,36 +1889,26 @@ async function sugerirCaminhaoParaCarga(pesoTotalKg) {
         return Number(c.capacidadeKg) > Number(maior.capacidadeKg) ? c : maior;
       }, null);
     }
-
-
     return { caminhao: escolhido, listaCaminhoes: lista };
   } catch (e) {
-    console.error("[ROTAS] Erro ao sugerir caminhão:", e);
     return null;
   }
 }
 
-
 function montarCarga3DManualPorItens(caminhaoSelecionado, pedidosSelecionados) {
-  if (!caminhaoSelecionado || !pedidosSelecionados || !pedidosSelecionados.length) {
-    return null;
-  }
-
+  if (!caminhaoSelecionado || !pedidosSelecionados || !pedidosSelecionados.length) return null;
 
   const comprimentoM = caminhaoSelecionado.comprimentoM || 6;
   const larguraM = caminhaoSelecionado.larguraM || 2.4;
   const alturaM = caminhaoSelecionado.alturaM || 2.4;
 
-
   const volumes = [];
-  const cores = [0x22c55e, 0x3b82f6, 0xf97316, 0xa855f7, 0x14b8a6];
+  const cores = [0x3d8c5e, 0x6ea3d1, 0xd4a056, 0xa855f7, 0x14b8a6];
   let corIdxPorPedido = new Map();
-
 
   const margemX = comprimentoM * 0.02;
   const margemZ = larguraM * 0.02;
   const margemY = alturaM * 0.02;
-
 
   const minX = margemX;
   const maxX = comprimentoM - margemX;
@@ -2232,12 +1917,10 @@ function montarCarga3DManualPorItens(caminhaoSelecionado, pedidosSelecionados) {
   const minY = margemY;
   const maxY = alturaM - margemY;
 
-
   let posX = minX;
   let posZ = minZ;
   let camadas = [{ yBase: minY, alturaUsada: 0 }];
   let camadaAtual = 0;
-
 
   pedidosSelecionados.forEach((pedido) => {
     const nunota = pedido.nunota;
@@ -2245,23 +1928,19 @@ function montarCarga3DManualPorItens(caminhaoSelecionado, pedidosSelecionados) {
     const agreg = cachePedidosItens.get(chave);
     if (!agreg || !Array.isArray(agreg.itens)) return;
 
-
     if (!corIdxPorPedido.has(chave)) {
       corIdxPorPedido.set(chave, cores[corIdxPorPedido.size % cores.length]);
     }
     const corBase = corIdxPorPedido.get(chave);
 
-
     agreg.itens.forEach((it) => {
       const qtd = Number(it.qtdneg) || 1;
-
 
       for (let q = 0; q < qtd; q++) {
         let larguraItem = Number(it.largura) || 0;
         let alturaItem = Number(it.altura) || 0;
         let profItem = Number(it.espessura) || 0;
         let volumeM3 = it.volumeUnitM3 || 0;
-
 
         if (!larguraItem || !alturaItem || !profItem) {
           if (volumeM3 > 0) {
@@ -2276,47 +1955,29 @@ function montarCarga3DManualPorItens(caminhaoSelecionado, pedidosSelecionados) {
           }
         }
 
-
-        if (
-          profItem > (maxX - minX) ||
-          larguraItem > (maxZ - minZ) ||
-          alturaItem > (maxY - minY)
-        ) {
-          continue;
-        }
-
+        if (profItem > (maxX - minX) || larguraItem > (maxZ - minZ) || alturaItem > (maxY - minY)) continue;
 
         let colocado = false;
         let tentativasCamada = 0;
 
-
         while (!colocado && tentativasCamada < 100) {
           if (!camadas[camadaAtual]) {
             const camadaAnterior = camadas[camadaAtual - 1];
-            if (!camadaAnterior) {
-              break;
-            }
+            if (!camadaAnterior) break;
             camadas[camadaAtual] = {
               yBase: camadaAnterior.yBase + camadaAnterior.alturaUsada + margemY,
               alturaUsada: 0
             };
           }
 
-
           const camada = camadas[camadaAtual];
           const yBase = camada.yBase;
-
-
-          if (yBase + alturaItem > maxY) {
-            break;
-          }
-
+          if (yBase + alturaItem > maxY) break;
 
           if (posX + profItem > maxX) {
             posX = minX;
             posZ += larguraItem + margemZ;
           }
-
 
           if (posZ + larguraItem > maxZ) {
             posX = minX;
@@ -2326,24 +1987,18 @@ function montarCarga3DManualPorItens(caminhaoSelecionado, pedidosSelecionados) {
             continue;
           }
 
-
           const xCentro = posX + profItem / 2;
           const zCentro = posZ + larguraItem / 2;
           const yCentro = yBase + alturaItem / 2;
-
 
           const halfX = profItem / 2;
           const halfZ = larguraItem / 2;
           const halfY = alturaItem / 2;
 
-
           if (
-            xCentro - halfX < minX ||
-            xCentro + halfX > maxX ||
-            zCentro - halfZ < minZ ||
-            zCentro + halfZ > maxZ ||
-            yCentro - halfY < minY ||
-            yCentro + halfY > maxY
+            xCentro - halfX < minX || xCentro + halfX > maxX ||
+            zCentro - halfZ < minZ || zCentro + halfZ > maxZ ||
+            yCentro - halfY < minY || yCentro + halfY > maxY
           ) {
             posX = minX;
             posZ += larguraItem + margemZ;
@@ -2356,65 +2011,50 @@ function montarCarga3DManualPorItens(caminhaoSelecionado, pedidosSelecionados) {
             continue;
           }
 
-
           const alturaTopo = yBase + alturaItem;
           if (alturaTopo > camada.yBase + camada.alturaUsada) {
             camada.alturaUsada = alturaTopo - camada.yBase;
           }
 
-
           const pesoUnitKg = Number(it.pesoUnitKg) || 0;
-
 
           volumes.push({
             id: `${nunota}-${it.sequencia}-${q + 1}`,
             pedido: nunota,
-            nunota: nunota,
+            nunota,
             codprod: it.codprod,
             descrprod: it.descrprod,
             larguraM: larguraItem,
             alturaM: alturaItem,
             profundidadeM: profItem,
-            x: xCentro,
-            y: yCentro,
-            z: zCentro,
+            x: xCentro, y: yCentro, z: zCentro,
             cor: corBase,
             pesoKg: pesoUnitKg,
             volumeM3: volumeM3 || larguraItem * alturaItem * profItem
           });
 
-
           posX = xCentro + halfX + margemX;
           colocado = true;
-        }
-
-
-        if (!colocado) {
-          continue;
         }
       }
     });
   });
 
-
   return {
     caminhao: {
       id: caminhaoSelecionado.idCaminhao || caminhaoSelecionado.id,
-      descricao:
-        caminhaoSelecionado.descricao ||
-        caminhaoSelecionado.placa ||
-        "Caminhão",
-      comprimentoM,
-      larguraM,
-      alturaM
+      descricao: caminhaoSelecionado.descricao || caminhaoSelecionado.placa || "Caminhão",
+      comprimentoM, larguraM, alturaM
     },
     volumes
   };
 }
 
+// ================== EVENTOS ==================
 
-// EVENTOS INICIAIS
 function initEventos() {
+  initTabs();
+
   tipoOrigemSelect.addEventListener("change", () => {
     origemAtual = tipoOrigemSelect.value;
     idsSelecionados.clear();
@@ -2428,7 +2068,7 @@ function initEventos() {
       grupoVendedoresDiv.style.display = "none";
       carregarClientesNormais();
     } else if (origemAtual === "carteira") {
-      grupoVendedoresDiv.style.display = "block";
+      grupoVendedoresDiv.style.display = "";
       if (selectVendedor.value) {
         carregarCarteiraPorVendedor(selectVendedor.value);
       } else {
@@ -2437,54 +2077,35 @@ function initEventos() {
     }
   });
 
-
   selectVendedor.addEventListener("change", () => {
-    if (origemAtual === "carteira") {
-      carregarCarteiraPorVendedor(selectVendedor.value);
-    }
+    if (origemAtual === "carteira") carregarCarteiraPorVendedor(selectVendedor.value);
   });
 
-
+  // Debounce na busca
   filtroNomeInput.addEventListener("input", () => {
-    aplicarFiltroLocalClientes();
+    if (filtroBuscaDebounce) clearTimeout(filtroBuscaDebounce);
+    filtroBuscaDebounce = setTimeout(() => aplicarFiltroLocalClientes(), 300);
   });
 
-
-  btnSelecionarTodos.addEventListener("click", () => {
-    marcarTodosVisiveis(true);
-  });
-
-
-  btnLimparSelecao.addEventListener("click", () => {
-    marcarTodosVisiveis(false);
-  });
-
-
-  btnOtimizarRota.addEventListener("click", () => {
-    otimizarOrdemParadasVizinhoMaisProximo();
-  });
-
+  btnSelecionarTodos.addEventListener("click", () => marcarTodosVisiveis(true));
+  btnLimparSelecao.addEventListener("click", () => marcarTodosVisiveis(false));
+  btnOtimizarRota.addEventListener("click", otimizarOrdemParadasVizinhoMaisProximo);
 
   chkVerTransito.addEventListener("change", () => {
     toggleTraffic(chkVerTransito.checked);
-    if (chkVerTransito.checked) {
-      carregarIncidentesTomTom();
-    } else {
-      incidentMarkers.forEach(m => map.removeLayer(m));
+    if (chkVerTransito.checked) carregarIncidentesTomTom();
+    else {
+      incidentMarkers.forEach((m) => map.removeLayer(m));
       incidentMarkers = [];
     }
   });
-
 
   btnAdicionarPonto.addEventListener("click", async () => {
     const txt = novoPontoInput.value.trim();
     if (!txt) return;
 
-
-    let latLngParsed = parseLatLngText(txt);
     let novoPonto = null;
-
-
+    const latLngParsed = parseLatLngText(txt);
     if (latLngParsed) {
       const lat = normalizarLat(latLngParsed.lat);
       const lng = normalizarLng(latLngParsed.lng);
@@ -2492,10 +2113,7 @@ function initEventos() {
         novoPonto = {
           tipo: "manual",
           id: "manual_" + manualIdSeq++,
-          label: txt,
-          endereco: txt,
-          lat,
-          lng
+          label: txt, endereco: txt, lat, lng
         };
       }
     } else {
@@ -2504,22 +2122,16 @@ function initEventos() {
         novoPonto = {
           tipo: "manual",
           id: "manual_" + manualIdSeq++,
-          label: geo.label,
-          endereco: geo.label,
-          lat: geo.lat,
-          lng: geo.lng
+          label: geo.label, endereco: geo.label,
+          lat: geo.lat, lng: geo.lng
         };
       }
     }
 
-
     if (!novoPonto) {
-      alert(
-        "Não foi possível interpretar esse ponto. Use 'lat,lng' ou um endereço."
-      );
+      mostrarToast("Ponto inválido. Use 'lat,lng' ou um endereço.", true);
       return;
     }
-
 
     pontosManuais.push(novoPonto);
     novoPontoInput.value = "";
@@ -2527,40 +2139,76 @@ function initEventos() {
     gerarRotaAuto();
   });
 
-
-  btnGerarRota.addEventListener("click", () => {
-    gerarRotaAuto();
+  novoPontoInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") btnAdicionarPonto.click();
   });
 
+  btnGerarRota.addEventListener("click", gerarRotaAuto);
+  btnGerarLinkMaps.addEventListener("click", gerarLinkGoogleMaps);
+  btnGerarLinkMapsSidebar.addEventListener("click", gerarLinkGoogleMaps);
 
-  btnGerarLinkMaps.addEventListener("click", () => {
-    gerarLinkGoogleMaps();
+  // Modal confirmação handlers
+  document.getElementById("btnFecharConfirm")?.addEventListener("click", fecharConfirmacao);
+  document.getElementById("btnConfirmCancelar")?.addEventListener("click", fecharConfirmacao);
+  document.getElementById("btnConfirmOk")?.addEventListener("click", () => {
+    if (typeof _confirmCallback === "function") {
+      const fn = _confirmCallback;
+      _confirmCallback = null;
+      fn();
+    }
+    fecharConfirmacao();
   });
 
-
-  btnGerarLinkMapsSidebar.addEventListener("click", () => {
-    gerarLinkGoogleMaps();
+  // ESC fecha modal
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      fecharConfirmacao();
+      fecharModalItens();
+    }
   });
 
+  // Backdrop fecha modal (mousedown+mouseup pattern)
+  (function setupBackdropClose() {
+    const modal = document.getElementById("modalRotasConfirm");
+    if (!modal) return;
+    let mouseDownInBackdrop = false;
+    modal.addEventListener("mousedown", (e) => {
+      mouseDownInBackdrop = e.target.id === "modalRotasConfirm";
+    });
+    modal.addEventListener("mouseup", (e) => {
+      if (mouseDownInBackdrop && e.target.id === "modalRotasConfirm") fecharConfirmacao();
+      mouseDownInBackdrop = false;
+    });
+  })();
+
+  // Modal itens do pedido
+  document.getElementById("btnFecharModalItens")?.addEventListener("click", fecharModalItens);
+  (function setupBackdropCloseItens() {
+    const modal = document.getElementById("modalItensPedido");
+    if (!modal) return;
+    let mouseDownInBackdrop = false;
+    modal.addEventListener("mousedown", (e) => {
+      mouseDownInBackdrop = e.target.id === "modalItensPedido";
+    });
+    modal.addEventListener("mouseup", (e) => {
+      if (mouseDownInBackdrop && e.target.id === "modalItensPedido") fecharModalItens();
+      mouseDownInBackdrop = false;
+    });
+  })();
 
   if (btnRealizarCarregamento) {
     btnRealizarCarregamento.addEventListener("click", async () => {
-      const pedidosSelecionados = getClientesSelecionados().filter(
-        c => c.origemTipo === "pedido"
-      );
-
+      const pedidosSelecionados = getClientesSelecionados().filter((c) => c.origemTipo === "pedido");
 
       if (!pedidosSelecionados.length) {
-        alert("Selecione pelo menos um pedido para realizar o carregamento.");
+        mostrarToast("Selecione pelo menos um pedido pendente.", true);
         return;
       }
-
 
       let pesoTotal = 0;
       let volumeTotal = 0;
 
-
-      pedidosSelecionados.forEach(p => {
+      pedidosSelecionados.forEach((p) => {
         const chave = String(p.nunota);
         const agg = cachePedidosItens.get(chave);
         if (agg) {
@@ -2569,28 +2217,22 @@ function initEventos() {
         }
       });
 
-
       const sugestao = await sugerirCaminhaoParaCarga(pesoTotal);
       if (!sugestao || !sugestao.caminhao) {
-        alert("Não foi possível sugerir um caminhão para essa carga.");
+        mostrarToast("Não foi possível sugerir um caminhão.", true);
         return;
       }
 
-
       const cam = sugestao.caminhao;
-
 
       if (campoResumoCarga) {
         campoResumoCarga.textContent =
-          `Pedidos: ${pedidosSelecionados.length} • Peso total: ${pesoTotal.toFixed(1)} kg • ` +
-          `Volume total: ${volumeTotal.toFixed(3)} m³ • Sugerido: ` +
-          `${cam.descricao || cam.placa} (${cam.capacidadeKg} kg)`;
+          `${pedidosSelecionados.length} pedidos · ${pesoTotal.toFixed(1)} kg · ${volumeTotal.toFixed(3)} m³ · Sugerido: ${cam.descricao || cam.placa} (${cam.capacidadeKg} kg)`;
       }
-
 
       if (selectCaminhaoCarga) {
         selectCaminhaoCarga.innerHTML = "";
-        sugestao.listaCaminhoes.forEach(c => {
+        sugestao.listaCaminhoes.forEach((c) => {
           const opt = document.createElement("option");
           opt.value = c.idCaminhao;
           opt.textContent = `${c.descricao || c.placa} (${c.capacidadeKg} kg)`;
@@ -2599,31 +2241,25 @@ function initEventos() {
         });
       }
 
-
-      if (btnMontarCarga3D) {
-        btnMontarCarga3D.disabled = false;
-      }
-
+      if (btnMontarCarga3D) btnMontarCarga3D.disabled = false;
 
       window.__VISYA_CARGA_BASE_MANUAL__ = {
-        pedidosSelecionados,
-        pesoTotal,
-        volumeTotal,
+        pedidosSelecionados, pesoTotal, volumeTotal,
         listaCaminhoes: sugestao.listaCaminhoes,
         caminhaoSugeridoId: cam.idCaminhao
       };
+
+      mostrarToast(`Carregamento pronto. Caminhão sugerido: ${cam.descricao || cam.placa}.`);
     });
   }
-
 
   if (btnMontarCarga3D) {
     btnMontarCarga3D.addEventListener("click", () => {
       const base = window.__VISYA_CARGA_BASE_MANUAL__;
       if (!base) {
-        alert("Realize o carregamento primeiro para escolher o caminhão.");
+        mostrarToast("Realize o carregamento primeiro.", true);
         return;
       }
-
 
       const lista = base.listaCaminhoes || [];
       const idEscolhido =
@@ -2631,24 +2267,20 @@ function initEventos() {
           ? selectCaminhaoCarga.value
           : base.caminhaoSugeridoId;
 
-
       const cam =
-        lista.find(c => String(c.idCaminhao) === String(idEscolhido)) ||
-        lista.find(c => String(c.idCaminhao) === String(base.caminhaoSugeridoId));
-
+        lista.find((c) => String(c.idCaminhao) === String(idEscolhido)) ||
+        lista.find((c) => String(c.idCaminhao) === String(base.caminhaoSugeridoId));
 
       if (!cam) {
-        alert("Não foi possível identificar o caminhão selecionado.");
+        mostrarToast("Caminhão não identificado.", true);
         return;
       }
-
 
       const carga = montarCarga3DManualPorItens(cam, base.pedidosSelecionados);
       if (!carga) {
-        alert("Não foi possível montar a carga 3D para os itens selecionados.");
+        mostrarToast("Não foi possível montar a carga 3D.", true);
         return;
       }
-
 
       window.__VISYA_CARGA_ATUAL__ = carga;
       window.open("../rotas/html/viewer3d.html", "_blank");
@@ -2656,11 +2288,11 @@ function initEventos() {
   }
 }
 
+// ================== LINK GOOGLE MAPS ==================
 
-// LINK GOOGLE MAPS
 function gerarLinkGoogleMaps() {
   if (!ultimaRotaWaypoints || ultimaRotaWaypoints.length === 0) {
-    alert("Nenhuma rota calculada para gerar link.");
+    mostrarToast("Nenhuma rota calculada para gerar link.", true);
     return;
   }
   const pontos = ultimaRotaWaypoints;
@@ -2668,45 +2300,131 @@ function gerarLinkGoogleMaps() {
   const destino = pontos[pontos.length - 1];
   const intermediarios = pontos.slice(1, -1);
 
-
   let url = `https://www.google.com/maps/dir/?api=1`;
   url += `&origin=${origem.lat},${origem.lng}`;
   url += `&destination=${destino.lat},${destino.lng}`;
   if (intermediarios.length) {
-    const wps = intermediarios.map(p => `${p.lat},${p.lng}`).join("|");
+    const wps = intermediarios.map((p) => `${p.lat},${p.lng}`).join("|");
     url += `&waypoints=${encodeURIComponent(wps)}`;
   }
-  if (chkEvitarPedagios.checked) {
-    url += `&avoid=tolls`;
-  }
-
+  if (chkEvitarPedagios.checked) url += `&avoid=tolls`;
 
   linkMapsDiv.textContent = url;
   setLinkMapsEnabled(true);
 
-
   try {
     navigator.clipboard.writeText(url);
-    const toast = document.getElementById("toast-copiar-link");
-    if (toast) {
-      toast.style.display = "block";
-      requestAnimationFrame(() => {
-        toast.classList.add("show");
-      });
-      setTimeout(() => {
-        toast.classList.remove("show");
-        setTimeout(() => {
-          toast.style.display = "none";
-        }, 200);
-      }, 2000);
-    }
+    mostrarToast("Link copiado para a área de transferência.");
   } catch (e) {
-    console.warn("[ROTAS] Não foi possível copiar automaticamente o link:", e);
+    mostrarToast("Link gerado (não foi possível copiar automaticamente).");
   }
 }
 
+// ================== HELPERS ==================
 
-// INIT
+function escapeHtml(str) {
+  return String(str || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+// ================== MODAL ITENS DO PEDIDO ==================
+
+function abrirModalItensPedido(nunota) {
+  if (!nunota) return;
+  const chave = String(nunota);
+  const agg = cachePedidosItens.get(chave);
+
+  // Acha o pedido na cache pra exibir nome do cliente
+  const pedido = (cachePedidosPendentes || []).find(
+    (p) => String(p.nunota) === chave
+  );
+
+  const titulo = document.getElementById("modalItensTitulo");
+  const sub = document.getElementById("modalItensSub");
+  const corpo = document.getElementById("modalItensCorpo");
+  const totais = document.getElementById("modalItensTotais");
+
+  if (titulo) titulo.textContent = `Pedido ${chave}`;
+  if (sub) {
+    sub.textContent = pedido
+      ? `${pedido.nome || ""} · ${pedido.endereco || ""}`
+      : `Nota ${chave}`;
+  }
+
+  if (!agg || !Array.isArray(agg.itens) || agg.itens.length === 0) {
+    if (corpo) {
+      corpo.innerHTML = `
+        <div class="modal-itens-empty">
+          Sem itens carregados para esse pedido.
+        </div>`;
+    }
+    if (totais) totais.textContent = "—";
+  } else {
+    let html = `
+      <table class="modal-itens-table">
+        <thead>
+          <tr>
+            <th>Código</th>
+            <th>Descrição</th>
+            <th class="num">Qtd</th>
+            <th class="num">Peso unit</th>
+            <th class="num">Peso total</th>
+            <th class="num">Volume</th>
+          </tr>
+        </thead>
+        <tbody>`;
+
+    agg.itens.forEach((it) => {
+      const qtd = Number(it.qtdneg) || 0;
+      const pesoUnit = Number(it.pesoUnitKg) || 0;
+      const pesoTotal = pesoUnit * qtd;
+      const volumeUnit = Number(it.volumeUnitM3) || 0;
+      const volumeTotal = volumeUnit * qtd;
+
+      html += `
+        <tr>
+          <td class="cell-cod">${escapeHtml(String(it.codprod || "—"))}</td>
+          <td class="cell-desc" title="${escapeHtml(String(it.descrprod || ""))}">${escapeHtml(String(it.descrprod || "—"))}</td>
+          <td class="num">${qtd.toFixed(2)}</td>
+          <td class="num">${pesoUnit.toFixed(3)} kg</td>
+          <td class="num">${pesoTotal.toFixed(2)} kg</td>
+          <td class="num">${volumeTotal.toFixed(4)} m³</td>
+        </tr>`;
+    });
+
+    html += `</tbody></table>`;
+    if (corpo) corpo.innerHTML = html;
+
+    if (totais) {
+      totais.innerHTML = `
+        <span><strong>${agg.itens.length}</strong> itens</span>
+        <span><strong>${agg.pesoTotalKg.toFixed(2)}</strong> kg</span>
+        <span><strong>${agg.volumeTotalM3.toFixed(4)}</strong> m³</span>
+      `;
+    }
+  }
+
+  const modal = document.getElementById("modalItensPedido");
+  if (modal) {
+    modal.classList.add("is-open");
+    modal.setAttribute("aria-hidden", "false");
+  }
+}
+
+function fecharModalItens() {
+  const modal = document.getElementById("modalItensPedido");
+  if (modal) {
+    modal.classList.remove("is-open");
+    modal.setAttribute("aria-hidden", "true");
+  }
+}
+
+// ================== INIT ==================
+
 document.addEventListener("DOMContentLoaded", () => {
   initPainelRota();
   initSidebarResizer();

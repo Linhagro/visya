@@ -216,7 +216,8 @@ function renderizarChartStatus(kpis) {
   const options = {
     chart: {
       type: "donut",
-      height: 270,
+      height: "100%",
+      width: "100%",
       background: "transparent",
       animations: {
         enabled: true,
@@ -289,7 +290,8 @@ function renderizarChartPorMes(arr) {
   const options = {
     chart: {
       type: "bar",
-      height: 270,
+      height: "100%",
+      width: "100%",
       background: "transparent",
       toolbar: { show: false },
       fontFamily: "Inter, sans-serif",
@@ -352,7 +354,8 @@ function renderizarChartTopSetores(arr) {
   const options = {
     chart: {
       type: "bar",
-      height: 270,
+      height: "100%",
+      width: "100%",
       background: "transparent",
       toolbar: { show: false },
       fontFamily: "Inter, sans-serif",
@@ -422,7 +425,8 @@ function renderizarChartTopProfissionais(arr) {
     chart: {
       type: "bar",
       stacked: true,
-      height: 270,
+      height: "100%",
+      width: "100%",
       background: "transparent",
       toolbar: { show: false },
       fontFamily: "Inter, sans-serif",
@@ -631,4 +635,22 @@ window.addEventListener("DOMContentLoaded", () => {
   });
 
   carregarDashboard();
+
+  // Recria charts quando a janela muda de tamanho (com debounce)
+  let resizeTimer = null;
+  window.addEventListener("resize", () => {
+    if (resizeTimer) clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      if (typeof window.recriarGraficosTema === "function") {
+        window.recriarGraficosTema();
+      }
+    }, 200);
+  });
+
+  // Recria charts depois que o iframe terminar de receber dimensões finais
+  setTimeout(() => {
+    if (typeof window.recriarGraficosTema === "function") {
+      window.recriarGraficosTema();
+    }
+  }, 350);
 });

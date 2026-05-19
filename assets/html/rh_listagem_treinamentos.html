@@ -5,7 +5,11 @@
   <title>VISYA - Listagem de Treinamentos</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" />
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+  />
+
   <link rel="stylesheet" href="../css/rh_listagem_treinamentos.css" />
   <link rel="stylesheet" href="../css/loader.css" />
 
@@ -13,16 +17,19 @@
   <script src="../js/rh_listagem_treinamentos.js" defer></script>
 </head>
 <body>
+  <div id="toastRh" class="toast-ano" aria-hidden="true">
+    <span id="toastRhMsg"></span>
+  </div>
+
   <main class="rh-page">
-    <!-- TOPO -->
-    <header class="rh-header">
-      <div class="rh-header-left">
-        <h1 class="rh-titulo">Treinamentos</h1>
-        <p class="rh-subtitulo">
-          Listagem de registros de treinamentos por profissional e setor.
-        </p>
+    <header class="dash-header">
+      <div class="dash-header-left">
+        <span class="dash-kicker">Recursos humanos</span>
+        <h1 class="dash-title">
+          Treinamentos <span>Listagem</span>
+        </h1>
       </div>
-      <div class="rh-header-right">
+      <div class="dash-header-right">
         <div class="rh-user-info">
           <span id="rhUserNome" class="rh-user-nome">Carregando...</span>
           <span id="rhUserEmail" class="rh-user-email"></span>
@@ -30,77 +37,60 @@
       </div>
     </header>
 
-    <!-- FILTROS -->
     <section class="rh-filtros">
       <div class="filtro-campo">
         <label for="fNome">Profissional</label>
-        <input
-          id="fNome"
-          type="text"
-          placeholder="parte do nome"
-          autocomplete="off"
-        />
+        <input id="fNome" type="text" placeholder="parte do nome" autocomplete="off" />
       </div>
+
       <div class="filtro-campo">
         <label for="fSetor">Setor</label>
-        <input
-          id="fSetor"
-          type="text"
-          placeholder="ex: LOGISTICA"
-          autocomplete="off"
-        />
+        <input id="fSetor" type="text" placeholder="ex: LOGISTICA" autocomplete="off" />
       </div>
-      <button
-        type="button"
-        class="btn-filtro btn-filtro-primario"
-        id="btnBuscar"
-      >
-        <span>↻</span>
-        Buscar
-      </button>
-      <button
-        type="button"
-        class="btn-filtro btn-filtro-secundario"
-        id="btnLimpar"
-      >
-        <span>✕</span>
-        Limpar
-      </button>
+
+      <div class="filtro-acoes">
+        <button class="btn-filtro btn-filtro-primary" type="button" id="btnBuscar">
+          <span>Buscar</span>
+        </button>
+        <button class="btn-filtro" type="button" id="btnLimpar">
+          <span>Limpar</span>
+        </button>
+        <button class="btn-filtro btn-filtro-novo" type="button" id="btnNovo">
+          <span>+ Novo</span>
+        </button>
+      </div>
     </section>
 
-    <!-- TABELA -->
-    <section class="rh-tabela-bloco">
-      <div class="rh-tabela-header">
-        <span id="infoRegistros">Mostrando 0 registros</span>
+    <section class="dash-content">
+      <div class="table-header-info">
+        <span id="infoRegistros">Carregando...</span>
       </div>
 
-      <div class="rh-table-wrapper">
+      <div class="table-wrapper">
         <table class="rh-table">
           <colgroup>
-            <col style="width:7%" />
-            <col style="width:28%" />
-            <col style="width:15%" />
-            <col style="width:15%" />
-            <col style="width:15%" />
-            <col style="width:10%" />
-            <col style="width:10%" />
+            <col class="w-id" />
+            <col class="w-prof" />
+            <col class="w-setor" />
+            <col class="w-data" />
+            <col class="w-data" />
+            <col class="w-status" />
+            <col class="w-acoes" />
           </colgroup>
           <thead>
             <tr>
               <th>ID</th>
               <th>Profissional</th>
               <th>Setor</th>
-              <th>Início Período</th>
-              <th>Fim Período</th>
+              <th>Início</th>
+              <th>Fim</th>
               <th>Status</th>
               <th>Ações</th>
             </tr>
           </thead>
           <tbody id="tbodyRh">
             <tr>
-              <td colspan="7" class="rh-empty">
-                Carregando dados...
-              </td>
+              <td colspan="7" class="rh-empty">Carregando dados...</td>
             </tr>
           </tbody>
         </table>
@@ -108,21 +98,21 @@
     </section>
   </main>
 
-  <!-- MODAL CONFIRMAR DELETE -->
-  <div id="modalDelete" class="rh-modal-backdrop" style="display:none;">
-    <div class="rh-modal rh-modal-sm">
-      <h2>Confirmar exclusão</h2>
-      <p id="modalDeleteMsg">Deseja remover este treinamento?</p>
+  <div id="modalDelete" class="rh-modal-backdrop" aria-hidden="true">
+    <div class="rh-modal">
+      <button type="button" class="rh-modal-close" id="btnDeleteCancelar" aria-label="Fechar">✕</button>
+      <p class="modal-kicker">Confirmação</p>
+      <h2 class="rh-modal-title">Confirmar exclusão</h2>
+      <p class="rh-modal-msg" id="modalDeleteMsg">Deseja remover este treinamento?</p>
       <div class="modal-actions">
-        <button type="button" id="btnDeleteCancelar">Cancelar</button>
-        <button type="button" id="btnDeleteConfirmar" class="btn-danger">
+        <button type="button" class="btn-filtro" id="btnDeleteCancelar2">Cancelar</button>
+        <button type="button" class="btn-filtro btn-danger" id="btnDeleteConfirmar">
           Excluir
         </button>
       </div>
     </div>
   </div>
 
-  <!-- LOADER -->
   <div class="loader-overlay" id="loaderOverlay" aria-hidden="true">
     <iframe
       src="loader.html"
@@ -133,7 +123,6 @@
     ></iframe>
   </div>
 
-  <!-- Tema -->
   <script>
     const THEME_KEY = "visya-sidebar-theme";
     function applyLocalTheme() {
@@ -147,18 +136,11 @@
     applyLocalTheme();
     window.addEventListener("message", (event) => {
       if (!event.data || event.data.type !== "visya-theme") return;
-      document.body.classList.toggle(
-        "light-theme",
-        event.data.theme === "light"
-      );
+      document.body.classList.toggle("light-theme", event.data.theme === "light");
       try {
         localStorage.setItem(THEME_KEY, event.data.theme);
       } catch (e) {}
     });
   </script>
-  <!-- Notificações da tela de Relatório -->
-<ul id="relatorioNotification" class="notification-container" style="display:none;">
-  <!-- itens criados via JS -->
-</ul>
 </body>
 </html>

@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>VISYA - Cadastro de Telas</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+  />
+
+  <link rel="stylesheet" href="../css/usuarios_telas_admin.css" />
+  <link rel="stylesheet" href="../css/loader.css" />
+
+  <script src="../js/global.js" defer></script>
+  <script src="../js/usuarios_telas_admin.js" defer></script>
+</head>
+<body>
+  <div id="toastTela" class="toast-ano" aria-hidden="true">
+    <span id="toastTelaMsg"></span>
+  </div>
+
+  <main class="ut-page">
+    <header class="dash-header">
+      <div class="dash-header-left">
+        <span class="dash-kicker">Usuários</span>
+        <h1 class="dash-title">
+          Cadastro de <span>Telas</span>
+        </h1>
+        <p class="dash-subtitulo">
+          Gerencie as telas disponíveis no sistema (módulo, código, rota e status).
+        </p>
+      </div>
+      <div class="dash-header-right">
+        <div class="ut-user-info">
+          <span id="utUserNome" class="ut-user-nome">Carregando...</span>
+          <span id="utUserEmail" class="ut-user-email"></span>
+        </div>
+      </div>
+    </header>
+
+    <section class="ut-filtros">
+      <div class="filtro-campo">
+        <label for="fModulo">Módulo</label>
+        <input id="fModulo" type="text" placeholder="ex: RH" autocomplete="off" />
+      </div>
+
+      <div class="filtro-campo">
+        <label for="fCodigoTela">Código da Tela</label>
+        <input id="fCodigoTela" type="text" placeholder="ex: RH_DASHBOARD" autocomplete="off" />
+      </div>
+
+      <div class="filtro-campo">
+        <label for="fNomeTela">Nome da Tela</label>
+        <input id="fNomeTela" type="text" placeholder="parte do nome" autocomplete="off" />
+      </div>
+
+      <div class="filtro-campo">
+        <label for="fRota">Rota</label>
+        <input id="fRota" type="text" placeholder="ex: /rh" autocomplete="off" />
+      </div>
+
+      <div class="filtro-campo filtro-campo-curto">
+        <label for="fAtivo">Status</label>
+        <select id="fAtivo">
+          <option value="">Todos</option>
+          <option value="1">Ativos</option>
+          <option value="0">Inativos</option>
+        </select>
+      </div>
+
+      <div class="filtro-acoes">
+        <button class="btn-filtro btn-filtro-primary" type="button" id="btnAplicar">
+          <span>Aplicar</span>
+        </button>
+        <button class="btn-filtro" type="button" id="btnLimpar">
+          <span>Limpar</span>
+        </button>
+        <button class="btn-filtro btn-filtro-novo" type="button" id="btnNova">
+          <span>+ Nova Tela</span>
+        </button>
+      </div>
+    </section>
+
+    <section class="dash-content">
+      <div class="table-header-info">
+        <span id="infoRegistros">Carregando...</span>
+      </div>
+
+      <div class="table-wrapper">
+        <table class="ut-table">
+          <colgroup>
+            <col class="w-id" />
+            <col class="w-modulo" />
+            <col class="w-codigo" />
+            <col class="w-nome" />
+            <col class="w-rota" />
+            <col class="w-ativo" />
+            <col class="w-acoes" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Módulo</th>
+              <th>Código</th>
+              <th>Nome da Tela</th>
+              <th>Rota</th>
+              <th>Status</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyTelas">
+            <tr>
+              <td colspan="7" class="ut-empty">Carregando dados...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- MODAL CADASTRO / EDIÇÃO -->
+  <div id="modalForm" class="ut-modal-backdrop" aria-hidden="true">
+    <div class="ut-modal ut-modal-lg">
+      <button type="button" class="ut-modal-close" id="btnFormCancelar" aria-label="Fechar">✕</button>
+      <p class="modal-kicker">Cadastro</p>
+      <h2 class="ut-modal-title" id="modalFormTitulo">Nova Tela</h2>
+      <p class="ut-modal-msg">Preencha os dados da tela. Os campos com * são obrigatórios.</p>
+
+      <div class="form-grid">
+        <div class="filtro-campo">
+          <label for="fmModulo">Módulo <span class="obrigatorio">*</span></label>
+          <input type="text" id="fmModulo" placeholder="ex: RH" autocomplete="off" />
+        </div>
+
+        <div class="filtro-campo">
+          <label for="fmCodigoTela">Código da Tela <span class="obrigatorio">*</span></label>
+          <input type="text" id="fmCodigoTela" placeholder="ex: RH_DASHBOARD" autocomplete="off" />
+        </div>
+
+        <div class="filtro-campo filtro-campo-wide">
+          <label for="fmNomeTela">Nome da Tela <span class="obrigatorio">*</span></label>
+          <input type="text" id="fmNomeTela" placeholder="ex: Dashboard de Treinamentos" autocomplete="off" />
+        </div>
+
+        <div class="filtro-campo filtro-campo-wide">
+          <label for="fmRota">Rota <span class="obrigatorio">*</span></label>
+          <input type="text" id="fmRota" placeholder="ex: /rh-dashboard (precisa começar com /)" autocomplete="off" />
+        </div>
+
+        <div class="filtro-campo">
+          <label for="fmAtivo">Status</label>
+          <select id="fmAtivo">
+            <option value="1">Ativo</option>
+            <option value="0">Inativo</option>
+          </select>
+        </div>
+      </div>
+
+      <p class="form-erro" id="formErro"></p>
+
+      <div class="modal-actions">
+        <button type="button" class="btn-filtro" id="btnFormCancelar2">Cancelar</button>
+        <button type="button" class="btn-filtro btn-filtro-primary" id="btnFormSalvar">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL CONFIRMAR ATIVAR/INATIVAR -->
+  <div id="modalToggle" class="ut-modal-backdrop" aria-hidden="true">
+    <div class="ut-modal">
+      <button type="button" class="ut-modal-close" id="btnToggleCancelar" aria-label="Fechar">✕</button>
+      <p class="modal-kicker">Confirmação</p>
+      <h2 class="ut-modal-title" id="modalToggleTitulo">Confirmar ação</h2>
+      <p class="ut-modal-msg" id="modalToggleMsg">Deseja alterar o status?</p>
+      <div class="modal-actions">
+        <button type="button" class="btn-filtro" id="btnToggleCancelar2">Cancelar</button>
+        <button type="button" class="btn-filtro btn-filtro-primary" id="btnToggleConfirmar">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="loader-overlay" id="loaderOverlay" aria-hidden="true">
+    <iframe
+      src="loader.html"
+      class="loader-frame"
+      frameborder="0"
+      scrolling="no"
+      title="Carregando..."
+    ></iframe>
+  </div>
+
+  <script>
+    const THEME_KEY = "visya-sidebar-theme";
+    function applyLocalTheme() {
+      let saved = null;
+      try {
+        saved = localStorage.getItem(THEME_KEY);
+      } catch (e) {}
+      const theme = saved === "light" || saved === "dark" ? saved : "dark";
+      document.body.classList.toggle("light-theme", theme === "light");
+    }
+    applyLocalTheme();
+    window.addEventListener("message", (event) => {
+      if (!event.data || event.data.type !== "visya-theme") return;
+      document.body.classList.toggle("light-theme", event.data.theme === "light");
+      try {
+        localStorage.setItem(THEME_KEY, event.data.theme);
+      } catch (e) {}
+    });
+  </script>
+</body>
+</html>

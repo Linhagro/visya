@@ -407,6 +407,17 @@
                   Regras de Usuários
                 </a>
               </li>
+              <li class="nav-item">
+                <a
+                  href="usuarios_telas_admin.html"
+                  class="nav-link dropdown-link"
+                  data-frame-target="visya-frame"
+                  data-modulo="USUARIOS"
+                  data-codigo="CADASTRO_TELAS"
+                >
+                  Cadastro de Telas
+                </a>
+              </li>
             </ul>
           </li>
         </ul>
@@ -682,6 +693,13 @@
         permissoes.push({
           modulo: "INICIO",
           codigoTela: "INICIO_HOME",
+          podeVer: true
+        });
+
+        // Sempre permite acesso ao cadastro de telas (a API valida quem pode usar via PLATFORM_OWNER_EMAIL)
+        permissoes.push({
+          modulo: "USUARIOS",
+          codigoTela: "CADASTRO_TELAS",
           podeVer: true
         });
 

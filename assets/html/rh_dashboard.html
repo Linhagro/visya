@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>VISYA - Dashboard RH</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+  />
+
+  <link rel="stylesheet" href="../css/rh_dashboard.css" />
+  <link rel="stylesheet" href="../css/loader.css" />
+
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.45.0/dist/apexcharts.min.js"></script>
+  <script src="../js/global.js" defer></script>
+  <script src="../js/rh_dashboard.js" defer></script>
+</head>
+<body>
+  <div id="toastDash" class="toast-ano" aria-hidden="true">
+    <span id="toastDashMsg"></span>
+  </div>
+
+  <main class="dash-page">
+    <header class="dash-header">
+      <div class="dash-header-left">
+        <span class="dash-kicker">Recursos humanos</span>
+        <h1 class="dash-title">
+          Treinamentos <span>Dashboard</span>
+        </h1>
+      </div>
+      <div class="dash-header-right">
+        <div class="rh-user-info">
+          <span id="rhUserNome" class="rh-user-nome">Carregando...</span>
+          <span id="rhUserEmail" class="rh-user-email"></span>
+        </div>
+      </div>
+    </header>
+
+    <section class="dash-filtros">
+      <div class="filtro-campo">
+        <label for="fDataInicio">Início do Período</label>
+        <input id="fDataInicio" type="date" />
+      </div>
+      <div class="filtro-campo">
+        <label for="fDataFim">Fim do Período</label>
+        <input id="fDataFim" type="date" />
+      </div>
+      <div class="filtro-campo">
+        <label for="fSetor">Setor</label>
+        <input id="fSetor" type="text" placeholder="ex: LOGISTICA" autocomplete="off" />
+      </div>
+
+      <div class="filtro-acoes">
+        <button class="btn-filtro btn-filtro-primary" type="button" id="btnAplicar">
+          <span>Aplicar</span>
+        </button>
+        <button class="btn-filtro" type="button" id="btnLimpar">
+          <span>Limpar</span>
+        </button>
+      </div>
+    </section>
+
+    <section class="kpis-grid">
+      <div class="kpi-card">
+        <span class="kpi-label">Total de Treinamentos</span>
+        <span class="kpi-value" id="kpiTotalTreinamentos">—</span>
+        <span class="kpi-meta" id="kpiTotalProfissionais">— profissionais</span>
+      </div>
+
+      <div class="kpi-card kpi-card-accent">
+        <span class="kpi-label">Atividades Registradas</span>
+        <span class="kpi-value" id="kpiTotalAtividades">—</span>
+        <span class="kpi-meta" id="kpiTaxaDominio">— com domínio</span>
+      </div>
+
+      <div class="kpi-card">
+        <span class="kpi-label">Setores Envolvidos</span>
+        <span class="kpi-value" id="kpiTotalSetores">—</span>
+        <span class="kpi-meta">setores ativos</span>
+      </div>
+
+      <div class="kpi-card kpi-card-warning">
+        <span class="kpi-label">Pendentes de Revisão</span>
+        <span class="kpi-value" id="kpiPendentesRevisao">—</span>
+        <span class="kpi-meta">atividades sem domínio</span>
+      </div>
+    </section>
+
+    <section class="charts-grid">
+      <div class="chart-card chart-card-status">
+        <header class="chart-card-header">
+          <p class="chart-kicker">Distribuição</p>
+          <h2 class="chart-title">Status dos Treinamentos</h2>
+        </header>
+        <div class="chart-body" id="chartStatus"></div>
+      </div>
+
+      <div class="chart-card chart-card-mes">
+        <header class="chart-card-header">
+          <p class="chart-kicker">Volume</p>
+          <h2 class="chart-title">Treinamentos por Mês</h2>
+        </header>
+        <div class="chart-body" id="chartPorMes"></div>
+      </div>
+
+      <div class="chart-card chart-card-setores">
+        <header class="chart-card-header">
+          <p class="chart-kicker">Ranking</p>
+          <h2 class="chart-title">Top Setores</h2>
+        </header>
+        <div class="chart-body" id="chartTopSetores"></div>
+      </div>
+
+      <div class="chart-card chart-card-prof">
+        <header class="chart-card-header">
+          <p class="chart-kicker">Engajamento</p>
+          <h2 class="chart-title">Top Profissionais</h2>
+        </header>
+        <div class="chart-body" id="chartTopProfissionais"></div>
+      </div>
+    </section>
+
+    <section class="dash-bottom-grid">
+      <div class="cobertura-card">
+        <header class="chart-card-header">
+          <p class="chart-kicker">Cobertura</p>
+          <h2 class="chart-title">Treinamento × Domínio por Setor</h2>
+        </header>
+        <div class="cobertura-body" id="coberturaBody">
+          <p class="cobertura-empty">Carregando...</p>
+        </div>
+      </div>
+
+      <div class="pendentes-card">
+        <header class="chart-card-header">
+          <p class="chart-kicker">Para revisar</p>
+          <h2 class="chart-title">Atividades sem Domínio</h2>
+          <span class="chart-badge" id="pendentesCount">0</span>
+        </header>
+        <div class="pendentes-body" id="pendentesBody">
+          <p class="cobertura-empty">Carregando...</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="loader-overlay" id="loaderOverlay" aria-hidden="true">
+    <iframe
+      src="loader.html"
+      class="loader-frame"
+      frameborder="0"
+      scrolling="no"
+      title="Carregando..."
+    ></iframe>
+  </div>
+
+  <script>
+    const THEME_KEY = "visya-sidebar-theme";
+    function applyLocalTheme() {
+      let saved = null;
+      try {
+        saved = localStorage.getItem(THEME_KEY);
+      } catch (e) {}
+      const theme = saved === "light" || saved === "dark" ? saved : "dark";
+      document.body.classList.toggle("light-theme", theme === "light");
+    }
+    applyLocalTheme();
+    window.addEventListener("message", (event) => {
+      if (!event.data || event.data.type !== "visya-theme") return;
+      document.body.classList.toggle("light-theme", event.data.theme === "light");
+      try {
+        localStorage.setItem(THEME_KEY, event.data.theme);
+      } catch (e) {}
+      if (typeof window.recriarGraficosTema === "function") {
+        window.recriarGraficosTema();
+      }
+    });
+  </script>
+</body>
+</html>

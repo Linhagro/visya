@@ -66,33 +66,37 @@ function formatDate(val) {
 function statusLabel(st) {
   const s = Number(st);
   switch (s) {
-    case 1:
-      return "Pendente";
-    case 2:
-      return "Em andamento";
-    case 3:
-      return "Concluído";
-    case 4:
-      return "Cancelado";
-    default:
-      return "—";
+    case 1: return "Pendente";
+    case 2: return "Em andamento";
+    case 3: return "Concluído";
+    case 4: return "Cancelado";
+    default: return "—";
   }
 }
 
 function statusClass(st) {
   const s = Number(st);
   switch (s) {
-    case 1:
-      return "pill-status pendente";
-    case 2:
-      return "pill-status andamento";
-    case 3:
-      return "pill-status concluido";
-    case 4:
-      return "pill-status cancelado";
-    default:
-      return "pill-status";
+    case 1: return "pill-status pendente";
+    case 2: return "pill-status andamento";
+    case 3: return "pill-status concluido";
+    case 4: return "pill-status cancelado";
+    default: return "pill-status";
   }
+}
+
+function mostrarToast(msg, isError = false) {
+  const toast = document.getElementById("toastRh");
+  const span = document.getElementById("toastRhMsg");
+  if (!toast || !span) return;
+  span.textContent = msg;
+  toast.classList.toggle("toast-ano-error", !!isError);
+  toast.classList.add("toast-ano-visible");
+  toast.setAttribute("aria-hidden", "false");
+  setTimeout(() => {
+    toast.classList.remove("toast-ano-visible");
+    toast.setAttribute("aria-hidden", "true");
+  }, 3500);
 }
 
 let listaCabecalhos = [];
@@ -112,6 +116,7 @@ window.addEventListener("DOMContentLoaded", () => {
   document
     .getElementById("btnBuscar")
     ?.addEventListener("click", carregarTreinamentos);
+
   document.getElementById("btnLimpar")?.addEventListener("click", () => {
     const fNome = document.getElementById("fNome");
     const fSetor = document.getElementById("fSetor");
@@ -120,17 +125,45 @@ window.addEventListener("DOMContentLoaded", () => {
     carregarTreinamentos();
   });
 
+  document.getElementById("btnNovo")?.addEventListener("click", () => {
+    const frame = window.parent?.document?.querySelector(".app-main-frame");
+    const url = "rh_relatorio_treinamento.html";
+    if (frame) {
+      frame.src = url;
+    } else {
+      window.location.href = url;
+    }
+  });
+
+  ["fNome", "fSetor"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") carregarTreinamentos();
+    });
+  });
+
   document
     .getElementById("btnDeleteCancelar")
-    ?.addEventListener("click", () => {
-      const modal = document.getElementById("modalDelete");
-      if (modal) modal.style.display = "none";
-      deleteIdPendente = null;
-    });
+    ?.addEventListener("click", fecharModalDelete);
+
+  document
+    .getElementById("btnDeleteCancelar2")
+    ?.addEventListener("click", fecharModalDelete);
 
   document
     .getElementById("btnDeleteConfirmar")
     ?.addEventListener("click", confirmarDelete);
+
+  // ESC fecha modal
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") fecharModalDelete();
+  });
+
+  // click no backdrop fecha
+  document.getElementById("modalDelete")?.addEventListener("click", (e) => {
+    if (e.target.id === "modalDelete") fecharModalDelete();
+  });
 
   carregarTreinamentos();
 });
@@ -164,13 +197,16 @@ async function carregarTreinamentos() {
     const data = await resp.json();
     listaCabecalhos = Array.isArray(data.cabecalhos) ? data.cabecalhos : [];
     renderTabela(listaCabecalhos);
-    if (infoEl)
-      infoEl.textContent = `Mostrando ${listaCabecalhos.length} registro(s)`;
+    if (infoEl) {
+      const qtd = listaCabecalhos.length;
+      infoEl.textContent = qtd === 1 ? "1 registro" : `${qtd.toLocaleString("pt-BR")} registros`;
+    }
   } catch (e) {
     console.error("[RH LIST][carregarTreinamentos]", e);
     tbody.innerHTML =
       '<tr><td colspan="7" class="rh-empty">Erro ao carregar dados. Tente novamente.</td></tr>';
     if (infoEl) infoEl.textContent = "Erro ao carregar";
+    mostrarToast("Erro ao carregar treinamentos.", true);
   } finally {
     setLoading(false);
   }
@@ -193,22 +229,20 @@ function renderTabela(lista) {
     html += `
       <tr>
         <td>${escapeHtml(r.Id)}</td>
-        <td title="${escapeHtml(r.NomeProfissional)}">${escapeHtml(
-      r.NomeProfissional
-    )}</td>
+        <td title="${escapeHtml(r.NomeProfissional)}">${escapeHtml(r.NomeProfissional)}</td>
         <td>${escapeHtml(r.Setor)}</td>
         <td>${formatDate(r.DataInicioPeriodo)}</td>
         <td>${formatDate(r.DataFimPeriodo)}</td>
-        <td><span class="${statusClass(r.Status)}">${statusLabel(
-      r.Status
-    )}</span></td>
-        <td class="td-acoes">
-          <button type="button" class="btn-acao btn-editar" data-id="${
-            r.Id
-          }" title="Editar">✏️</button>
-          <button type="button" class="btn-acao btn-deletar" data-id="${
-            r.Id
-          }" title="Excluir">🗑️</button>
+        <td><span class="${statusClass(r.Status)}">${statusLabel(r.Status)}</span></td>
+        <td>
+          <div class="td-acoes">
+            <button type="button" class="btn-acao btn-editar" data-id="${r.Id}" title="Editar">
+              Editar
+            </button>
+            <button type="button" class="btn-acao btn-acao-danger btn-deletar" data-id="${r.Id}" title="Excluir">
+              ✕
+            </button>
+          </div>
         </td>
       </tr>`;
   }
@@ -219,9 +253,7 @@ function renderTabela(lista) {
     btn.addEventListener("click", () => abrirEdicao(Number(btn.dataset.id)));
   });
   tbody.querySelectorAll(".btn-deletar").forEach((btn) => {
-    btn.addEventListener("click", () =>
-      abrirModalDelete(Number(btn.dataset.id))
-    );
+    btn.addEventListener("click", () => abrirModalDelete(Number(btn.dataset.id)));
   });
 }
 
@@ -244,31 +276,44 @@ function abrirModalDelete(id) {
   deleteIdPendente = id;
   const msgEl = document.getElementById("modalDeleteMsg");
   const modal = document.getElementById("modalDelete");
-  if (msgEl)
-    msgEl.textContent = `Deseja remover o treinamento ID ${id}? Esta ação removerá também as atividades.`;
-  if (modal) modal.style.display = "flex";
+  if (msgEl) {
+    msgEl.textContent = `Deseja remover o treinamento ID ${id}? Esta ação também removerá todas as atividades associadas.`;
+  }
+  if (modal) {
+    modal.classList.add("is-open");
+    modal.setAttribute("aria-hidden", "false");
+  }
+}
+
+function fecharModalDelete() {
+  const modal = document.getElementById("modalDelete");
+  if (modal) {
+    modal.classList.remove("is-open");
+    modal.setAttribute("aria-hidden", "true");
+  }
+  deleteIdPendente = null;
 }
 
 async function confirmarDelete() {
   if (!deleteIdPendente) return;
+  const idAtual = deleteIdPendente;
 
   setLoading(true);
   try {
     const resp = await fetch(
-      `${window.API_BASE}/rh/treinamentos/${deleteIdPendente}`,
+      `${window.API_BASE}/rh/treinamentos/${idAtual}`,
       {
         method: "DELETE",
         headers: getHeaders(),
       }
     );
     if (!resp.ok) throw new Error("HTTP " + resp.status);
-    const modal = document.getElementById("modalDelete");
-    if (modal) modal.style.display = "none";
-    deleteIdPendente = null;
+    fecharModalDelete();
+    mostrarToast(`Treinamento ${idAtual} excluído.`);
     await carregarTreinamentos();
   } catch (e) {
     console.error("[RH LIST][confirmarDelete]", e);
-    alert("Erro ao excluir. Tente novamente.");
+    mostrarToast("Erro ao excluir treinamento.", true);
   } finally {
     setLoading(false);
   }

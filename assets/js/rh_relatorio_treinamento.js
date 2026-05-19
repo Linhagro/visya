@@ -60,6 +60,20 @@ function getIdFromQueryString() {
   return id ? parseInt(id, 10) : null;
 }
 
+function mostrarToast(msg, isError = false) {
+  const toast = document.getElementById("toastRh");
+  const span = document.getElementById("toastRhMsg");
+  if (!toast || !span) return;
+  span.textContent = msg;
+  toast.classList.toggle("toast-ano-error", !!isError);
+  toast.classList.add("toast-ano-visible");
+  toast.setAttribute("aria-hidden", "false");
+  setTimeout(() => {
+    toast.classList.remove("toast-ano-visible");
+    toast.setAttribute("aria-hidden", "true");
+  }, 3500);
+}
+
 let linhaCount = 0;
 let modoEdicao = false;
 let idCabecalhoAtual = null;
@@ -78,7 +92,11 @@ window.addEventListener("DOMContentLoaded", () => {
   document
     .getElementById("btnAdicionarLinha")
     ?.addEventListener("click", () => adicionarLinha());
-  document.getElementById("btnSalvar")?.addEventListener("click", salvarRelatorio);
+
+  document
+    .getElementById("btnSalvar")
+    ?.addEventListener("click", salvarRelatorio);
+
   document
     .getElementById("btnLimparForm")
     ?.addEventListener("click", limparForm);
@@ -96,7 +114,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
 async function carregarTreinamento(id) {
   const erroEl = document.getElementById("formErro");
-  erroEl.textContent = "";
+  if (erroEl) erroEl.textContent = "";
   setLoading(true);
   try {
     const resp = await fetch(`${window.API_BASE}/rh/treinamentos/${id}`, {
@@ -108,16 +126,22 @@ async function carregarTreinamento(id) {
     modoEdicao = true;
     idCabecalhoAtual = data.cabecalho.Id;
 
-    const titulo = document.querySelector(".rh-titulo");
-    const subtitulo = document.querySelector(".rh-subtitulo");
-    const btnSalvar = document.getElementById("btnSalvar");
-    const btnLimpar = document.getElementById("btnLimparForm");
+    // Atualiza UI para modo edição
+    const tituloEl = document.querySelector(".rh-titulo");
+    const subtituloEl = document.querySelector(".rh-subtitulo");
+    const btnSalvarEl = document.getElementById("btnSalvar");
+    const btnLimparEl = document.getElementById("btnLimparForm");
 
-    if (titulo) titulo.textContent = "Editar Treinamento";
-    if (subtitulo)
-      subtitulo.textContent = "Editando registros de treinamento.";
-    if (btnSalvar) btnSalvar.innerHTML = "<span>✔</span> Salvar Alterações";
-    if (btnLimpar) btnLimpar.style.display = "none";
+    if (tituloEl) {
+      tituloEl.innerHTML = `Editar <span>Treinamento</span>`;
+    }
+    if (subtituloEl) {
+      subtituloEl.textContent = `Editando registros do treinamento ID ${data.cabecalho.Id}.`;
+    }
+    if (btnSalvarEl) {
+      btnSalvarEl.innerHTML = "<span>Salvar Alterações</span>";
+    }
+    if (btnLimparEl) btnLimparEl.style.display = "none";
 
     const cab = data.cabecalho || {};
 
@@ -148,7 +172,8 @@ async function carregarTreinamento(id) {
     });
   } catch (e) {
     console.error("[RH RELATORIO][carregarTreinamento]", e);
-    erroEl.textContent = "Erro ao carregar dados para edição.";
+    if (erroEl) erroEl.textContent = "Erro ao carregar dados para edição.";
+    mostrarToast("Erro ao carregar treinamento.", true);
   } finally {
     setLoading(false);
   }
@@ -164,12 +189,12 @@ function criarLinhaAtividade(dados = {}) {
   if (dados.id) tr.dataset.idDetalhe = dados.id;
 
   tr.innerHTML = `
-    <td><input type="date" id="dataAtividade_${id}" value="${escapeHtml(
-      dados.dataAtividade || ""
-    )}" /></td>
-    <td><input type="text" id="atividade_${id}" value="${escapeHtml(
-      dados.atividade || ""
-    )}" placeholder="Descreva a atividade" /></td>
+    <td>
+      <input type="date" id="dataAtividade_${id}" value="${escapeHtml(dados.dataAtividade || "")}" />
+    </td>
+    <td>
+      <input type="text" id="atividade_${id}" value="${escapeHtml(dados.atividade || "")}" placeholder="Descreva a atividade" />
+    </td>
     <td>
       <select id="recebi_${id}">
         <option value="S" ${dados.recebi === "S" ? "selected" : ""}>Sim</option>
@@ -182,20 +207,21 @@ function criarLinhaAtividade(dados = {}) {
         <option value="N" ${dados.dominio !== "S" ? "selected" : ""}>Não</option>
       </select>
     </td>
-    <td><input type="text" id="obs_${id}" value="${escapeHtml(
-      dados.observacoes || ""
-    )}" placeholder="Opcional" /></td>
-    <td style="text-align:center;">
-      <button type="button" class="btn-remover-linha" style="
-        background:transparent;border:1px solid #ef4444;color:#fecaca;
-        border-radius:4px;padding:2px 6px;cursor:pointer;font-size:10px;font-family:inherit;
-      ">✕</button>
+    <td>
+      <input type="text" id="obs_${id}" value="${escapeHtml(dados.observacoes || "")}" placeholder="Opcional" />
+    </td>
+    <td class="w-remover">
+      <button type="button" class="btn-remover-linha" title="Remover linha">✕</button>
     </td>
   `;
 
-  tr
-    .querySelector(".btn-remover-linha")
-    .addEventListener("click", () => tr.remove());
+  tr.querySelector(".btn-remover-linha").addEventListener("click", () => {
+    tr.style.transition = "opacity 160ms ease-out, transform 160ms ease-out";
+    tr.style.opacity = "0";
+    tr.style.transform = "translateX(-8px)";
+    setTimeout(() => tr.remove(), 160);
+  });
+
   return tr;
 }
 
@@ -217,20 +243,28 @@ function limparForm() {
   document.getElementById("dataFimPeriodo").value = "";
   const statusSel = document.getElementById("statusTreinamento");
   if (statusSel) statusSel.value = "1";
-  document.getElementById("formErro").textContent = "";
+  const erroEl = document.getElementById("formErro");
+  if (erroEl) erroEl.textContent = "";
   document.getElementById("tbodyAtividades").innerHTML = "";
   linhaCount = 0;
 
-  const titulo = document.querySelector(".rh-titulo");
-  const subtitulo = document.querySelector(".rh-subtitulo");
-  const btnSalvar = document.getElementById("btnSalvar");
-  const btnLimpar = document.getElementById("btnLimparForm");
-  if (titulo) titulo.textContent = "Relatório de Treinamento";
-  if (subtitulo)
-    subtitulo.textContent =
+  // Volta título para modo inclusão
+  const tituloEl = document.querySelector(".rh-titulo");
+  const subtituloEl = document.querySelector(".rh-subtitulo");
+  const btnSalvarEl = document.getElementById("btnSalvar");
+  const btnLimparEl = document.getElementById("btnLimparForm");
+
+  if (tituloEl) {
+    tituloEl.innerHTML = `Relatório <span>de Treinamento</span>`;
+  }
+  if (subtituloEl) {
+    subtituloEl.textContent =
       "Inserção de novo formulário de treinamento por profissional.";
-  if (btnSalvar) btnSalvar.innerHTML = "<span>✔</span> Salvar Treinamentos";
-  if (btnLimpar) btnLimpar.style.display = "";
+  }
+  if (btnSalvarEl) {
+    btnSalvarEl.innerHTML = "<span>Salvar Treinamentos</span>";
+  }
+  if (btnLimparEl) btnLimparEl.style.display = "";
 
   adicionarLinha();
 }
@@ -239,7 +273,7 @@ function limparForm() {
 
 async function salvarRelatorio() {
   const erroEl = document.getElementById("formErro");
-  erroEl.textContent = "";
+  if (erroEl) erroEl.textContent = "";
 
   const nomeProfissional =
     document.getElementById("nomeProfissional").value.trim();
@@ -254,11 +288,11 @@ async function salvarRelatorio() {
   const status = statusSel ? parseInt(statusSel.value, 10) || 1 : 1;
 
   if (!nomeProfissional) {
-    erroEl.textContent = "Profissional é obrigatório.";
+    if (erroEl) erroEl.textContent = "Profissional é obrigatório.";
     return;
   }
   if (!setor) {
-    erroEl.textContent = "Setor é obrigatório.";
+    if (erroEl) erroEl.textContent = "Setor é obrigatório.";
     return;
   }
 
@@ -286,16 +320,16 @@ async function salvarRelatorio() {
     if (!dataAtiv && !atividade) continue;
 
     if (!dataAtiv) {
-      erroEl.textContent = `Linha ${lid}: data da atividade é obrigatória.`;
+      if (erroEl) erroEl.textContent = `Linha ${lid}: data da atividade é obrigatória.`;
       return;
     }
     if (!atividade) {
-      erroEl.textContent = `Linha ${lid}: descrição da atividade é obrigatória.`;
+      if (erroEl) erroEl.textContent = `Linha ${lid}: descrição da atividade é obrigatória.`;
       return;
     }
 
     atividades.push({
-      id: idDetalhe, // null para novas
+      id: idDetalhe,
       dataAtividade: dataAtiv,
       atividade,
       recebiTreinamento: recebi,
@@ -306,7 +340,7 @@ async function salvarRelatorio() {
   }
 
   if (!atividades.length) {
-    erroEl.textContent = "Informe ao menos uma atividade válida.";
+    if (erroEl) erroEl.textContent = "Informe ao menos uma atividade válida.";
     return;
   }
 
@@ -332,13 +366,15 @@ async function salvarRelatorio() {
         }
       );
       if (!resp.ok) throw new Error("HTTP " + resp.status);
-      alert("Treinamento atualizado com sucesso!");
-      const frame = window.parent?.document?.querySelector(".app-main-frame");
-      if (frame) {
-        frame.src = "rh_listagem_treinamentos.html";
-      } else {
-        window.location.href = "rh_listagem_treinamentos.html";
-      }
+      mostrarToast("Treinamento atualizado com sucesso!");
+      setTimeout(() => {
+        const frame = window.parent?.document?.querySelector(".app-main-frame");
+        if (frame) {
+          frame.src = "rh_listagem_treinamentos.html";
+        } else {
+          window.location.href = "rh_listagem_treinamentos.html";
+        }
+      }, 900);
     } else {
       const resp = await fetch(`${window.API_BASE}/rh/treinamentos`, {
         method: "POST",
@@ -346,12 +382,13 @@ async function salvarRelatorio() {
         body: JSON.stringify(payload),
       });
       if (!resp.ok) throw new Error("HTTP " + resp.status);
-      alert(`${atividades.length} atividade(s) salva(s) com sucesso!`);
+      mostrarToast(`${atividades.length} atividade(s) salva(s) com sucesso!`);
       limparForm();
     }
   } catch (e) {
     console.error("[RH RELATORIO][salvarRelatorio]", e);
-    erroEl.textContent = "Erro ao salvar: " + e.message;
+    if (erroEl) erroEl.textContent = "Erro ao salvar: " + e.message;
+    mostrarToast("Erro ao salvar treinamento.", true);
   } finally {
     setLoading(false);
   }

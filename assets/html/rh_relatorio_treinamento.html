@@ -5,7 +5,11 @@
   <title>VISYA - Relatório de Treinamento</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" />
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+  />
+
   <link rel="stylesheet" href="../css/rh_relatorio_treinamento.css" />
   <link rel="stylesheet" href="../css/loader.css" />
 
@@ -13,16 +17,22 @@
   <script src="../js/rh_relatorio_treinamento.js" defer></script>
 </head>
 <body>
+  <div id="toastRh" class="toast-ano" aria-hidden="true">
+    <span id="toastRhMsg"></span>
+  </div>
+
   <main class="rh-page">
-    <!-- HEADER -->
-    <header class="rh-header">
-      <div class="rh-header-left">
-        <h1 class="rh-titulo">Relatório de Treinamento</h1>
+    <header class="dash-header">
+      <div class="dash-header-left">
+        <span class="dash-kicker">Recursos humanos</span>
+        <h1 class="dash-title rh-titulo">
+          Relatório <span>de Treinamento</span>
+        </h1>
         <p class="rh-subtitulo">
           Inserção de novo formulário de treinamento por profissional.
         </p>
       </div>
-      <div class="rh-header-right">
+      <div class="dash-header-right">
         <div class="rh-user-info">
           <span id="rhUserNome" class="rh-user-nome">Carregando...</span>
           <span id="rhUserEmail" class="rh-user-email"></span>
@@ -30,30 +40,42 @@
       </div>
     </header>
 
-    <!-- DADOS DO PROFISSIONAL -->
     <section class="rh-form-section">
-      <h2 class="section-title">Dados do Profissional</h2>
+      <header class="rh-section-header">
+        <p class="rh-section-kicker">Identificação</p>
+        <h2 class="rh-section-title">Dados do Profissional</h2>
+      </header>
+
       <div class="form-grid">
         <div class="filtro-campo">
-          <label for="nomeProfissional">Profissional <span class="obrigatorio">*</span></label>
+          <label for="nomeProfissional">
+            Profissional <span class="obrigatorio">*</span>
+          </label>
           <input type="text" id="nomeProfissional" placeholder="Nome completo" autocomplete="off" />
         </div>
+
         <div class="filtro-campo">
-          <label for="setor">Setor <span class="obrigatorio">*</span></label>
+          <label for="setor">
+            Setor <span class="obrigatorio">*</span>
+          </label>
           <input type="text" id="setor" placeholder="ex: LOGISTICA" autocomplete="off" />
         </div>
+
         <div class="filtro-campo">
           <label for="responsavelSetor">Responsável pelo Setor</label>
           <input type="text" id="responsavelSetor" placeholder="Nome do responsável" autocomplete="off" />
         </div>
+
         <div class="filtro-campo">
           <label for="dataInicioPeriodo">Início do Período</label>
           <input type="date" id="dataInicioPeriodo" />
         </div>
+
         <div class="filtro-campo">
           <label for="dataFimPeriodo">Fim do Período</label>
           <input type="date" id="dataFimPeriodo" />
         </div>
+
         <div class="filtro-campo">
           <label for="statusTreinamento">Status</label>
           <select id="statusTreinamento">
@@ -66,28 +88,32 @@
       </div>
     </section>
 
-    <!-- ATIVIDADES -->
     <section class="rh-form-section rh-atividades-section">
-      <div class="atividades-header">
-        <h2 class="section-title">Atividades <span class="obrigatorio">*</span></h2>
-        <button type="button" class="btn-filtro btn-filtro-primario" id="btnAdicionarLinha">
-          <span>＋</span> Adicionar linha
+      <header class="rh-section-header rh-atividades-header">
+        <div>
+          <p class="rh-section-kicker">Atividades</p>
+          <h2 class="rh-section-title">
+            Lista de atividades <span class="obrigatorio">*</span>
+          </h2>
+        </div>
+        <button type="button" class="btn-filtro btn-filtro-novo" id="btnAdicionarLinha">
+          <span>+ Adicionar linha</span>
         </button>
-      </div>
+      </header>
 
-      <div class="rh-table-wrapper">
+      <div class="table-wrapper">
         <table class="rh-table">
           <colgroup>
-            <col style="width:12%" />
-            <col style="width:38%" />
-            <col style="width:11%" />
-            <col style="width:11%" />
-            <col style="width:22%" />
-            <col style="width:6%" />
+            <col class="w-data" />
+            <col class="w-atividade" />
+            <col class="w-sn" />
+            <col class="w-sn" />
+            <col class="w-obs" />
+            <col class="w-remover" />
           </colgroup>
           <thead>
             <tr>
-              <th>Data Atividade <span class="obrigatorio">*</span></th>
+              <th>Data <span class="obrigatorio">*</span></th>
               <th>Atividade <span class="obrigatorio">*</span></th>
               <th>Recebeu Trein.</th>
               <th>Tem Domínio</th>
@@ -95,28 +121,24 @@
               <th></th>
             </tr>
           </thead>
-          <tbody id="tbodyAtividades">
-            <!-- linhas dinâmicas -->
-          </tbody>
+          <tbody id="tbodyAtividades"></tbody>
         </table>
       </div>
     </section>
 
-    <!-- RODAPÉ -->
     <section class="rh-form-footer">
       <p class="form-erro" id="formErro"></p>
       <div class="form-footer-actions">
-        <button type="button" class="btn-filtro btn-filtro-secundario" id="btnLimparForm">
-          <span>✕</span> Limpar tudo
+        <button type="button" class="btn-filtro" id="btnLimparForm">
+          <span>Limpar tudo</span>
         </button>
-        <button type="button" class="btn-filtro btn-filtro-primario" id="btnSalvar">
-          <span>✔</span> Salvar Treinamentos
+        <button type="button" class="btn-filtro btn-filtro-primary" id="btnSalvar">
+          <span>Salvar Treinamentos</span>
         </button>
       </div>
     </section>
   </main>
 
-  <!-- LOADER -->
   <div class="loader-overlay" id="loaderOverlay" aria-hidden="true">
     <iframe
       src="loader.html"
@@ -127,7 +149,6 @@
     ></iframe>
   </div>
 
-  <!-- Tema -->
   <script>
     const THEME_KEY = "visya-sidebar-theme";
     function applyLocalTheme() {
@@ -141,10 +162,7 @@
     applyLocalTheme();
     window.addEventListener("message", (event) => {
       if (!event.data || event.data.type !== "visya-theme") return;
-      document.body.classList.toggle(
-        "light-theme",
-        event.data.theme === "light"
-      );
+      document.body.classList.toggle("light-theme", event.data.theme === "light");
       try {
         localStorage.setItem(THEME_KEY, event.data.theme);
       } catch (e) {}

@@ -2,123 +2,258 @@
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <title>VISYA – Simulador de Carregamento 3D</title>
+    <title>VISYA — Simulador de Carregamento 3D</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+    />
     <link rel="stylesheet" href="../css/viewer3d.css" />
   </head>
-  <body class="viewer3d-shell">
-    <div class="viewer3d-app">
-      <header class="viewer3d-topbar">
-        <div class="viewer3d-brand">VISYA / LOGÍSTICA</div>
-        <div class="viewer3d-top-title">SIMULADOR DE CARREGAMENTO 3D</div>
-        <div class="viewer3d-top-metrics">
-          <div class="viewer3d-pill"><span id="topPedidos">0</span> pedidos</div>
-          <div class="viewer3d-pill"><span id="topVolumes">0</span> volumes</div>
-          <div class="viewer3d-pill"><span id="topPeso">0 kg</span></div>
-          <div class="viewer3d-pill viewer3d-pill-success"><span id="topOcupacaoPct">0%</span></div>
-          <div class="viewer3d-pill viewer3d-pill-warn" id="topRegras">Regras OK</div>
+  <body class="v3d-shell">
+
+    <div id="viewer3dToast" class="v3d-toast" aria-hidden="true">
+      <span id="viewer3dToastMsg"></span>
+    </div>
+
+    <div class="v3d-app">
+      <header class="v3d-topbar">
+        <div class="v3d-brand">
+          <span class="v3d-kicker">VISYA</span>
+          <span class="v3d-brand-sep">/</span>
+          <span class="v3d-brand-mod">Logística</span>
+        </div>
+
+        <h1 class="v3d-title">
+          Simulador <span>de Carregamento 3D</span>
+        </h1>
+
+        <div class="v3d-top-metrics">
+          <div class="v3d-pill"><span id="topPedidos">0</span> pedidos</div>
+          <div class="v3d-pill"><span id="topVolumes">0</span> itens</div>
+          <div class="v3d-pill"><span id="topPeso">0 kg</span></div>
+          <div class="v3d-pill v3d-pill-accent"><span id="topOcupacaoPct">0%</span> ocupação</div>
+          <div class="v3d-pill v3d-pill-warn" id="topRegras">Regras OK</div>
         </div>
       </header>
 
-      <main class="viewer3d-stage">
-        <aside class="viewer3d-leftpanel">
-          <div class="viewer3d-panel-title">REGRAS DE CARREGAMENTO</div>
+      <main class="v3d-stage">
 
-          <div class="viewer3d-rule-card"><div class="viewer3d-rule-icon">⚖</div><div><div class="viewer3d-rule-title">Mais pesado sempre atrás</div><div class="viewer3d-rule-text">Itens com maior peso por unidade são posicionados primeiro na parte traseira do baú.</div></div></div>
-          <div class="viewer3d-rule-card"><div class="viewer3d-rule-icon">🧱</div><div><div class="viewer3d-rule-title">Mais denso embaixo</div><div class="viewer3d-rule-text">Produtos mais pesados e densos ocupam camadas inferiores, preservando os leves acima.</div></div></div>
-          <div class="viewer3d-rule-card"><div class="viewer3d-rule-icon">📦</div><div><div class="viewer3d-rule-title">Empilhamento por compatibilidade</div><div class="viewer3d-rule-text">Volumes compatíveis são agrupados para reduzir espaço morto e facilitar a operação.</div></div></div>
-          <div class="viewer3d-rule-card"><div class="viewer3d-rule-icon">△</div><div><div class="viewer3d-rule-title">Sem desperdício de espaço</div><div class="viewer3d-rule-text">O algoritmo tenta preencher lacunas antes de abrir uma nova fileira ou camada.</div></div></div>
-          <div class="viewer3d-rule-card"><div class="viewer3d-rule-icon">↔</div><div><div class="viewer3d-rule-title">Equilíbrio lateral</div><div class="viewer3d-rule-text">A carga é distribuída entre esquerda e direita para manter melhor estabilidade no transporte.</div></div></div>
-          <div class="viewer3d-rule-card"><div class="viewer3d-rule-icon">⬆</div><div><div class="viewer3d-rule-title">Leves no topo e na frente</div><div class="viewer3d-rule-text">Itens de menor peso e densidade tendem a ficar nas regiões superiores e na frente do baú.</div></div></div>
+        <aside class="v3d-leftpanel">
+          <div class="v3d-tabs" role="tablist">
+            <button type="button" class="v3d-tab is-active" data-tab="regras" role="tab">Regras</button>
+            <button type="button" class="v3d-tab" data-tab="modo" role="tab">Modo</button>
+          </div>
 
-          <div class="viewer3d-direction-card">
-            <span>← TRASEIRA</span>
-            <span>FRENTE →</span>
-            <p>Sentido operacional: os itens mais pesados entram primeiro e ficam junto ao eixo traseiro.</p>
+          <div class="v3d-tab-panel is-active" data-panel="regras">
+            <div class="v3d-rule">
+              <div class="v3d-rule-icon">⚖</div>
+              <div>
+                <div class="v3d-rule-title">Mais pesado atrás</div>
+                <div class="v3d-rule-text">Itens com maior peso são posicionados primeiro na traseira do baú.</div>
+              </div>
+            </div>
+            <div class="v3d-rule">
+              <div class="v3d-rule-icon">🧱</div>
+              <div>
+                <div class="v3d-rule-title">Mais denso embaixo</div>
+                <div class="v3d-rule-text">Camadas inferiores recebem itens mais densos.</div>
+              </div>
+            </div>
+            <div class="v3d-rule">
+              <div class="v3d-rule-icon">📦</div>
+              <div>
+                <div class="v3d-rule-title">LIFO por entrega</div>
+                <div class="v3d-rule-text">Última parada carrega primeiro · primeira parada fica perto da porta.</div>
+              </div>
+            </div>
+            <div class="v3d-rule">
+              <div class="v3d-rule-icon">↔</div>
+              <div>
+                <div class="v3d-rule-title">Equilíbrio lateral</div>
+                <div class="v3d-rule-text">Distribuição entre esquerda e direita para estabilidade.</div>
+              </div>
+            </div>
+            <div class="v3d-rule">
+              <div class="v3d-rule-icon">⬆</div>
+              <div>
+                <div class="v3d-rule-title">Leves no topo e frente</div>
+                <div class="v3d-rule-text">Menor peso e densidade tendem ao topo e frente.</div>
+              </div>
+            </div>
+
+            <div class="v3d-direction">
+              <div class="v3d-direction-arrows">
+                <span>← Traseira</span>
+                <span>Frente →</span>
+              </div>
+              <p>Sentido operacional: pesados entram primeiro (eixo traseiro), leves saem primeiro pela porta.</p>
+            </div>
+          </div>
+
+          <div class="v3d-tab-panel" data-panel="modo">
+            <div class="v3d-modo-card">
+              <label class="v3d-modo-opt">
+                <input type="radio" name="modoCarga" value="auto-peso" />
+                <div>
+                  <div class="v3d-modo-title">Automático por peso</div>
+                  <div class="v3d-modo-text">Pesados na traseira, leves na frente.</div>
+                </div>
+              </label>
+
+              <label class="v3d-modo-opt is-active">
+                <input type="radio" name="modoCarga" value="auto-entrega" checked />
+                <div>
+                  <div class="v3d-modo-title">Automático por entrega (LIFO)</div>
+                  <div class="v3d-modo-text">Última entrega vai pro fundo, primeira fica perto da porta.</div>
+                </div>
+              </label>
+
+              <label class="v3d-modo-opt">
+                <input type="radio" name="modoCarga" value="manual" />
+                <div>
+                  <div class="v3d-modo-title">Manual</div>
+                  <div class="v3d-modo-text">Arraste os volumes pra reposicioná-los.</div>
+                </div>
+              </label>
+            </div>
+
+            <button type="button" id="btnAplicarModo" class="v3d-btn v3d-btn-primary v3d-btn-full">
+              Aplicar modo
+            </button>
+
+            <div class="v3d-manual-help" id="manualHelp" style="display:none;">
+              <div class="v3d-manual-help-title">Modo Manual</div>
+              <ul>
+                <li><strong>Clique e arraste</strong> uma caixa pra mover</li>
+                <li><strong>Shift + arrastar</strong> trava no plano vertical</li>
+                <li><strong>R</strong> rotaciona o volume selecionado 90°</li>
+                <li><strong>Snap</strong> de 5 cm ativo</li>
+              </ul>
+            </div>
           </div>
         </aside>
 
-        <section class="viewer3d-centerpanel">
-          <div class="viewer3d-toolbar-left">
-            <button class="viewer3d-toolbtn" type="button" id="btnCamReset">↺ Câmera</button>
-            <button class="viewer3d-toolbtn" type="button" id="btnCamFront">◼ Frente</button>
-            <button class="viewer3d-toolbtn" type="button" id="btnCamTop">▽ Topo</button>
-            <button class="viewer3d-toolbtn" type="button" id="btnCamSide">◁ Lateral</button>
+        <section class="v3d-centerpanel">
+          <div class="v3d-toolbar-cam">
+            <button class="v3d-tbtn" type="button" id="btnCamReset" title="Resetar câmera">Reset</button>
+            <button class="v3d-tbtn" type="button" id="btnCamFront" title="Vista frontal">Frente</button>
+            <button class="v3d-tbtn" type="button" id="btnCamTop" title="Vista superior">Topo</button>
+            <button class="v3d-tbtn" type="button" id="btnCamSide" title="Vista lateral">Lateral</button>
+            <button class="v3d-tbtn" type="button" id="btnCamIso" title="Vista isométrica">Iso</button>
           </div>
 
-          <div class="viewer3d-canvas-stage">
+          <div class="v3d-truck-pick">
+            <label for="selectCaminhao">Caminhão</label>
+            <select id="selectCaminhao"></select>
+          </div>
+
+          <div class="v3d-canvas-stage">
             <div id="viewer3dCanvas"></div>
 
-            <div id="viewer3dHoverCard" class="viewer3d-hovercard is-hidden">
-              <div class="viewer3d-hover-title" id="hoverTitulo">Produto</div>
-              <div class="viewer3d-hover-row"><span>Pedido</span><strong id="hoverPedido">—</strong></div>
-              <div class="viewer3d-hover-row"><span>Peso</span><strong id="hoverPeso">—</strong></div>
-              <div class="viewer3d-hover-row"><span>Medidas</span><strong id="hoverMedidas">—</strong></div>
-              <div class="viewer3d-hover-row"><span>Faixa</span><strong id="hoverFaixa">—</strong></div>
+            <div id="viewer3dHoverCard" class="v3d-hovercard is-hidden">
+              <div class="v3d-hover-title" id="hoverTitulo">Produto</div>
+              <div class="v3d-hover-row"><span>Pedido</span><strong id="hoverPedido">—</strong></div>
+              <div class="v3d-hover-row"><span>Código</span><strong id="hoverCodigo">—</strong></div>
+              <div class="v3d-hover-row"><span>Peso</span><strong id="hoverPeso">—</strong></div>
+              <div class="v3d-hover-row"><span>Medidas</span><strong id="hoverMedidas">—</strong></div>
+              <div class="v3d-hover-row"><span>Zona</span><strong id="hoverZona">—</strong></div>
+            </div>
+
+            <div id="v3d-hud" class="v3d-hud">
+              <div id="v3d-fly-label" class="v3d-fly"></div>
+              <div id="v3d-zona-label" class="v3d-zona"></div>
+
+              <div id="v3d-prog-wrap" class="v3d-prog" style="display:none;">
+                <div class="v3d-prog-head">
+                  <span id="v3d-prog-label" class="v3d-prog-label">Aguardando...</span>
+                  <span id="v3d-prog-count" class="v3d-prog-count">0/0</span>
+                </div>
+                <div class="v3d-prog-track">
+                  <div id="v3d-prog-fill" class="v3d-prog-fill"></div>
+                </div>
+              </div>
+
+              <div class="v3d-hud-bottom-left">
+                <button id="v3d-btn-play" class="v3d-hbtn v3d-hbtn-primary" type="button">▶ Animar</button>
+                <button id="v3d-btn-pause" class="v3d-hbtn" type="button" title="Pausar">❚❚</button>
+                <button id="v3d-btn-reset" class="v3d-hbtn" type="button" title="Resetar">⏮</button>
+                <button id="v3d-btn-skip" class="v3d-hbtn" type="button" title="Pular pro fim">⏭</button>
+
+                <div class="v3d-hud-speed">
+                  <input type="range" min="1" max="12" value="5" id="speedRange" />
+                  <strong id="v3d-spd-lbl">5×</strong>
+                </div>
+              </div>
+
+              <div class="v3d-hud-bottom-right">
+                <button id="v3d-btn-wire" class="v3d-hbtn" type="button" title="Wireframe">◫</button>
+                <button id="v3d-btn-explode" class="v3d-hbtn" type="button" title="Explodir">⊕</button>
+                <button id="v3d-btn-section" class="v3d-hbtn" type="button" title="Corte transversal">✂</button>
+                <button id="v3d-btn-rotate" class="v3d-hbtn" type="button" title="Auto-rotacionar">↺</button>
+              </div>
+
+              <div id="v3d-legenda" class="v3d-legenda"></div>
+            </div>
+
+            <div id="v3d-modo-manual-bar" class="v3d-modo-bar" style="display:none;">
+              <span class="v3d-modo-bar-dot"></span>
+              <span>Modo Manual · arraste os volumes · Shift trava vertical · R rotaciona</span>
             </div>
           </div>
         </section>
 
-        <aside class="viewer3d-rightpanel">
-          <div class="viewer3d-products-box">
-            <div class="viewer3d-products-head">
-              <span>PRODUTOS NA CARGA</span>
-              <strong id="topProdutosQtd">0 PRODUTOS</strong>
+        <aside class="v3d-rightpanel">
+          <div class="v3d-products-head">
+            <span>Produtos na carga</span>
+            <strong id="topProdutosQtd">0</strong>
+          </div>
+
+          <div class="v3d-products-search">
+            <input id="filtroPedido" type="text" placeholder="Filtrar por pedido..." autocomplete="off" />
+          </div>
+
+          <div id="listaVolumes" class="v3d-products-list"></div>
+
+          <div id="v3d-detalhes" class="v3d-detalhes" style="display:none;">
+            <div class="v3d-detalhes-head">
+              <span class="v3d-detalhes-kicker">Detalhes do item</span>
+              <button id="btnFecharDetalhes" type="button" class="v3d-detalhes-close">✕</button>
             </div>
+            <div class="v3d-detalhes-body" id="v3dDetalhesBody"></div>
+          </div>
 
-            <div class="viewer3d-right-inline-actions">
-              <button class="viewer3d-toolbtn" type="button" id="btnWireframe">◫ Wireframe</button>
-              <button class="viewer3d-toolbtn" type="button" id="btnExplodir">⊕ Explodir</button>
-              <button class="viewer3d-toolbtn" type="button" id="btnCorte">✂ Corte</button>
-            </div>
-
-            <div id="listaVolumes" class="viewer3d-products-list"></div>
-
-            <div class="viewer3d-zone-box">
-              <div class="viewer3d-zone-title">DISTRIBUIÇÃO DE PESO POR ZONA</div>
-              <div class="viewer3d-zone-bars">
-                <div class="viewer3d-zone-bar z1"><span id="zonaPeso0">0</span><small>Traseira</small></div>
-                <div class="viewer3d-zone-bar z2"><span id="zonaPeso1">0</span><small>M-Tras.</small></div>
-                <div class="viewer3d-zone-bar z3"><span id="zonaPeso2">0</span><small>Centro</small></div>
-                <div class="viewer3d-zone-bar z4"><span id="zonaPeso3">0</span><small>M-Fren.</small></div>
-                <div class="viewer3d-zone-bar z5"><span id="zonaPeso4">0</span><small>Frente</small></div>
-              </div>
-            </div>
-
-            <div class="viewer3d-occup-box">
-              <div class="viewer3d-zone-title">OCUPAÇÃO DO BAÚ</div>
-              <div class="viewer3d-occup-line">
-                <strong id="ocupadoM3">0 m³</strong>
-                <span>/</span>
-                <strong id="totalM3">0 m³</strong>
-              </div>
-              <div class="viewer3d-occup-progress"><div id="ocupacaoBar"></div></div>
-              <div class="viewer3d-occup-pct" id="ocupacaoPctTexto">0%</div>
-            </div>
-
-            <div class="viewer3d-bottom-controls">
-              <div class="viewer3d-play-row">
-                <button class="viewer3d-playerbtn viewer3d-playerbtn-accent" type="button" id="btnAnimar">▶ ANIMAR</button>
-                <button class="viewer3d-playerbtn" type="button" id="btnPause">❚❚</button>
-                <button class="viewer3d-playerbtn" type="button" id="btnResetAnim">⏮</button>
-                <button class="viewer3d-playerbtn" type="button" id="btnFim">⏭</button>
-              </div>
-
-              <div class="viewer3d-speed-row">
-                <span>Vel.</span>
-                <input type="range" min="1" max="12" value="5" id="speedRange" />
-                <strong id="v3d-spd-lbl">5x</strong>
-              </div>
+          <div class="v3d-zone-box">
+            <div class="v3d-zone-title">Distribuição de peso por zona</div>
+            <div class="v3d-zone-bars">
+              <div class="v3d-zone-bar z1"><span id="zonaPeso0">0</span><small>Traseira</small></div>
+              <div class="v3d-zone-bar z2"><span id="zonaPeso1">0</span><small>M-Tras.</small></div>
+              <div class="v3d-zone-bar z3"><span id="zonaPeso2">0</span><small>Centro</small></div>
+              <div class="v3d-zone-bar z4"><span id="zonaPeso3">0</span><small>M-Fren.</small></div>
+              <div class="v3d-zone-bar z5"><span id="zonaPeso4">0</span><small>Frente</small></div>
             </div>
           </div>
+
+          <div class="v3d-occup-box">
+            <div class="v3d-zone-title">Ocupação do baú</div>
+            <div class="v3d-occup-line">
+              <strong id="ocupadoM3">0 m³</strong>
+              <span>/</span>
+              <strong id="totalM3">0 m³</strong>
+            </div>
+            <div class="v3d-occup-progress"><div id="ocupacaoBar"></div></div>
+            <div class="v3d-occup-pct" id="ocupacaoPctTexto">0%</div>
+          </div>
+
+          <button id="btnImprimirLayout" type="button" class="v3d-btn v3d-btn-ghost v3d-btn-full">
+            Imprimir layout
+          </button>
         </aside>
       </main>
     </div>
 
-    <div id="viewer3dToast" class="viewer3d-toast" style="display:none"></div>
     <script type="module" src="../js/viewer3d.js"></script>
   </body>
 </html>

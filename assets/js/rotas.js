@@ -450,13 +450,15 @@ function getNomeVendedorPorCodigo(codvend) {
 }
 
 function getNomeExibicaoVendedor(pedido) {
+  // Tenta todas as variações que vêm da API (NOME_VENDEDOR é o formato do backend SQL)
   const nomeDireto =
-    pedido?.nomevendedor || pedido?.nome_vendedor ||
+    pedido?.NOME_VENDEDOR || pedido?.nomevendedor || pedido?.nome_vendedor ||
     pedido?.NOMEVENDEDOR || pedido?.nomeVendedor || "";
   if (String(nomeDireto).trim()) return String(nomeDireto).trim();
   const nomeCache = getNomeVendedorPorCodigo(pedido?.codvend ?? pedido?.CODVEND);
   if (String(nomeCache).trim()) return String(nomeCache).trim();
-  return String(pedido?.codvend ?? pedido?.CODVEND ?? "").trim();
+  // Se nada achou, retorna vazio (NÃO o código — assim chip mostra "Sem nome" em vez do número)
+  return "";
 }
 
 function getChaveSelecao(item) {
@@ -521,20 +523,45 @@ function criarMarkersAgrupadosPorCoord(pontosPainel) {
     const primeiro = grupo.pontos[0];
     const numeros = grupo.pontos.map((p) => p.idxOriginal + 1);
 
+    // Detecta status mais relevante dos pedidos do grupo
+    let statusGrupo = null;
+    let statusBadgeHtml = "";
+    if (typeof statusPedidosPorNunota !== "undefined") {
+      grupo.pontos.forEach((p) => {
+        if (p.tipo !== "cliente") return;
+        const idStr = String(p.id);
+        if (!idStr.startsWith("pedido:")) return;
+        const nun = idStr.replace("pedido:", "");
+        const st = statusPedidosPorNunota[nun];
+        if (st && st !== "pendente") {
+          // Prioridade: cancelado > faturado > removido
+          if (!statusGrupo || st === "cancelado") statusGrupo = st;
+        }
+      });
+    }
+    if (statusGrupo) {
+      const symbol = statusGrupo === "faturado" ? "✓" :
+                     statusGrupo === "cancelado" ? "✕" : "!";
+      statusBadgeHtml = `<div class="marker-status-corner status-${statusGrupo}">${symbol}</div>`;
+    }
+
     let html;
     let className;
 
     if (qtd === 1) {
-      // Marker normal verde com número
-      html = `<div class="marker-numero"><div class="marker-numero-label">${primeiro.idxOriginal + 1}</div></div>`;
+      // Marker normal verde com número (ou colorido por status)
+      const extraClass = statusGrupo ? `marker-numero-status status-${statusGrupo}` : "";
+      html = `<div class="marker-numero ${extraClass}"><div class="marker-numero-label">${primeiro.idxOriginal + 1}</div>${statusBadgeHtml}</div>`;
       className = "marker-numero-wrapper";
     } else {
       // Marker em alerta: laranja piscando + badge com contagem
       const listaNums = numeros.join(",");
+      const extraClass = statusGrupo ? `marker-numero-status status-${statusGrupo}` : "";
       html = `
-        <div class="marker-numero marker-numero-grupo" data-count="${qtd}">
+        <div class="marker-numero marker-numero-grupo ${extraClass}" data-count="${qtd}">
           <div class="marker-numero-label">${listaNums}</div>
           <div class="marker-grupo-badge">${qtd}</div>
+          ${statusBadgeHtml}
         </div>
       `;
       className = "marker-numero-wrapper";
@@ -743,12 +770,16 @@ async function geocodeTexto(texto) {
 function extrairVendedoresDoPedidos(pedidos) {
   const mapa = new Map();
   pedidos.forEach((p) => {
-    if (!p.codvend) return;
-    const cod = String(p.codvend);
+    const codvend = p.codvend ?? p.CODVEND;
+    if (codvend == null || codvend === "") return;
+    const cod = String(codvend);
     if (!mapa.has(cod)) {
-      // tenta: nome direto no pedido > nome no cache de vendedores > "Sem nome"
+      // tenta: nome direto no pedido (várias variações de case) > cache > "Sem nome"
       let nome =
-        String(p.nomevendedor || p.nome_vendedor || "").trim() ||
+        String(
+          p.NOME_VENDEDOR || p.nomevendedor || p.nome_vendedor ||
+          p.NOMEVENDEDOR || p.nomeVendedor || ""
+        ).trim() ||
         String(getNomeVendedorPorCodigo(cod) || "").trim();
       if (!nome) nome = "Sem nome";
       mapa.set(cod, { nome, count: 0 });
@@ -1021,6 +1052,13 @@ function renderClientesPagina() {
   paginaClientes += 1;
 
   contadorClientesSpan.textContent = clientesFiltradosAtuais.length + " clientes";
+
+  // Aplica visual de status se rota salva está aberta
+  if (typeof aplicarStatusNasLinhasClientes === "function" &&
+      typeof statusPedidosPorNunota !== "undefined" &&
+      Object.keys(statusPedidosPorNunota).length) {
+    aplicarStatusNasLinhasClientes();
+  }
 }
 
 function renderClientes(clientes) {
@@ -1613,7 +1651,7 @@ function otimizarOrdemParadasVizinhoMaisProximo() {
 
 function limparRota() {
   if (routingControl) {
-    map.removeControl(routingControl);
+    try { map.removeControl(routingControl); } catch (e) { console.warn("removeControl:", e); }
     routingControl = null;
   }
   ultimaRotaWaypoints = null;
@@ -1650,7 +1688,7 @@ async function gerarRotaAuto() {
 
   try {
     if (routingControl) {
-      map.removeControl(routingControl);
+      try { map.removeControl(routingControl); } catch (e) { console.warn("removeControl:", e); }
       routingControl = null;
     }
     ultimaRotaWaypoints = null;
@@ -2147,6 +2185,36 @@ function initEventos() {
   btnGerarLinkMaps.addEventListener("click", gerarLinkGoogleMaps);
   btnGerarLinkMapsSidebar.addEventListener("click", gerarLinkGoogleMaps);
 
+  // ============ ROTAS SALVAS ============
+  btnSalvarRota?.addEventListener("click", abrirModalSalvarRota);
+  btnAbrirRotasSalvas?.addEventListener("click", abrirModalListarRotas);
+  btnVerificarStatus?.addEventListener("click", () => {
+    verificarStatusRota();
+    mostrarToast("Verificando status...");
+  });
+
+  document.getElementById("btnFecharSalvarRota")?.addEventListener("click", fecharModalSalvarRota);
+  document.getElementById("btnCancelarSalvarRota")?.addEventListener("click", fecharModalSalvarRota);
+  document.getElementById("btnConfirmarSalvarRota")?.addEventListener("click", confirmarSalvarRota);
+
+  document.getElementById("btnFecharListarRotas")?.addEventListener("click", fecharModalListarRotas);
+  document.getElementById("filtroRotasSalvasBusca")?.addEventListener("input", debounceCarregarRotas);
+  document.getElementById("filtroIncluirArquivadas")?.addEventListener("change", carregarRotasSalvas);
+
+  // Backdrop close mousedown+mouseup
+  function setupBackdropClose(modalId, fecharFn) {
+    const m = document.getElementById(modalId);
+    if (!m) return;
+    let downBackdrop = false;
+    m.addEventListener("mousedown", (e) => { downBackdrop = e.target.id === modalId; });
+    m.addEventListener("mouseup", (e) => {
+      if (downBackdrop && e.target.id === modalId) fecharFn();
+      downBackdrop = false;
+    });
+  }
+  setupBackdropClose("modalSalvarRota", fecharModalSalvarRota);
+  setupBackdropClose("modalListarRotas", fecharModalListarRotas);
+
   // Modal confirmação handlers
   document.getElementById("btnFecharConfirm")?.addEventListener("click", fecharConfirmacao);
   document.getElementById("btnConfirmCancelar")?.addEventListener("click", fecharConfirmacao);
@@ -2164,6 +2232,8 @@ function initEventos() {
     if (e.key === "Escape") {
       fecharConfirmacao();
       fecharModalItens();
+      fecharModalSalvarRota();
+      fecharModalListarRotas();
     }
   });
 
@@ -2423,13 +2493,593 @@ function fecharModalItens() {
   }
 }
 
+// ================== ROTAS SALVAS ==================
+
+let rotaAtualSalva = null;          // {id_rota, nome, ...} quando uma rota salva está aberta
+let statusPedidosPorNunota = {};    // {nunota: 'pendente'|'faturado'|'cancelado'|'removido'}
+let statusPollingTimer = null;
+let buscaRotasDebounceTimer = null;
+const STATUS_POLL_INTERVAL = 2 * 60 * 1000; // 2 minutos
+
+function debounceCarregarRotas() {
+  if (buscaRotasDebounceTimer) clearTimeout(buscaRotasDebounceTimer);
+  buscaRotasDebounceTimer = setTimeout(carregarRotasSalvas, 300);
+}
+
+const modalSalvarRota = document.getElementById("modalSalvarRota");
+const modalListarRotas = document.getElementById("modalListarRotas");
+const btnSalvarRota = document.getElementById("btnSalvarRota");
+const btnAbrirRotasSalvas = document.getElementById("btnAbrirRotasSalvas");
+const btnVerificarStatus = document.getElementById("btnVerificarStatus");
+const rotaAtualBox = document.getElementById("rotaAtualBox");
+const rotaAtualNome = document.getElementById("rotaAtualNome");
+const rotaAtualStatusInfo = document.getElementById("rotaAtualStatusInfo");
+
+function abrirModalSalvarRota() {
+  const ehEdicao = !!(rotaAtualSalva && rotaAtualSalva.id_rota);
+  const tit = document.getElementById("salvarRotaTitulo");
+  const msg = document.getElementById("salvarRotaMsg");
+  const inpNome = document.getElementById("salvarRotaNome");
+  const inpObs = document.getElementById("salvarRotaObs");
+
+  if (ehEdicao) {
+    tit.textContent = "Atualizar rota";
+    msg.textContent = `Você está editando "${rotaAtualSalva.nome}". Confirme o nome (pode alterar) para salvar as mudanças.`;
+    inpNome.value = rotaAtualSalva.nome || "";
+    inpObs.value = rotaAtualSalva.obs || "";
+  } else {
+    tit.textContent = "Nova rota";
+    msg.textContent = "Dê um nome para identificar essa rota mais tarde.";
+    inpNome.value = "";
+    inpObs.value = "";
+  }
+
+  modalSalvarRota.classList.add("is-open");
+  modalSalvarRota.setAttribute("aria-hidden", "false");
+  setTimeout(() => inpNome.focus(), 50);
+}
+
+function fecharModalSalvarRota() {
+  if (modalSalvarRota) {
+    modalSalvarRota.classList.remove("is-open");
+    modalSalvarRota.setAttribute("aria-hidden", "true");
+  }
+}
+
+function montarPayloadRotaParaSalvar(nome, obs) {
+  const pontos = getPontosNaOrdemPainel();
+  if (!pontos.length) return null;
+
+  const paradas = pontos.map((p, idx) => {
+    // Caso seja cliente (vindo de pedido/cliente/carteira), recupera dados do cache
+    let dadosCliente = null;
+    if (p.tipo === "cliente") {
+      const base = getCacheAtual();
+      dadosCliente = base.find((x) => getChaveSelecao(x) === p.id);
+    }
+
+    let tipo = "manual";
+    let nunota = null;
+    let codparc = null;
+    let codvend = null;
+    let nomeCliente = null;
+    let nomeVendedor = null;
+    let pesoKg = null;
+    let volumeM3 = null;
+    let labelManual = null;
+
+    if (p.tipo === "manual") {
+      tipo = "manual";
+      labelManual = p.label;
+    } else if (dadosCliente) {
+      // Detecta o tipo pela chaveSelecao
+      const chave = String(dadosCliente.chaveSelecao || "");
+      if (chave.startsWith("pedido:")) tipo = "pedido";
+      else if (chave.startsWith("clientes:")) tipo = "cliente";
+      else if (chave.startsWith("carteira:")) tipo = "carteira";
+
+      nunota = dadosCliente.nunota || null;
+      codparc = dadosCliente.codparc || null;
+      codvend = dadosCliente.codvend || null;
+      nomeCliente = dadosCliente.nome || null;
+      nomeVendedor = dadosCliente.nomevendedor || dadosCliente.nome_vendedor || null;
+      pesoKg = dadosCliente.pesoTotalKg || null;
+      volumeM3 = dadosCliente.volumeTotalM3 || null;
+    }
+
+    return {
+      ordem: idx + 1,
+      tipo,
+      nunota,
+      codparc,
+      codvend,
+      nome_cliente: nomeCliente,
+      nome_vendedor: nomeVendedor,
+      endereco: p.endereco || null,
+      lat: p.lat,
+      lng: p.lng,
+      peso_kg: pesoKg,
+      volume_m3: volumeM3,
+      label_manual: labelManual,
+      chave_selecao: p.tipo === "cliente" && dadosCliente ? dadosCliente.chaveSelecao : null
+    };
+  });
+
+  return {
+    nome,
+    obs,
+    origem_lat: origemManual?.lat,
+    origem_lng: origemManual?.lng,
+    destino_texto: getDestinoCampo() || null,
+    evitar_pedagios: chkEvitarPedagios.checked,
+    evitar_pontes: chkEvitarPontes.checked,
+    paradas
+  };
+}
+
+async function confirmarSalvarRota() {
+  const nome = document.getElementById("salvarRotaNome").value.trim();
+  const obs = document.getElementById("salvarRotaObs").value.trim();
+  const btnConfirmar = document.getElementById("btnConfirmarSalvarRota");
+
+  if (!nome) {
+    mostrarToast("Informe um nome para a rota.", true);
+    return;
+  }
+
+  // Bloqueia botão pra impedir duplo-clique
+  if (btnConfirmar.disabled) return; // já está salvando
+  const textoOriginal = btnConfirmar.textContent;
+  btnConfirmar.disabled = true;
+  btnConfirmar.textContent = "Salvando...";
+
+  const payload = montarPayloadRotaParaSalvar(nome, obs);
+  if (!payload) {
+    mostrarToast("Adicione paradas antes de salvar.", true);
+    btnConfirmar.disabled = false;
+    btnConfirmar.textContent = textoOriginal;
+    return;
+  }
+
+  showRotasLoader();
+  try {
+    const ehEdicao = !!(rotaAtualSalva && rotaAtualSalva.id_rota);
+    const url = ehEdicao
+      ? `/rotas-salvas/${rotaAtualSalva.id_rota}`
+      : "/rotas-salvas";
+    const method = ehEdicao ? "PUT" : "POST";
+
+    const resp = await apiFetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    if (!resp.ok) {
+      const erroData = await resp.json().catch(() => ({}));
+      mostrarToast(erroData.error || "Erro ao salvar rota.", true);
+      return;
+    }
+
+    const data = await resp.json();
+    fecharModalSalvarRota();
+    mostrarToast(ehEdicao ? "Rota atualizada." : "Rota salva com sucesso.");
+
+    // Atualiza estado: agora estamos editando essa rota salva
+    if (!ehEdicao) {
+      rotaAtualSalva = {
+        id_rota: data.id_rota,
+        nome,
+        obs
+      };
+    } else {
+      rotaAtualSalva.nome = nome;
+      rotaAtualSalva.obs = obs;
+    }
+    atualizarUIRotaAberta();
+    iniciarPollingStatus();
+  } catch (e) {
+    console.error(e);
+    mostrarToast("Erro ao salvar rota.", true);
+  } finally {
+    hideRotasLoader();
+    btnConfirmar.disabled = false;
+    btnConfirmar.textContent = textoOriginal;
+  }
+}
+
+function abrirModalListarRotas() {
+  modalListarRotas.classList.add("is-open");
+  modalListarRotas.setAttribute("aria-hidden", "false");
+  carregarRotasSalvas();
+}
+
+function fecharModalListarRotas() {
+  modalListarRotas.classList.remove("is-open");
+  modalListarRotas.setAttribute("aria-hidden", "true");
+}
+
+async function carregarRotasSalvas() {
+  const lista = document.getElementById("listaRotasSalvas");
+  if (!lista) return;
+  lista.innerHTML = '<div class="rt-listrotas-empty">Carregando...</div>';
+
+  const busca = document.getElementById("filtroRotasSalvasBusca").value.trim();
+  const incluirArquivadas = document.getElementById("filtroIncluirArquivadas").checked;
+
+  const params = [];
+  if (busca) params.push(`busca=${encodeURIComponent(busca)}`);
+  if (!incluirArquivadas) params.push("arquivada=0");
+  const qs = params.length ? `?${params.join("&")}` : "";
+
+  try {
+    const resp = await apiFetch(`/rotas-salvas${qs}`);
+    if (!resp.ok) {
+      lista.innerHTML = '<div class="rt-listrotas-empty">Erro ao carregar rotas.</div>';
+      return;
+    }
+    const data = await resp.json();
+    const rotas = data.rotas || [];
+
+    if (!rotas.length) {
+      lista.innerHTML = '<div class="rt-listrotas-empty">Nenhuma rota salva ainda.</div>';
+      return;
+    }
+
+    lista.innerHTML = "";
+    rotas.forEach((r) => {
+      const item = document.createElement("div");
+      item.className = "rt-rotaitem";
+      if (r.arquivada) item.classList.add("arquivada");
+
+      const dataStr = r.data_criacao
+        ? new Date(r.data_criacao).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })
+        : "—";
+
+      item.innerHTML = `
+        <div class="rt-rotaitem-info">
+          <div class="rt-rotaitem-nome">${escapeHtml(r.nome)}</div>
+          <div class="rt-rotaitem-meta">
+            <span>📍 ${r.total_paradas} paradas</span>
+            <span>📋 ${r.total_pedidos} pedidos</span>
+            <span>🕒 ${escapeHtml(dataStr)}</span>
+            ${r.email_usuario ? `<span>👤 ${escapeHtml(r.email_usuario)}</span>` : ""}
+          </div>
+          ${r.obs ? `<div class="rt-rotaitem-obs">${escapeHtml(r.obs)}</div>` : ""}
+        </div>
+        <div class="rt-rotaitem-actions">
+          <button type="button" class="rt-btn rt-btn-primary" data-acao="abrir" data-id="${r.id_rota}">Abrir</button>
+          <button type="button" class="rt-btn" data-acao="arquivar" data-id="${r.id_rota}" data-arquivada="${r.arquivada ? '1' : '0'}">
+            ${r.arquivada ? 'Desarquivar' : 'Arquivar'}
+          </button>
+          <button type="button" class="rt-btn" data-acao="excluir" data-id="${r.id_rota}" data-nome="${escapeHtml(r.nome)}">Excluir</button>
+        </div>
+      `;
+
+      lista.appendChild(item);
+    });
+
+    // Liga handlers
+    lista.querySelectorAll("[data-acao]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const acao = btn.dataset.acao;
+        const id = btn.dataset.id;
+        if (acao === "abrir") abrirRotaSalva(id);
+        else if (acao === "arquivar") arquivarRotaSalva(id, btn.dataset.arquivada === "1");
+        else if (acao === "excluir") confirmarExcluirRota(id, btn.dataset.nome);
+      });
+    });
+  } catch (e) {
+    console.error(e);
+    lista.innerHTML = '<div class="rt-listrotas-empty">Erro de conexão.</div>';
+  }
+}
+
+async function abrirRotaSalva(idRota) {
+  // Desabilita TODOS os botões da listagem enquanto carrega
+  const listagem = document.getElementById("listaRotasSalvas");
+  if (listagem) listagem.querySelectorAll("button").forEach(b => b.disabled = true);
+
+  showRotasLoader();
+  try {
+    const resp = await apiFetch(`/rotas-salvas/${idRota}`);
+    if (!resp.ok) {
+      mostrarToast("Erro ao carregar rota.", true);
+      return;
+    }
+    const data = await resp.json();
+    const rota = data.rota;
+    if (!rota) {
+      mostrarToast("Rota não encontrada.", true);
+      return;
+    }
+
+    fecharModalListarRotas();
+
+    // Carrega no editor
+    await aplicarRotaSalvaNoEditor(rota);
+
+    rotaAtualSalva = {
+      id_rota: rota.id_rota,
+      nome: rota.nome,
+      obs: rota.obs
+    };
+    atualizarUIRotaAberta();
+    iniciarPollingStatus();
+    mostrarToast(`Rota "${rota.nome}" carregada.`);
+  } catch (e) {
+    console.error(e);
+    mostrarToast("Erro ao abrir rota.", true);
+  } finally {
+    hideRotasLoader();
+    if (listagem) listagem.querySelectorAll("button").forEach(b => b.disabled = false);
+  }
+}
+
+async function aplicarRotaSalvaNoEditor(rota) {
+  // 1) Restaura origem se houver
+  if (rota.origem_lat != null && rota.origem_lng != null) {
+    origemManual = { lat: Number(rota.origem_lat), lng: Number(rota.origem_lng) };
+  }
+
+  // 2) Restaura preferências
+  chkEvitarPedagios.checked = !!rota.evitar_pedagios;
+  chkEvitarPontes.checked = !!rota.evitar_pontes;
+  destinoCampoPainel.value = rota.destino_texto || "";
+
+  // 3) Limpa estado atual
+  idsSelecionados.clear();
+  pontosManuais = [];
+
+  // 4) Garante que origem = pedidos (caso a rota tenha pedidos) ou clientes
+  const temPedidos = rota.paradas.some((p) => p.tipo === "pedido");
+  const temClientes = rota.paradas.some((p) => p.tipo === "cliente");
+  const temCarteira = rota.paradas.some((p) => p.tipo === "carteira");
+
+  // Carrega o cache base correto se necessário
+  if (temPedidos && origemAtual !== "pedidos") {
+    origemAtual = "pedidos";
+    tipoOrigemSelect.value = "pedidos";
+    grupoVendedoresDiv.style.display = "none";
+    await carregarPedidosPendentes();
+  } else if (temClientes && origemAtual !== "clientes") {
+    origemAtual = "clientes";
+    tipoOrigemSelect.value = "clientes";
+    grupoVendedoresDiv.style.display = "none";
+    await carregarClientesNormais();
+  } else if (temCarteira && origemAtual !== "carteira") {
+    origemAtual = "carteira";
+    tipoOrigemSelect.value = "carteira";
+    grupoVendedoresDiv.style.display = "";
+  }
+
+  // 5) Para cada parada: adiciona ao estado adequado
+  let manualId = manualIdSeq;
+  rota.paradas.forEach((p) => {
+    if (p.tipo === "manual") {
+      pontosManuais.push({
+        tipo: "manual",
+        id: "manual_" + (manualId++),
+        label: p.label_manual || p.endereco || "Ponto manual",
+        endereco: p.endereco || "",
+        lat: Number(p.lat),
+        lng: Number(p.lng)
+      });
+    } else {
+      // tenta encontrar o item correspondente no cache atual
+      const chave = p.chave_selecao || (p.nunota ? `pedido:${p.nunota}` : null);
+      if (chave) {
+        idsSelecionados.add(chave);
+        // Se não está no cache, injeta um item "fake" pra render
+        const base = getCacheAtual();
+        const existe = base.find((x) => getChaveSelecao(x) === chave);
+        if (!existe) {
+          base.push({
+            id: p.nunota || p.codparc || chave,
+            chaveSelecao: chave,
+            codigo: p.nunota || p.codparc,
+            nunota: p.nunota,
+            codparc: p.codparc,
+            codvend: p.codvend,
+            nome: p.nome_cliente || "Cliente",
+            nomevendedor: p.nome_vendedor,
+            endereco: p.endereco,
+            lat: normalizarLat(p.lat),
+            lng: normalizarLng(p.lng),
+            pesoTotalKg: p.peso_kg ? Number(p.peso_kg) : 0,
+            volumeTotalM3: p.volume_m3 ? Number(p.volume_m3) : 0,
+            itens: [],
+            origemTipo: p.tipo === "pedido" ? "pedido" : p.tipo
+          });
+        }
+      }
+    }
+  });
+  manualIdSeq = manualId;
+
+  // 6) Renderiza tudo
+  if (cachePedidosPendentes || cacheClientes || cacheCarteira) {
+    renderClientes(getCacheAtual());
+  }
+
+  reconstruirPainelRota();
+  await gerarRotaAuto();
+}
+
+function arquivarRotaSalva(idRota, atualmenteArquivada) {
+  const novoEstado = !atualmenteArquivada;
+  abrirConfirmacao(
+    novoEstado ? "Arquivar rota?" : "Desarquivar rota?",
+    novoEstado
+      ? "A rota será movida para os arquivados. Você pode acessá-la marcando 'Incluir arquivadas'."
+      : "A rota voltará para a lista principal.",
+    async () => {
+      try {
+        const resp = await apiFetch(`/rotas-salvas/${idRota}/arquivar`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ arquivada: novoEstado })
+        });
+        if (!resp.ok) {
+          mostrarToast("Erro ao arquivar.", true);
+          return;
+        }
+        mostrarToast(novoEstado ? "Rota arquivada." : "Rota desarquivada.");
+        carregarRotasSalvas();
+      } catch (e) {
+        mostrarToast("Erro de conexão.", true);
+      }
+    }
+  );
+}
+
+function confirmarExcluirRota(idRota, nome) {
+  abrirConfirmacao(
+    "Excluir rota?",
+    `Tem certeza que deseja excluir "${nome}"? Esta ação não pode ser desfeita.`,
+    async () => {
+      try {
+        const resp = await apiFetch(`/rotas-salvas/${idRota}`, { method: "DELETE" });
+        if (!resp.ok) {
+          mostrarToast("Erro ao excluir.", true);
+          return;
+        }
+        mostrarToast("Rota excluída.");
+        // Se a rota excluída era a atual, limpa
+        if (rotaAtualSalva && String(rotaAtualSalva.id_rota) === String(idRota)) {
+          rotaAtualSalva = null;
+          pararPollingStatus();
+          atualizarUIRotaAberta();
+        }
+        carregarRotasSalvas();
+      } catch (e) {
+        mostrarToast("Erro de conexão.", true);
+      }
+    }
+  );
+}
+
+function atualizarUIRotaAberta() {
+  if (rotaAtualSalva && rotaAtualSalva.id_rota) {
+    rotaAtualBox.style.display = "";
+    rotaAtualNome.textContent = rotaAtualSalva.nome || "(sem nome)";
+    btnVerificarStatus.style.display = "";
+  } else {
+    rotaAtualBox.style.display = "none";
+    btnVerificarStatus.style.display = "none";
+  }
+}
+
+// ================== POLLING DE STATUS ==================
+
+function iniciarPollingStatus() {
+  pararPollingStatus();
+  if (!rotaAtualSalva || !rotaAtualSalva.id_rota) return;
+  // primeira verificação imediata
+  verificarStatusRota();
+  statusPollingTimer = setInterval(verificarStatusRota, STATUS_POLL_INTERVAL);
+}
+
+function pararPollingStatus() {
+  if (statusPollingTimer) {
+    clearInterval(statusPollingTimer);
+    statusPollingTimer = null;
+  }
+  // Limpa visual de status nas linhas e markers
+  statusPedidosPorNunota = {};
+  document.querySelectorAll(".cliente-item.status-faturado, .cliente-item.status-cancelado, .cliente-item.status-removido")
+    .forEach((el) => el.classList.remove("status-faturado", "status-cancelado", "status-removido"));
+}
+
+async function verificarStatusRota() {
+  if (!rotaAtualSalva || !rotaAtualSalva.id_rota) return;
+  try {
+    const resp = await apiFetch(`/rotas-salvas/${rotaAtualSalva.id_rota}/status`);
+    if (!resp.ok) return;
+    const data = await resp.json();
+    const paradas = data.paradas || [];
+
+    statusPedidosPorNunota = {};
+    let faturados = 0;
+    let cancelados = 0;
+    let removidos = 0;
+    let pendentes = 0;
+
+    paradas.forEach((p) => {
+      if (!p.nunota) return;
+      statusPedidosPorNunota[String(p.nunota)] = p.status_atual;
+      if (p.status_atual === "faturado") faturados++;
+      else if (p.status_atual === "cancelado") cancelados++;
+      else if (p.status_atual === "removido") removidos++;
+      else if (p.status_atual === "pendente") pendentes++;
+    });
+
+    const dtStr = new Date().toLocaleTimeString("pt-BR");
+    let resumo = `${pendentes} pendentes`;
+    if (faturados) resumo += ` · ${faturados} faturados`;
+    if (cancelados) resumo += ` · ${cancelados} cancelados`;
+    if (removidos) resumo += ` · ${removidos} removidos`;
+    resumo += ` · atualizado ${dtStr}`;
+    if (rotaAtualStatusInfo) rotaAtualStatusInfo.textContent = resumo;
+
+    // Notifica se houve mudança (faturado/cancelado novo)
+    if (faturados || cancelados || removidos) {
+      mostrarToast(`${faturados + cancelados + removidos} pedido(s) mudaram de status na rota.`);
+    }
+
+    aplicarStatusNasLinhasClientes();
+    aplicarStatusNosMarkers();
+  } catch (e) {
+    console.warn("Erro ao verificar status:", e);
+  }
+}
+
+function aplicarStatusNasLinhasClientes() {
+  document.querySelectorAll(".cliente-item").forEach((el) => {
+    el.classList.remove("status-faturado", "status-cancelado", "status-removido");
+    el.querySelectorAll(".badge-status").forEach((b) => b.remove());
+
+    const chave = el.dataset.id || "";
+    if (!chave.startsWith("pedido:")) return;
+    const nunota = chave.replace("pedido:", "");
+    const status = statusPedidosPorNunota[nunota];
+    if (!status || status === "pendente") return;
+
+    el.classList.add(`status-${status}`);
+    const badge = document.createElement("span");
+    badge.className = `badge-status badge-status-${status}`;
+    badge.textContent = status.toUpperCase();
+    const textos = el.querySelector(".cliente-textos .nome");
+    if (textos) textos.appendChild(badge);
+  });
+}
+
+function aplicarStatusNosMarkers() {
+  // Atualiza markers do mapa com status
+  if (!todosMarkersRota || !todosMarkersRota.length) return;
+  if (!map) return;
+  // Atalho: re-executa gerarRotaAuto pra reconstruir os markers com status
+  if (gerarRotaAuto._jaPedidoUpdate) return;
+  gerarRotaAuto._jaPedidoUpdate = true;
+  setTimeout(() => {
+    gerarRotaAuto._jaPedidoUpdate = false;
+    try {
+      gerarRotaAuto();
+    } catch (e) {
+      console.warn("[ROTAS] Erro ao re-render markers com status:", e);
+    }
+  }, 300);
+}
+
 // ================== INIT ==================
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
   initPainelRota();
   initSidebarResizer();
   initEventos();
   configurarInfiniteScrollClientes();
-  carregarVendedores();
+  // Carrega vendedores PRIMEIRO pra garantir que os nomes apareçam nos chips
+  // (se ficar em paralelo, pedidos podem chegar antes e renderizar chips com código)
+  await carregarVendedores();
   carregarPedidosPendentes();
 });

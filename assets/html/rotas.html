@@ -262,6 +262,26 @@
                 <button id="btnGerarLinkMaps" type="button" class="rt-btn rt-btn-full" disabled>
                   Abrir no Google Maps
                 </button>
+
+                <div class="rota-divider"></div>
+
+                <button id="btnSalvarRota" type="button" class="rt-btn rt-btn-primary rt-btn-full">
+                  Salvar rota
+                </button>
+                <button id="btnAbrirRotasSalvas" type="button" class="rt-btn rt-btn-full">
+                  Rotas salvas
+                </button>
+                <button id="btnVerificarStatus" type="button" class="rt-btn rt-btn-full" style="display:none;">
+                  Verificar status agora
+                </button>
+              </div>
+
+              <div class="rota-section" id="rotaAtualBox" style="display:none;">
+                <div class="rota-section-label">Rota carregada</div>
+                <div class="rt-resumo rt-resumo-aberta">
+                  <span id="rotaAtualNome">—</span>
+                  <span class="rt-resumo-aberta-status" id="rotaAtualStatusInfo">Sem verificação ainda.</span>
+                </div>
               </div>
 
               <div class="rota-section">
@@ -304,6 +324,53 @@
       </div>
 
       <div class="modal-itens-totais" id="modalItensTotais">—</div>
+    </div>
+  </div>
+
+  <!-- MODAL SALVAR ROTA -->
+  <div id="modalSalvarRota" class="rt-modal-backdrop" aria-hidden="true">
+    <div class="rt-modal">
+      <button type="button" class="rt-modal-close" id="btnFecharSalvarRota" aria-label="Fechar">✕</button>
+      <p class="modal-kicker">Salvar rota</p>
+      <h2 class="rt-modal-title" id="salvarRotaTitulo">Nova rota</h2>
+      <p class="rt-modal-msg" id="salvarRotaMsg">Dê um nome para identificar essa rota mais tarde.</p>
+
+      <div class="field-group">
+        <label for="salvarRotaNome">Nome</label>
+        <input type="text" id="salvarRotaNome" maxlength="120" placeholder="ex: Rota Norte 20/05" autocomplete="off" />
+      </div>
+
+      <div class="field-group">
+        <label for="salvarRotaObs">Observação (opcional)</label>
+        <input type="text" id="salvarRotaObs" maxlength="500" placeholder="motorista, prioridade, etc." autocomplete="off" />
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="rt-btn" id="btnCancelarSalvarRota">Cancelar</button>
+        <button type="button" class="rt-btn rt-btn-primary" id="btnConfirmarSalvarRota">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL LISTAR ROTAS SALVAS -->
+  <div id="modalListarRotas" class="rt-modal-backdrop" aria-hidden="true">
+    <div class="rt-modal rt-modal-lg">
+      <button type="button" class="rt-modal-close" id="btnFecharListarRotas" aria-label="Fechar">✕</button>
+      <p class="modal-kicker">Rotas salvas</p>
+      <h2 class="rt-modal-title">Minhas rotas</h2>
+
+      <div class="rt-listrotas-toolbar">
+        <input type="text" id="filtroRotasSalvasBusca" placeholder="Buscar por nome..." autocomplete="off" />
+        <label class="rt-check rt-check-inline">
+          <input type="checkbox" id="filtroIncluirArquivadas" />
+          <span class="rt-check-box"></span>
+          <span class="rt-check-label">Incluir arquivadas</span>
+        </label>
+      </div>
+
+      <div id="listaRotasSalvas" class="rt-listrotas">
+        <div class="rt-listrotas-empty">Carregando...</div>
+      </div>
     </div>
   </div>
 

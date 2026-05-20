@@ -333,6 +333,31 @@ body.light-theme .field-group label { color: var(--text-3-light); }
   transition: border-color var(--t-fast), background var(--t-fast);
 }
 
+/* Força tema escuro no dropdown nativo (Chrome/Edge/Firefox respeitam isso) */
+.field-group select {
+  color-scheme: dark;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path fill='%238a93a0' d='M6 8.5L1.5 4h9z'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 30px;
+}
+
+/* Opções do dropdown - tema escuro */
+.field-group select option {
+  background: var(--bg-2);
+  color: var(--text-0);
+  padding: 8px;
+}
+
+.field-group select option:hover,
+.field-group select option:checked {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
 .field-group input[type="text"]:focus,
 .field-group select:focus,
 .rota-destino-input:focus,
@@ -348,6 +373,16 @@ body.light-theme .rota-destino-input,
 body.light-theme #novoPontoInput {
   background: var(--bg-1-light);
   border-color: var(--line-strong-light);
+  color: var(--text-0-light);
+}
+
+body.light-theme .field-group select {
+  color-scheme: light;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path fill='%23555' d='M6 8.5L1.5 4h9z'/></svg>");
+}
+
+body.light-theme .field-group select option {
+  background: #ffffff;
   color: var(--text-0-light);
 }
 
@@ -1081,6 +1116,35 @@ body.light-theme .rt-check-label { color: var(--text-1-light); }
   gap: 6px;
 }
 
+/* divider entre grupos de botões dentro da seção de ações */
+.rota-divider {
+  margin: 8px 0 2px;
+  border-top: 1px dashed var(--line);
+  height: 0;
+}
+
+/* resumo de rota carregada */
+.rt-resumo-aberta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+  color: var(--text-1);
+}
+
+.rt-resumo-aberta > span:first-child {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.rt-resumo-aberta-status {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  color: var(--text-2);
+  letter-spacing: 0.04em;
+}
+
 /* ============ LINK OUTPUT ============ */
 
 .rt-link-output {
@@ -1509,6 +1573,23 @@ body.light-theme .popup-rota-item-end { color: var(--text-3-light); }
 
 .rt-modal-backdrop.is-open { display: flex; animation: fadeIn 200ms ease-out; }
 
+/* Botão desabilitado durante requisição (carregando) */
+.rt-btn:disabled {
+  opacity: 0.55;
+  cursor: wait !important;
+  pointer-events: none;
+}
+
+.rt-btn-primary:disabled {
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+  color: var(--accent);
+}
+
+/* Modal de confirmação SEMPRE acima de outros modais (lista, salvar, etc) */
+#modalRotasConfirm {
+  z-index: 200 !important;
+}
 body.light-theme .rt-modal-backdrop { background: rgba(15, 23, 42, 0.4); }
 
 .rt-modal {
@@ -1717,6 +1798,254 @@ body.light-theme .modal-itens-empty { color: var(--text-3-light); }
 }
 
 body.light-theme .modal-itens-totais { color: var(--text-1-light); }
+
+/* ============ LISTA DE ROTAS SALVAS (modal) ============ */
+
+.rt-listrotas-toolbar {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: center;
+  margin: 6px 0 12px;
+}
+
+.rt-listrotas-toolbar input[type="text"] {
+  width: 100%;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line-strong);
+  background: rgba(255, 255, 255, 0.025);
+  padding: 8px 10px;
+  font-size: 12px;
+  color: var(--text-0);
+  font-family: "Inter", sans-serif;
+}
+
+.rt-listrotas-toolbar input[type="text"]:focus {
+  outline: none;
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+}
+
+.rt-check-inline {
+  margin: 0;
+  padding: 0;
+  gap: 6px;
+}
+
+.rt-listrotas {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: calc(100vh - 280px);
+  min-height: 200px;
+  overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+
+.rt-listrotas::-webkit-scrollbar { width: 6px; }
+.rt-listrotas::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 999px; }
+
+.rt-listrotas-empty {
+  padding: 40px 20px;
+  text-align: center;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--text-3);
+}
+
+.rt-rotaitem {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.02);
+  transition: border-color var(--t-fast), background var(--t-fast);
+}
+
+.rt-rotaitem:hover {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+}
+
+.rt-rotaitem.arquivada {
+  opacity: 0.55;
+  border-style: dashed;
+}
+
+.rt-rotaitem-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.rt-rotaitem-nome {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-0);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rt-rotaitem-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  color: var(--text-3);
+  letter-spacing: 0.04em;
+}
+
+.rt-rotaitem-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.rt-rotaitem-obs {
+  font-size: 11px;
+  color: var(--text-2);
+  font-style: italic;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.rt-rotaitem-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.rt-rotaitem-actions .rt-btn {
+  padding: 6px 12px;
+  font-size: 10px;
+}
+
+/* ============ STATUS BADGES (faturado, cancelado, removido) ============ */
+
+.badge-status {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-left: 6px;
+  border: 1px solid;
+  animation: status-pulse 1.6s ease-in-out infinite;
+}
+
+.badge-status-faturado {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+}
+
+.badge-status-cancelado {
+  color: var(--danger);
+  background: var(--danger-soft);
+  border-color: var(--danger-line);
+}
+
+.badge-status-removido {
+  color: var(--warn);
+  background: var(--warn-soft);
+  border-color: var(--warn-line);
+}
+
+@keyframes status-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+/* cliente-item com status (linha pisca borda) */
+.cliente-item.status-faturado {
+  border-left: 3px solid var(--accent);
+  animation: linha-pisca-verde 2s ease-in-out infinite;
+}
+
+.cliente-item.status-cancelado {
+  border-left: 3px solid var(--danger);
+  animation: linha-pisca-vermelha 2s ease-in-out infinite;
+}
+
+.cliente-item.status-removido {
+  border-left: 3px solid var(--warn);
+  animation: linha-pisca-amarela 2s ease-in-out infinite;
+}
+
+@keyframes linha-pisca-verde {
+  0%, 100% { background: rgba(255, 255, 255, 0.02); }
+  50% { background: var(--accent-soft); }
+}
+
+@keyframes linha-pisca-vermelha {
+  0%, 100% { background: rgba(255, 255, 255, 0.02); }
+  50% { background: var(--danger-soft); }
+}
+
+@keyframes linha-pisca-amarela {
+  0%, 100% { background: rgba(255, 255, 255, 0.02); }
+  50% { background: var(--warn-soft); }
+}
+
+/* marker no mapa quando pedido mudou de status */
+.marker-numero-status {
+  animation: marker-pisca 1.4s ease-in-out infinite;
+}
+
+.marker-numero-status.status-faturado {
+  background: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent), 0 0 16px var(--accent-line);
+}
+
+.marker-numero-status.status-cancelado {
+  background: var(--danger);
+  box-shadow: 0 0 0 2px var(--danger), 0 0 16px var(--danger-line);
+}
+
+.marker-numero-status.status-removido {
+  background: var(--warn);
+  box-shadow: 0 0 0 2px var(--warn), 0 0 16px var(--warn-line);
+}
+
+@keyframes marker-pisca {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.18); }
+}
+
+.marker-status-corner {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--bg-0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  font-weight: 700;
+  color: #ffffff;
+  font-family: "JetBrains Mono", monospace;
+}
+
+.marker-status-corner.status-faturado { background: var(--accent); }
+.marker-status-corner.status-cancelado { background: var(--danger); }
+.marker-status-corner.status-removido { background: var(--warn); }
 
 .rt-modal-close {
   position: absolute;

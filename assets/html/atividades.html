@@ -2,163 +2,337 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <title>VISYA - Atividades</title>
+  <title>VISYA · Atividades</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
 
   <link rel="stylesheet" href="../css/atividades.css" />
   <link rel="stylesheet" href="../css/loader.css" />
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
   <script src="../js/global.js" defer></script>
   <script src="../js/atividades.js" defer></script>
 </head>
 <body>
+  <!-- SVG icons -->
+  <svg width="0" height="0" style="position:absolute;overflow:hidden;" aria-hidden="true">
+    <defs>
+      <symbol id="icon-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-6"/></symbol>
+      <symbol id="icon-map" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 6 9 4 15 6 21 4 21 18 15 20 9 18 3 20"/><line x1="9" y1="4" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="20"/></symbol>
+      <symbol id="icon-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></symbol>
+      <symbol id="icon-convert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v6m0 0l-3-3m3 3l3-3"/><path d="M17 20v-6m0 0l3 3m-3-3l-3 3"/></symbol>
+      <symbol id="icon-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></symbol>
+      <symbol id="icon-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></symbol>
+      <symbol id="icon-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></symbol>
+      <symbol id="icon-zoom" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></symbol>
+      <symbol id="icon-trophy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h2"/><path d="M18 9h2a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2h-2"/><line x1="4" y1="22" x2="20" y2="22"/><path d="M10 14v4a2 2 0 0 0 4 0v-4"/><path d="M6 3h12v6a6 6 0 0 1-12 0V3z"/></symbol>
+      <symbol id="icon-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></symbol>
+      <symbol id="icon-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+      <symbol id="icon-chevron-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></symbol>
+      <symbol id="icon-chevron-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></symbol>
+      <symbol id="icon-target" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></symbol>
+      <symbol id="icon-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></symbol>
+    </defs>
+  </svg>
+
   <main class="atividades-page">
-    <header class="ativ-header">
-      <div class="ativ-header-left">
-        <h1 class="ativ-titulo">ATIVIDADES</h1>
-        <p class="ativ-subtitulo">Visão geral, mapa de localização, listagem e conversão de vendas.</p>
+    <!-- ===== TOPBAR FIXA ===== -->
+    <div class="ativ-topbar">
+      <div class="ativ-topbar-titulo">
+        <p class="ativ-kicker">LOGÍSTICA · COMERCIAL</p>
+        <h1 class="ativ-titulo">
+          <span class="t-soft">Painel de</span>
+          <span class="t-accent">Atividades</span>
+        </h1>
       </div>
 
-      <div class="ativ-header-right">
-        <div class="ativ-user-info">
-          <span id="ativUserNome" class="ativ-user-nome">Carregando...</span>
-          <span id="ativUserEmail" class="ativ-user-email"></span>
+      <div class="ativ-topbar-mini">
+        <div class="resumo-mini-item">
+          <span class="resumo-mini-label">Atividades</span>
+          <span class="resumo-mini-valor" id="miniTotalAtiv">—</span>
+        </div>
+        <div class="resumo-mini-item">
+          <span class="resumo-mini-label">Atendidos</span>
+          <span class="resumo-mini-valor accent" id="miniAtendidos">—</span>
+        </div>
+        <div class="resumo-mini-item">
+          <span class="resumo-mini-label">Conversão</span>
+          <span class="resumo-mini-valor warn" id="miniConversao">—</span>
+        </div>
+        <div class="resumo-mini-item">
+          <span class="resumo-mini-label">Valor</span>
+          <span class="resumo-mini-valor info" id="miniValor">—</span>
         </div>
       </div>
-    </header>
 
-    <section class="ativ-filtros">
-      <div class="filtro-campo">
-        <label for="fDtInicio">Data início</label>
-        <input id="fDtInicio" type="date" />
+      <div class="ativ-topbar-actions">
+        <button type="button" class="ativ-btn ativ-btn-sm" id="btnToggleCabecalho" title="Mostrar/ocultar filtros">
+          <svg class="icon-14 chevron-toggle" aria-hidden="true"><use href="#icon-chevron-up"/></svg>
+          <span id="toggleLabel">Ocultar filtros</span>
+        </button>
+
+        <div class="ativ-user-info">
+          <svg class="icon-16" aria-hidden="true"><use href="#icon-user"/></svg>
+          <div class="ativ-user-text">
+            <span id="ativUserNome" class="ativ-user-nome">Carregando...</span>
+            <span id="ativUserEmail" class="ativ-user-email"></span>
+          </div>
+        </div>
       </div>
+    </div>
 
-      <div class="filtro-campo">
-        <label for="fDtFim">Data fim</label>
-        <input id="fDtFim" type="date" />
-      </div>
+    <!-- ===== ÁREA RECOLHÍVEL ===== -->
+    <div class="ativ-recolhivel" id="ativRecolhivel">
+      <p class="ativ-subtitulo">Visão geral, mapa de localização, listagem e conversão de vendas.</p>
 
-      <div class="filtro-campo">
-        <label for="fVendedor">Vendedor</label>
-        <select id="fVendedor">
-          <option value="">Todos</option>
-        </select>
-      </div>
+      <section class="ativ-chips-periodo">
+        <div class="chips-periodo-label">PERÍODO RÁPIDO</div>
+        <button type="button" class="chip-periodo" data-periodo="hoje">Hoje</button>
+        <button type="button" class="chip-periodo" data-periodo="7d">7 dias</button>
+        <button type="button" class="chip-periodo" data-periodo="30d">30 dias</button>
+        <button type="button" class="chip-periodo" data-periodo="90d">90 dias</button>
+        <button type="button" class="chip-periodo" data-periodo="mes">Este mês</button>
+        <button type="button" class="chip-periodo" data-periodo="ano">Este ano</button>
+      </section>
 
-      <div class="filtro-campo">
-        <label for="fTipoAtiv">Tipo de atividade</label>
-        <select id="fTipoAtiv">
-          <option value="">Todos</option>
-        </select>
-      </div>
+      <section class="ativ-filtros">
+        <div class="filtro-campo">
+          <label for="fDtInicio">Data início</label>
+          <input id="fDtInicio" type="date" />
+        </div>
+        <div class="filtro-campo">
+          <label for="fDtFim">Data fim</label>
+          <input id="fDtFim" type="date" />
+        </div>
+        <div class="filtro-campo">
+          <label for="fVendedor">Vendedor</label>
+          <select id="fVendedor"><option value="">Todos</option></select>
+        </div>
+        <div class="filtro-campo">
+          <label for="fTipoAtiv">Tipo de atividade</label>
+          <select id="fTipoAtiv"><option value="">Todos</option></select>
+        </div>
+        <div class="filtro-campo">
+          <label for="fIdStatus">Status</label>
+          <select id="fIdStatus">
+            <option value="">Todos</option>
+            <option value="1">Pendente</option>
+            <option value="2">Em andamento</option>
+            <option value="3">Concluído</option>
+            <option value="4">Cancelado</option>
+          </select>
+        </div>
+        <div class="filtro-campo">
+          <label for="fEmpresa">Empresa</label>
+          <select id="fEmpresa">
+            <option value="linhagro" selected>Linhagro</option>
+            <option value="lithoplant">Lithoplant</option>
+            <option value="todas">Todas</option>
+          </select>
+        </div>
+        <div class="filtros-acoes">
+          <button type="button" class="ativ-btn ativ-btn-primary" id="btnBuscar">
+            <svg class="icon-14" aria-hidden="true"><use href="#icon-refresh"/></svg>
+            <span>Atualizar</span>
+          </button>
+          <button type="button" class="ativ-btn" id="btnLimpar">
+            <svg class="icon-14" aria-hidden="true"><use href="#icon-close"/></svg>
+            <span>Limpar</span>
+          </button>
+        </div>
+      </section>
 
-      <div class="filtro-campo">
-        <label for="fIdStatus">Status</label>
-        <select id="fIdStatus">
-          <option value="">Todos</option>
-          <option value="1">1 – Pendente</option>
-          <option value="2">2 – Em andamento</option>
-          <option value="3">3 – Concluído</option>
-          <option value="4">4 – Cancelado</option>
-        </select>
-      </div>
-<div class="filtro-campo">
-  <label for="fEmpresa">Empresa</label>
-  <select id="fEmpresa">
-    <option value="linhagro" selected>Linhagro</option>
-    <option value="lithoplant">Lithoplant</option>
-    <option value="todas">Todas</option>
-  </select>
-</div>
-      <button type="button" class="btn-filtro" id="btnBuscar"><span>↻</span> Atualizar</button>
-      <button type="button" class="btn-filtro" id="btnLimpar"><span>✕</span> Limpar</button>
-    </section>
+      <section class="ativ-resumo">
+        <div class="resumo-card" id="cardTotalAtiv">
+          <span class="resumo-label">Total de atividades</span>
+          <strong class="resumo-valor">—</strong>
+          <span class="resumo-legenda">Atividades no período</span>
+        </div>
+        <div class="resumo-card" id="cardTotalCarteira">
+          <span class="resumo-label">Total carteira</span>
+          <strong class="resumo-valor">—</strong>
+          <span class="resumo-legenda">Clientes na carteira</span>
+        </div>
+        <div class="resumo-card card-destaque-accent" id="cardClientesAtend">
+          <span class="resumo-label">Clientes atendidos</span>
+          <strong class="resumo-valor">—</strong>
+          <span class="resumo-legenda">Clientes com atividade</span>
+        </div>
+        <div class="resumo-card card-destaque-info" id="cardClientesVisita">
+          <span class="resumo-label">Clientes com visita</span>
+          <strong class="resumo-valor">—</strong>
+          <span class="resumo-legenda">Quantidade e %</span>
+        </div>
+        <div class="resumo-card card-destaque-warn" id="cardTaxaConv">
+          <span class="resumo-label">Taxa conversão</span>
+          <strong class="resumo-valor">—</strong>
+          <span class="resumo-legenda">Visitas → vendas</span>
+        </div>
+        <div class="resumo-card" id="cardPedidos">
+          <span class="resumo-label">Pedidos emitidos</span>
+          <strong class="resumo-valor">—</strong>
+          <span class="resumo-legenda">Clientes com venda</span>
+        </div>
+      </section>
+    </div>
 
-    <section class="ativ-resumo">
-      <div class="resumo-card" id="cardTotalAtiv">
-        <span class="resumo-label">Total de atividades</span>
-        <strong class="resumo-valor">—</strong>
-        <span class="resumo-legenda">Total real da API</span>
-      </div>
-
-      <div class="resumo-card" id="cardTotalCarteira">
-        <span class="resumo-label">Total carteira</span>
-        <strong class="resumo-valor">—</strong>
-        <span class="resumo-legenda">Total real da carteira</span>
-      </div>
-
-      <div class="resumo-card card-destaque-green" id="cardClientesAtend">
-        <span class="resumo-label">Clientes atendidos %</span>
-        <strong class="resumo-valor">—</strong>
-        <span class="resumo-legenda">Clientes com atividade</span>
-      </div>
-
-      <div class="resumo-card card-destaque-blue" id="cardClientesVisita">
-        <span class="resumo-label">Clientes com visita</span>
-        <strong class="resumo-valor">—</strong>
-        <span class="resumo-legenda">Quantidade e %</span>
-      </div>
-
-      <div class="resumo-card card-destaque-yellow" id="cardTaxaConv">
-        <span class="resumo-label">Taxa conversão</span>
-        <strong class="resumo-valor">—</strong>
-        <span class="resumo-legenda">Venda x visita</span>
-      </div>
-
-      <div class="resumo-card" id="cardPedidos">
-        <span class="resumo-label">Pedidos emitidos</span>
-        <strong class="resumo-valor">—</strong>
-        <span class="resumo-legenda">Clientes com venda</span>
-      </div>
-    </section>
-
-    <nav class="ativ-tabs">
-      <button class="tab-btn active" data-tab="visao">📊 Visão geral</button>
-      <button class="tab-btn" data-tab="mapa">🗺️ Mapa</button>
-      <button class="tab-btn" data-tab="listagem">📋 Listagem</button>
-      <button class="tab-btn" data-tab="conversao">🔄 Conversão de vendas</button>
+    <!-- ===== ABAS ===== -->
+    <nav class="ativ-tabs" role="tablist">
+      <button type="button" class="tab-btn is-active" data-tab="visao" role="tab">
+        <svg class="icon-14" aria-hidden="true"><use href="#icon-chart"/></svg>
+        <span>Visão geral</span>
+      </button>
+      <button type="button" class="tab-btn" data-tab="mapa" role="tab">
+        <svg class="icon-14" aria-hidden="true"><use href="#icon-map"/></svg>
+        <span>Mapa</span>
+      </button>
+      <button type="button" class="tab-btn" data-tab="listagem" role="tab">
+        <svg class="icon-14" aria-hidden="true"><use href="#icon-list"/></svg>
+        <span>Listagem</span>
+      </button>
+      <button type="button" class="tab-btn" data-tab="conversao" role="tab">
+        <svg class="icon-14" aria-hidden="true"><use href="#icon-convert"/></svg>
+        <span>Conversão</span>
+      </button>
     </nav>
 
-    <div id="tab-visao" class="tab-panel active">
-      <div class="visao-grid">
-        <section class="painel-bloco visao-grafico">
-          <div class="bloco-titulo">Evolução mensal de atividades</div>
-          <div class="grafico-wrap grafico-wrap-xl">
+    <!-- ===== ABA VISAO GERAL ===== -->
+    <div id="tab-visao" class="tab-panel is-active">
+      <div class="kpi-grid">
+        <div class="kpi-card kpi-accent">
+          <span class="kpi-label">Atividades / dia útil</span>
+          <strong class="kpi-valor" id="kpiAtivDia">—</strong>
+          <span class="kpi-legenda" id="kpiAtivDiaLeg">média no período</span>
+        </div>
+        <div class="kpi-card kpi-info">
+          <span class="kpi-label">Visitas por vendedor</span>
+          <strong class="kpi-valor" id="kpiVisVend">—</strong>
+          <span class="kpi-legenda" id="kpiVisVendLeg">média</span>
+        </div>
+        <div class="kpi-card kpi-warn">
+          <span class="kpi-label">Ticket médio</span>
+          <strong class="kpi-valor" id="kpiTicket">—</strong>
+          <span class="kpi-legenda">por pedido convertido</span>
+        </div>
+        <div class="kpi-card kpi-accent">
+          <span class="kpi-label">Vendedores ativos</span>
+          <strong class="kpi-valor" id="kpiVendedoresAtivos">—</strong>
+          <span class="kpi-legenda">com pelo menos 1 atividade</span>
+        </div>
+        <div class="kpi-card kpi-danger">
+          <span class="kpi-label">Vendedores ociosos</span>
+          <strong class="kpi-valor" id="kpiVendedoresOciosos">—</strong>
+          <span class="kpi-legenda">menos de 5 atividades</span>
+        </div>
+        <div class="kpi-card kpi-info">
+          <span class="kpi-label">Dias úteis</span>
+          <strong class="kpi-valor" id="kpiDiasUteis">—</strong>
+          <span class="kpi-legenda">no período</span>
+        </div>
+      </div>
+
+      <div class="visao-grid-2">
+        <section class="painel-bloco">
+          <div class="bloco-header">
+            <span class="bloco-titulo">
+              <svg class="icon-14" aria-hidden="true"><use href="#icon-chart"/></svg>
+              Evolução mensal
+            </span>
+            <span class="bloco-sub">últimos 12 meses</span>
+          </div>
+          <div class="grafico-wrap">
             <canvas id="graficoEvolucaoMensal"></canvas>
           </div>
         </section>
 
-        <section class="painel-bloco visao-ranking">
-          <div class="bloco-titulo">Ranking de vendedores com visitas</div>
-          <div class="rank-scroll rank-scroll-full" id="rankingVisitas">
+        <section class="painel-bloco">
+          <div class="bloco-header">
+            <span class="bloco-titulo">
+              <svg class="icon-14" aria-hidden="true"><use href="#icon-target"/></svg>
+              Por tipo de atividade
+            </span>
+          </div>
+          <div class="grafico-wrap grafico-wrap-doughnut">
+            <canvas id="graficoTipoAtividade"></canvas>
+          </div>
+        </section>
+      </div>
+
+      <div class="visao-grid-2">
+        <section class="painel-bloco">
+          <div class="bloco-header">
+            <span class="bloco-titulo">
+              <svg class="icon-14" aria-hidden="true"><use href="#icon-clock"/></svg>
+              Atividades por dia da semana
+            </span>
+          </div>
+          <div class="grafico-wrap">
+            <canvas id="graficoDiaSemana"></canvas>
+          </div>
+        </section>
+
+        <section class="painel-bloco">
+          <div class="bloco-header">
+            <span class="bloco-titulo">
+              <svg class="icon-14" aria-hidden="true"><use href="#icon-trophy"/></svg>
+              Ranking de vendedores
+            </span>
+            <span class="bloco-sub">por nº de visitas</span>
+          </div>
+          <div class="rank-scroll" id="rankingVisitas">
             <div class="ativ-empty">Carregando...</div>
           </div>
         </section>
       </div>
     </div>
 
+    <!-- ===== ABA MAPA ===== -->
     <div id="tab-mapa" class="tab-panel">
-      <div class="painel-bloco painel-mapa-grow painel-mapa-limpo">
-        <div class="mapa-acoes mapa-acoes-topo">
-          <button type="button" class="btn-filtro" id="btnMapaRecarregar">Atualizar mapa</button>
-          <button type="button" class="btn-filtro" id="btnMapaAjustar">Ajustar zoom</button>
+      <div class="painel-bloco painel-mapa">
+        <div class="bloco-header">
+          <span class="bloco-titulo">Distribuição geográfica</span>
+          <div class="mapa-acoes">
+            <div class="mapa-estilo-switch" role="tablist" aria-label="Estilo do mapa">
+              <button type="button" class="mapa-estilo-btn is-active" data-estilo="dark">Escuro</button>
+              <button type="button" class="mapa-estilo-btn" data-estilo="light">Claro</button>
+              <button type="button" class="mapa-estilo-btn" data-estilo="sat">Satélite</button>
+            </div>
+            <label class="mapa-cluster-check" title="Agrupa marcadores próximos">
+              <input type="checkbox" id="mapaClusterToggle" checked />
+              <span>Agrupar</span>
+            </label>
+            <button type="button" class="ativ-btn ativ-btn-sm" id="btnMapaRecarregar">
+              <svg class="icon-12" aria-hidden="true"><use href="#icon-refresh"/></svg>
+              <span>Recarregar</span>
+            </button>
+            <button type="button" class="ativ-btn ativ-btn-sm" id="btnMapaAjustar">
+              <svg class="icon-12" aria-hidden="true"><use href="#icon-zoom"/></svg>
+              <span>Ajustar zoom</span>
+            </button>
+          </div>
         </div>
-
-        <div class="mapa-container mapa-container-full">
+        <div class="mapa-container">
           <div id="mapaAtividades"></div>
         </div>
       </div>
     </div>
 
+    <!-- ===== ABA LISTAGEM ===== -->
     <div id="tab-listagem" class="tab-panel">
       <div class="listagem-topbar">
         <div class="listagem-info" id="infoAtividades">Carregando...</div>
-        <button type="button" class="btn-filtro" id="btnExportarCsv">Exportar CSV</button>
+        <button type="button" class="ativ-btn ativ-btn-primary ativ-btn-sm" id="btnExportarCsv">
+          <svg class="icon-12" aria-hidden="true"><use href="#icon-download"/></svg>
+          <span>Exportar CSV</span>
+        </button>
       </div>
 
       <div class="ativ-tabela-bloco">
@@ -166,12 +340,13 @@
           <table class="ativ-table">
             <colgroup>
               <col style="width:9%" />
-              <col style="width:14%" />
-              <col style="width:22%" />
-              <col style="width:18%" />
-              <col style="width:14%" />
-              <col style="width:19%" />
+              <col style="width:13%" />
+              <col style="width:20%" />
+              <col style="width:15%" />
+              <col style="width:13%" />
+              <col style="width:20%" />
               <col style="width:4%" />
+              <col style="width:6%" />
             </colgroup>
             <thead>
               <tr>
@@ -182,76 +357,118 @@
                 <th>Assunto</th>
                 <th>Observação</th>
                 <th>GPS</th>
+                <th style="text-align:center;">Ações</th>
               </tr>
             </thead>
             <tbody id="tbodyAtividades">
-              <tr><td colspan="7" class="ativ-empty">Carregando dados...</td></tr>
+              <tr><td colspan="8" class="ativ-empty">Carregando dados...</td></tr>
             </tbody>
           </table>
         </div>
       </div>
     </div>
 
+    <!-- ===== ABA CONVERSAO ===== -->
     <div id="tab-conversao" class="tab-panel">
-      <div class="conversao-resumo-cards conversao-resumo-cards-8">
+      <div class="conversao-resumo-cards">
         <div class="conv-card">
-          <span class="conv-card-label">Clientes visitados</span>
-          <span class="conv-card-valor blue" id="convVisitados">—</span>
+          <span class="conv-card-label">Visitados</span>
+          <span class="conv-card-valor info" id="convVisitados">—</span>
         </div>
-
         <div class="conv-card">
-          <span class="conv-card-label">Clientes convertidos</span>
-          <span class="conv-card-valor green" id="convClientesConv">—</span>
+          <span class="conv-card-label">Convertidos</span>
+          <span class="conv-card-valor accent" id="convClientesConv">—</span>
         </div>
-
         <div class="conv-card">
-          <span class="conv-card-label">Taxa geral de conversão</span>
-          <span class="conv-card-valor yellow" id="convTaxaGeral">—</span>
+          <span class="conv-card-label">Taxa geral</span>
+          <span class="conv-card-valor warn" id="convTaxaGeral">—</span>
         </div>
-
         <div class="conv-card">
-          <span class="conv-card-label">Pedidos convertidos</span>
-          <span class="conv-card-valor blue" id="convPedidos">—</span>
+          <span class="conv-card-label">Pedidos</span>
+          <span class="conv-card-valor info" id="convPedidos">—</span>
         </div>
-
         <div class="conv-card">
-          <span class="conv-card-label">Valor convertido</span>
-          <span class="conv-card-valor green" id="convValorConv">—</span>
+          <span class="conv-card-label">Valor</span>
+          <span class="conv-card-valor accent" id="convValorConv">—</span>
         </div>
-
         <div class="conv-card">
-          <span class="conv-card-label">Ticket médio convertido</span>
-          <span class="conv-card-valor yellow" id="convTicket">—</span>
+          <span class="conv-card-label">Ticket médio</span>
+          <span class="conv-card-valor warn" id="convTicket">—</span>
         </div>
-
         <div class="conv-card">
-          <span class="conv-card-label">Dias médios até venda</span>
-          <span class="conv-card-valor blue" id="convDiasMedio">—</span>
+          <span class="conv-card-label">Dias até venda</span>
+          <span class="conv-card-valor info" id="convDiasMedio">—</span>
         </div>
-
         <div class="conv-card">
-          <span class="conv-card-label">Total de vendas no período</span>
-          <span class="conv-card-valor green" id="convTotalVendas">—</span>
+          <span class="conv-card-label">Total vendas</span>
+          <span class="conv-card-valor accent" id="convTotalVendas">—</span>
         </div>
       </div>
 
-      <div class="conversao-grid conversao-grid-grow conversao-grid-full">
-        <div class="conversao-col">
-          <div class="ativ-col-title title-good">🏆 Melhores taxas de conversão</div>
-          <div class="rank-scroll rank-scroll-full" id="rankingBons">
-            <div class="ativ-empty">Carregando...</div>
-          </div>
+      <div class="conv-toolbar">
+        <div class="conv-toolbar-info" id="convToolbarInfo">Carregando...</div>
+        <div class="conv-toolbar-actions">
+          <label class="conv-toolbar-check">
+            <input type="checkbox" id="convFiltroMinimo" checked />
+            <span>Apenas com 5+ visitas</span>
+          </label>
+          <select id="convOrdenacao" class="conv-toolbar-select" title="Ordenar por">
+            <option value="score-desc">Score (recomendado)</option>
+            <option value="taxa-desc">Maior taxa</option>
+            <option value="taxa-asc">Menor taxa</option>
+            <option value="valor-desc">Maior valor</option>
+            <option value="pedidos-desc">Mais pedidos</option>
+            <option value="visitados-desc">Mais visitados</option>
+          </select>
         </div>
+      </div>
 
-        <div class="conversao-col">
-          <div class="ativ-col-title title-bad">⚠️ Menores taxas de conversão</div>
-          <div class="rank-scroll rank-scroll-full" id="rankingRuins">
-            <div class="ativ-empty">Carregando...</div>
-          </div>
-        </div>
+      <!-- Cards de alertas (heroes + criticos + flags) -->
+      <div class="conv-alertas-wrap" id="convAlertasWrap" style="display:none;"></div>
+
+      <div class="conv-cards-wrap" id="convCardsWrap">
+        <div class="ativ-empty">Carregando...</div>
       </div>
     </div>
   </main>
+
+  <!-- ===== MODAL DETALHE ===== -->
+  <div id="modalDetalheAtividade" class="ativ-modal-backdrop" aria-hidden="true">
+    <div class="ativ-modal ativ-modal-lg">
+      <button type="button" class="ativ-modal-close" id="btnFecharDetalhe" aria-label="Fechar">
+        <svg class="icon-14" aria-hidden="true"><use href="#icon-close"/></svg>
+      </button>
+      <p class="modal-kicker">DETALHES DA ATIVIDADE</p>
+      <h2 class="ativ-modal-title" id="detalheTitulo">—</h2>
+      <div class="detalhe-grid">
+        <div class="detalhe-campo"><span class="detalhe-label">Data</span><span class="detalhe-valor" id="detalheData">—</span></div>
+        <div class="detalhe-campo"><span class="detalhe-label">Vendedor</span><span class="detalhe-valor" id="detalheVendedor">—</span></div>
+        <div class="detalhe-campo"><span class="detalhe-label">Cliente</span><span class="detalhe-valor" id="detalheCliente">—</span></div>
+        <div class="detalhe-campo"><span class="detalhe-label">Status</span><span class="detalhe-valor" id="detalheStatus">—</span></div>
+        <div class="detalhe-campo span-2"><span class="detalhe-label">Assunto</span><span class="detalhe-valor" id="detalheAssunto">—</span></div>
+        <div class="detalhe-campo span-2"><span class="detalhe-label">Observação</span><span class="detalhe-valor detalhe-obs" id="detalheObservacao">—</span></div>
+      </div>
+      <div class="detalhe-mapa-wrap" id="detalheMapaWrap" style="display:none;">
+        <span class="detalhe-label">Localização registrada</span>
+        <div id="detalheMapa" class="detalhe-mapa"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== MODAL CONFIRMACAO ===== -->
+  <div id="modalConfirmAtiv" class="ativ-modal-backdrop" aria-hidden="true">
+    <div class="ativ-modal">
+      <p class="modal-kicker">CONFIRMAR</p>
+      <h2 class="ativ-modal-title" id="confirmTitulo">—</h2>
+      <p class="ativ-modal-msg" id="confirmMensagem">—</p>
+      <div class="modal-actions">
+        <button type="button" class="ativ-btn" id="btnConfirmCancelar">Cancelar</button>
+        <button type="button" class="ativ-btn ativ-btn-primary" id="btnConfirmOk">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="ativToast" class="ativ-toast" role="status" aria-live="polite"></div>
 
   <div class="loader-overlay" id="loaderOverlay" aria-hidden="true">
     <iframe src="loader.html" class="loader-frame" frameborder="0" scrolling="no" title="Carregando..."></iframe>
@@ -259,16 +476,13 @@
 
   <script>
     const THEME_KEY = "visya-sidebar-theme";
-
     function applyLocalTheme() {
       let saved = null;
       try { saved = localStorage.getItem(THEME_KEY); } catch (e) {}
       const theme = saved === "light" || saved === "dark" ? saved : "dark";
       document.body.classList.toggle("light-theme", theme === "light");
     }
-
     applyLocalTheme();
-
     window.addEventListener("message", (event) => {
       if (!event.data || event.data.type !== "visya-theme") return;
       const theme = event.data.theme;

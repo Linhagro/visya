@@ -1,6 +1,19 @@
-﻿// app.js - APP Visya
+// app.js - APP Visya
 const API_BASE = 'https://org-dash-api-e4epa4anfpguandz.canadacentral-01.azurewebsites.net/api/v1';
 const POLLING_MS = 30000;
+
+// ===== CONFIG FIREBASE (preencha apos criar projeto) =====
+// Esses valores sao PUBLICOS (apareceriam no DevTools de qualquer forma).
+// O segredo de verdade fica no service account no backend.
+const FIREBASE_CONFIG = {
+  apiKey:            window.__FIREBASE_API_KEY__            || "PREENCHA_AQUI",
+  authDomain:        window.__FIREBASE_AUTH_DOMAIN__        || "PREENCHA_AQUI",
+  projectId:         window.__FIREBASE_PROJECT_ID__         || "PREENCHA_AQUI",
+  storageBucket:     window.__FIREBASE_STORAGE_BUCKET__     || "PREENCHA_AQUI",
+  messagingSenderId: window.__FIREBASE_SENDER_ID__          || "PREENCHA_AQUI",
+  appId:             window.__FIREBASE_APP_ID__             || "PREENCHA_AQUI"
+};
+const VAPID_KEY = window.__VAPID_KEY__ || "PREENCHA_AQUI";
 
 const estado = {
   token: localStorage.getItem('visya-token') || null,
@@ -8,14 +21,15 @@ const estado = {
   pedidos: [],
   pedidoAtual: null,
   itensSelecionados: new Set(),
-  pollingTimer: null
+  pollingTimer: null,
+  fcmToken: localStorage.getItem('visya-fcm-token') || null
 };
 
 // ===== UTIL =====
 const $ = id => document.getElementById(id);
 const fmtMoeda = n => 'R$ ' + Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtData = iso => {
-  if (!iso) return 'â€”';
+  if (!iso) return '—';
   const d = new Date(iso);
   return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
 };
@@ -99,7 +113,7 @@ async function carregarPendentes() {
 function renderPedidos() {
   const el = $('listaPedidos');
   if (!estado.pedidos.length) {
-    el.innerHTML = '<div class="empty-state">Nenhum pedido pendente. ðŸŽ‰</div>';
+    el.innerHTML = '<div class="empty-state">Nenhum pedido pendente. 🎉</div>';
     return;
   }
   el.innerHTML = estado.pedidos.map(p => `
@@ -110,7 +124,7 @@ function renderPedidos() {
       </div>
       <div class="pedido-cliente">${escapeHtml(p.cliente)}</div>
       <div class="pedido-info">
-        <span>${escapeHtml(p.vendedor || 'â€”')}</span>
+        <span>${escapeHtml(p.vendedor || '—')}</span>
         <span>${fmtData(p.dataLancamento)}</span>
       </div>
     </div>
@@ -149,7 +163,7 @@ function renderDetalhe(d) {
   const html = `
     <div class="detalhe-secao">
       <div class="detalhe-label">Cliente</div>
-      <div class="detalhe-valor">${escapeHtml(d.cliente?.nomeRazaoSocial || d.cliente?.nomeFantasia || 'â€”')}</div>
+      <div class="detalhe-valor">${escapeHtml(d.cliente?.nomeRazaoSocial || d.cliente?.nomeFantasia || '—')}</div>
     </div>
     <div class="detalhe-grid">
       <div class="detalhe-secao">
@@ -174,10 +188,10 @@ function renderDetalhe(d) {
           <div class="item-pedido-info">
             <div class="item-pedido-desc">${escapeHtml(it.descricao)}</div>
             <div class="item-pedido-meta">
-              Qtd: ${it.qtd} Ã— ${fmtMoeda(it.valor)}
-              ${it.desconto > 0 ? ` â€¢ Desc: ${fmtMoeda(it.desconto)}` : ''}
+              Qtd: ${it.qtd} × ${fmtMoeda(it.valor)}
+              ${it.desconto > 0 ? ` • Desc: ${fmtMoeda(it.desconto)}` : ''}
             </div>
-            ${it.regra ? `<div class="item-pedido-meta" style="color:var(--warn);margin-top:3px;">âš  ${escapeHtml(it.regra)}</div>` : ''}
+            ${it.regra ? `<div class="item-pedido-meta" style="color:var(--warn);margin-top:3px;">⚠ ${escapeHtml(it.regra)}</div>` : ''}
           </div>
         </div>
       `).join('')}
@@ -196,11 +210,11 @@ function renderDetalhe(d) {
       } else {
         estado.itensSelecionados.add(i);
         c.classList.add('is-checked');
-        c.textContent = 'âœ“';
+        c.textContent = '✓';
       }
       $('btnAprovar').textContent = estado.itensSelecionados.size > 0
-        ? `âœ… Aprovar ${estado.itensSelecionados.size} item(ns)`
-        : 'âœ… Aprovar tudo';
+        ? `✅ Aprovar ${estado.itensSelecionados.size} item(ns)`
+        : '✅ Aprovar tudo';
     });
   });
 }
@@ -216,7 +230,7 @@ async function aprovar() {
   const btn = $('btnAprovar');
   btn.disabled = true;
   const original = btn.textContent;
-  btn.textContent = 'â³ Aprovando...';
+  btn.textContent = '⏳ Aprovando...';
 
   try {
     let path, body = {};
@@ -251,7 +265,7 @@ async function confirmarReprovacao() {
   }
   const btn = $('btnConfirmarReprovar');
   btn.disabled = true;
-  btn.textContent = 'â³ Reprovando...';
+  btn.textContent = '⏳ Reprovando...';
 
   try {
     let path, body = { motivo };
@@ -290,7 +304,7 @@ function pararPolling() {
 function init() {
   // Service worker
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/assets/js/sw.js', { scope: '/assets/' }).catch(e => console.error('SW:', e));
+    navigator.serviceWorker.register('/assets/js/aprovacao-sw.js', { scope: '/assets/' }).catch(e => console.error('SW:', e));
   }
 
   // Login form
@@ -343,7 +357,87 @@ function iniciarApp() {
   mostrarTab('aprovacao');
   carregarPendentes();
   iniciarPolling();
+  setupPush(); // FASE 3: pede permissao e registra token FCM
+}
+
+// ============================================================
+// PUSH NOTIFICATIONS (FASE 3 - Firebase Cloud Messaging)
+// ============================================================
+async function setupPush() {
+  if (FIREBASE_CONFIG.apiKey === 'PREENCHA_AQUI') {
+    console.warn('[PUSH] Firebase nao configurado ainda. Pulando.');
+    return;
+  }
+  if (!('serviceWorker' in navigator)) {
+    console.warn('[PUSH] Service worker nao suportado.');
+    return;
+  }
+  if (!('PushManager' in window)) {
+    console.warn('[PUSH] PushManager nao suportado (iOS < 16.4?).');
+    return;
+  }
+
+  try {
+    // Lazy-load Firebase SDK (so quando precisar)
+    const [{ initializeApp }, { getMessaging, getToken, onMessage }] = await Promise.all([
+      import('https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js'),
+      import('https://www.gstatic.com/firebasejs/10.7.0/firebase-messaging.js')
+    ]);
+
+    const fbApp = initializeApp(FIREBASE_CONFIG);
+    const messaging = getMessaging(fbApp);
+
+    // Registra o service worker dedicado do Firebase
+    const swReg = await navigator.serviceWorker.register('/assets/js/firebase-messaging-sw.js');
+    console.log('[PUSH] Firebase SW registrado:', swReg.scope);
+
+    // Pede permissao
+    const permissao = await Notification.requestPermission();
+    if (permissao !== 'granted') {
+      console.log('[PUSH] Permissao negada/dispensada.');
+      return;
+    }
+
+    // Pega o token FCM
+    const fcmToken = await getToken(messaging, {
+      vapidKey: VAPID_KEY,
+      serviceWorkerRegistration: swReg
+    });
+
+    if (!fcmToken) {
+      console.warn('[PUSH] Nao recebi token FCM.');
+      return;
+    }
+
+    console.log('[PUSH] FCM token obtido (primeiros 20):', fcmToken.slice(0, 20) + '...');
+
+    // Manda pro backend se for novo ou diferente
+    if (fcmToken !== estado.fcmToken) {
+      try {
+        await api('/app/push/register-token', {
+          method: 'POST',
+          body: JSON.stringify({ token: fcmToken, plataforma: 'web' })
+        });
+        estado.fcmToken = fcmToken;
+        localStorage.setItem('visya-fcm-token', fcmToken);
+        toast('Notificacoes ativadas', 'success');
+      } catch (e) {
+        console.error('[PUSH] Erro ao registrar token no backend:', e.message);
+      }
+    }
+
+    // Recebe push quando o app esta ABERTO em primeiro plano
+    onMessage(messaging, (payload) => {
+      console.log('[PUSH] Mensagem em foreground:', payload);
+      const notif = payload.notification || {};
+      toast(`🔔 ${notif.title || 'Nova notificacao'}`);
+      // Atualiza a lista
+      carregarPendentes();
+    });
+
+  } catch (err) {
+    console.error('[PUSH] Erro no setup:', err);
+  }
 }
 
 window.addEventListener('DOMContentLoaded', init);
-

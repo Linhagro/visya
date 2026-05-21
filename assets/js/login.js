@@ -195,7 +195,7 @@ if (form && userInput && passInput) {
         return;
       }
 
-      window.location.href = "./assets/html/inicio.html";
+      window.location.href = "./assets/html/app.html";
     } catch (e) {
       console.error("Erro no login VISYA:", e);
       showError("Falha ao autenticar. Tente novamente.");
@@ -204,3 +204,4 @@ if (form && userInput && passInput) {
     }
   });
 }
+

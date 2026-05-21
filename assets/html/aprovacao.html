@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#3d8c5e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Visya">
+  <link rel="manifest" href="/assets/manifest.json">
+  <link rel="apple-touch-icon" href="/assets/icons/icon-192.png">
+  <link rel="stylesheet" href="/assets/css/aprovacao.css">
+  <title>APP Visya</title>
+</head>
+<body>
+  <!-- Login -->
+  <div id="screen-login" class="screen active">
+    <div class="login-wrap">
+      <div class="login-logo">VISYA</div>
+      <div class="login-kicker">APROVACAO DE PEDIDOS</div>
+      <form id="formLogin" class="login-form">
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="loginEmail" required autocomplete="email" inputmode="email">
+        </div>
+        <div class="form-group">
+          <label>Senha</label>
+          <input type="password" id="loginSenha" required autocomplete="current-password">
+        </div>
+        <button type="submit" id="btnLogin" class="btn btn-primary btn-block">ENTRAR</button>
+        <div id="loginErro" class="erro-msg"></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- App principal (tabs) -->
+  <div id="screen-app" class="screen">
+    <header class="app-header">
+      <div class="app-title" id="appTitulo">Pedidos pendentes</div>
+      <button class="app-btn-icon" id="btnRefresh" title="Atualizar">↻</button>
+      <button class="app-btn-icon" id="btnLogout" title="Sair">⏻</button>
+    </header>
+
+    <main id="appMain" class="app-main">
+      <!-- Tab Aprovacao -->
+      <div id="tab-aprovacao" class="tab-content active">
+        <div id="listaPedidos" class="lista-pedidos">
+          <div class="empty-state">Carregando...</div>
+        </div>
+      </div>
+
+      <!-- Tab Relatorios -->
+      <div id="tab-relatorios" class="tab-content">
+        <div class="relatorios-grid">
+          <div class="rel-card" data-rel="vendas">
+            <div class="rel-card-icon">📊</div>
+            <div class="rel-card-title">Vendas</div>
+            <div class="rel-card-desc">Resumo por periodo</div>
+          </div>
+          <div class="rel-card" data-rel="carteira">
+            <div class="rel-card-icon">👥</div>
+            <div class="rel-card-title">Carteira</div>
+            <div class="rel-card-desc">Clientes ativos</div>
+          </div>
+          <div class="rel-card" data-rel="atividades">
+            <div class="rel-card-icon">📍</div>
+            <div class="rel-card-title">Atividades</div>
+            <div class="rel-card-desc">Visitas e conversao</div>
+          </div>
+          <div class="rel-card" data-rel="financeiro">
+            <div class="rel-card-icon">💰</div>
+            <div class="rel-card-title">Financeiro</div>
+            <div class="rel-card-desc">A receber / a pagar</div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <nav class="bottom-nav">
+      <button class="nav-btn active" data-tab="aprovacao">
+        <span class="nav-icon">📋</span>
+        <span class="nav-label">Aprovar</span>
+        <span class="nav-badge" id="badgePendentes" style="display:none;">0</span>
+      </button>
+      <button class="nav-btn" data-tab="relatorios">
+        <span class="nav-icon">📊</span>
+        <span class="nav-label">Relatorios</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- Modal de detalhe do pedido -->
+  <div id="modalPedido" class="modal">
+    <div class="modal-content">
+      <header class="modal-header">
+        <button class="modal-close" id="btnFecharModal">×</button>
+        <div class="modal-title">Pedido <span id="modalPedidoId">—</span></div>
+      </header>
+      <div class="modal-body" id="modalCorpo">
+        <div class="empty-state">Carregando...</div>
+      </div>
+      <footer class="modal-footer">
+        <button class="btn btn-danger" id="btnReprovar">❌ Reprovar</button>
+        <button class="btn btn-success" id="btnAprovar">✅ Aprovar tudo</button>
+      </footer>
+    </div>
+  </div>
+
+  <!-- Modal motivo reprovacao -->
+  <div id="modalMotivo" class="modal">
+    <div class="modal-content modal-sm">
+      <header class="modal-header">
+        <button class="modal-close" id="btnFecharMotivo">×</button>
+        <div class="modal-title">Motivo da reprovacao</div>
+      </header>
+      <div class="modal-body">
+        <textarea id="inputMotivo" rows="4" placeholder="Ex: Desconto acima do permitido"></textarea>
+      </div>
+      <footer class="modal-footer">
+        <button class="btn btn-secondary" id="btnCancelarMotivo">Cancelar</button>
+        <button class="btn btn-danger" id="btnConfirmarReprovar">Confirmar reprovacao</button>
+      </footer>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast"></div>
+
+  <script src="/assets/js/aprovacao.js"></script>
+</body>
+</html>

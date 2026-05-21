@@ -1,4 +1,4 @@
-// app.js - APP Visya
+﻿// app.js - APP Visya
 const API_BASE = 'https://org-dash-api-e4epa4anfpguandz.canadacentral-01.azurewebsites.net/api/v1';
 const POLLING_MS = 30000;
 
@@ -15,7 +15,7 @@ const estado = {
 const $ = id => document.getElementById(id);
 const fmtMoeda = n => 'R$ ' + Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtData = iso => {
-  if (!iso) return '—';
+  if (!iso) return 'â€”';
   const d = new Date(iso);
   return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
 };
@@ -99,7 +99,7 @@ async function carregarPendentes() {
 function renderPedidos() {
   const el = $('listaPedidos');
   if (!estado.pedidos.length) {
-    el.innerHTML = '<div class="empty-state">Nenhum pedido pendente. 🎉</div>';
+    el.innerHTML = '<div class="empty-state">Nenhum pedido pendente. ðŸŽ‰</div>';
     return;
   }
   el.innerHTML = estado.pedidos.map(p => `
@@ -110,7 +110,7 @@ function renderPedidos() {
       </div>
       <div class="pedido-cliente">${escapeHtml(p.cliente)}</div>
       <div class="pedido-info">
-        <span>${escapeHtml(p.vendedor || '—')}</span>
+        <span>${escapeHtml(p.vendedor || 'â€”')}</span>
         <span>${fmtData(p.dataLancamento)}</span>
       </div>
     </div>
@@ -149,7 +149,7 @@ function renderDetalhe(d) {
   const html = `
     <div class="detalhe-secao">
       <div class="detalhe-label">Cliente</div>
-      <div class="detalhe-valor">${escapeHtml(d.cliente?.nomeRazaoSocial || d.cliente?.nomeFantasia || '—')}</div>
+      <div class="detalhe-valor">${escapeHtml(d.cliente?.nomeRazaoSocial || d.cliente?.nomeFantasia || 'â€”')}</div>
     </div>
     <div class="detalhe-grid">
       <div class="detalhe-secao">
@@ -174,10 +174,10 @@ function renderDetalhe(d) {
           <div class="item-pedido-info">
             <div class="item-pedido-desc">${escapeHtml(it.descricao)}</div>
             <div class="item-pedido-meta">
-              Qtd: ${it.qtd} × ${fmtMoeda(it.valor)}
-              ${it.desconto > 0 ? ` • Desc: ${fmtMoeda(it.desconto)}` : ''}
+              Qtd: ${it.qtd} Ã— ${fmtMoeda(it.valor)}
+              ${it.desconto > 0 ? ` â€¢ Desc: ${fmtMoeda(it.desconto)}` : ''}
             </div>
-            ${it.regra ? `<div class="item-pedido-meta" style="color:var(--warn);margin-top:3px;">⚠ ${escapeHtml(it.regra)}</div>` : ''}
+            ${it.regra ? `<div class="item-pedido-meta" style="color:var(--warn);margin-top:3px;">âš  ${escapeHtml(it.regra)}</div>` : ''}
           </div>
         </div>
       `).join('')}
@@ -196,11 +196,11 @@ function renderDetalhe(d) {
       } else {
         estado.itensSelecionados.add(i);
         c.classList.add('is-checked');
-        c.textContent = '✓';
+        c.textContent = 'âœ“';
       }
       $('btnAprovar').textContent = estado.itensSelecionados.size > 0
-        ? `✅ Aprovar ${estado.itensSelecionados.size} item(ns)`
-        : '✅ Aprovar tudo';
+        ? `âœ… Aprovar ${estado.itensSelecionados.size} item(ns)`
+        : 'âœ… Aprovar tudo';
     });
   });
 }
@@ -216,7 +216,7 @@ async function aprovar() {
   const btn = $('btnAprovar');
   btn.disabled = true;
   const original = btn.textContent;
-  btn.textContent = '⏳ Aprovando...';
+  btn.textContent = 'â³ Aprovando...';
 
   try {
     let path, body = {};
@@ -251,7 +251,7 @@ async function confirmarReprovacao() {
   }
   const btn = $('btnConfirmarReprovar');
   btn.disabled = true;
-  btn.textContent = '⏳ Reprovando...';
+  btn.textContent = 'â³ Reprovando...';
 
   try {
     let path, body = { motivo };
@@ -346,3 +346,4 @@ function iniciarApp() {
 }
 
 window.addEventListener('DOMContentLoaded', init);
+

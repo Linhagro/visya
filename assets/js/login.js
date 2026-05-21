@@ -1,8 +1,8 @@
-// assets/js/login.js
+﻿// assets/js/login.js
 import * as THREE from "three";
 
 /**
- * ================== FUNDO 3D - TERRENO TOPOGRÁFICO ==================
+ * ================== FUNDO 3D - TERRENO TOPOGRÃFICO ==================
  */
 
 const canvas = document.getElementById("bgCanvas");
@@ -136,7 +136,7 @@ window.addEventListener("resize", () => {
 });
 
 /**
- * ================== LÓGICA DE LOGIN VISYA ==================
+ * ================== LÃ“GICA DE LOGIN VISYA ==================
  */
 
 const form = document.getElementById("visyaLoginForm");
@@ -181,7 +181,7 @@ if (form && userInput && passInput) {
       const user = await loginSistema(email, senha);
 
       if (!user) {
-        showError("Usuário ou senha inválidos.");
+        showError("UsuÃ¡rio ou senha invÃ¡lidos.");
         return;
       }
 
@@ -191,11 +191,11 @@ if (form && userInput && passInput) {
       }
 
       if (!atual || !Array.isArray(atual.empresas) || atual.empresas.length === 0) {
-        showError("Usuário sem empresa vinculada. Contate o administrador.");
+        showError("UsuÃ¡rio sem empresa vinculada. Contate o administrador.");
         return;
       }
 
-      window.location.href = "./assets/html/app.html";
+      window.location.href = "./assets/html/inicio.html";
     } catch (e) {
       console.error("Erro no login VISYA:", e);
       showError("Falha ao autenticar. Tente novamente.");

@@ -5,10 +5,10 @@
   <title>VISYA - Contas a Receber</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <!-- Fonte -->
+  <!-- Fontes padrão VISYA -->
   <link
     rel="stylesheet"
-    href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
   />
 
   <!-- CSS específico -->
@@ -49,7 +49,7 @@
       </div>
     </header>
 
-    <!-- BARRA DE FILTROS HORIZONTAL (sem filtros de cliente) -->
+    <!-- BARRA DE FILTROS HORIZONTAL -->
     <section class="filters-bar">
       <div class="filter-item filter-item--xs">
         <label for="fAno">Ano</label>
@@ -129,7 +129,7 @@
 
     <!-- CONTEÚDO PRINCIPAL -->
     <section class="dash-content">
-      <!-- CARDS RESUMO colados nos filtros -->
+      <!-- CARDS RESUMO -->
       <div class="cards-summary">
         <article class="card-small">
           <div class="card-small-label">Receita total (período)</div>
@@ -172,6 +172,10 @@
         <article class="card-block map-block">
           <header class="block-header block-header-tight">
             <h2 class="block-title">Mapa de inadimplência</h2>
+            <div class="map-toggle">
+              <button type="button" class="map-toggle-btn is-active" data-vista="heat">Calor</button>
+              <button type="button" class="map-toggle-btn" data-vista="pins">Pinos</button>
+            </div>
           </header>
           <div class="map-area">
             <div id="leafletMap"></div>
@@ -187,9 +191,9 @@
               <thead>
                 <tr>
                   <th>Vendedor</th>
-                  <th>Clientes</th>
-                  <th>Valor inadimplente</th>
-                  <th>% do total</th>
+                  <th class="num">Clientes</th>
+                  <th class="num">Valor inadimplente</th>
+                  <th class="num">% do total</th>
                 </tr>
               </thead>
               <tbody id="tbodyRanking">

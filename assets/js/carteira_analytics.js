@@ -23,7 +23,7 @@ let vendedoresSelecionados = [];
 const loaderOverlay = document.getElementById("loaderOverlay");
 let loaderTimerId = null;
 
-// ================== COLUNAS - VISIBILIDADE ==================
+// ================== COLUNAS - DEFINIÇÃO ==================
 
 const TODAS_COLUNAS = [
   { key: "CODVEND", grupo: "Vendedor", label: "Cód. Vendedor", padrao: true },
@@ -76,35 +76,162 @@ const TODAS_COLUNAS = [
   { key: "LTV", grupo: "LTV", label: "LTV", padrao: true },
 ];
 
-const COLUNAS_STORAGE_KEY = "visya-carteira-colunas-visiveis";
+// ================== LAYOUT POR USUÁRIO (localStorage) ==================
+// Estrutura salva: { visiveis: [...keys], larguras: {key: px}, ordem: [...keys] }
+// A chave inclui o e-mail do usuário, isolando preferências por usuário mesmo
+// que vários usem o mesmo navegador.
+
+function getLayoutStorageKey() {
+  let email = "";
+  try {
+    const u = typeof getUsuarioAtual === "function" ? getUsuarioAtual() : null;
+    email = (u && u.email) ? u.email : "anon";
+  } catch (e) {
+    email = "anon";
+  }
+  return "visya-carteira-layout::" + email;
+}
+
 let colunasVisiveis = new Set(
   TODAS_COLUNAS.filter((c) => c.padrao).map((c) => c.key)
 );
+let colunasLarguras = {};         // { key: larguraPx }
+let colunasOrdem = TODAS_COLUNAS.map((c) => c.key); // ordem atual das colunas
 
-function carregarColunasVisiveis() {
+function ordemPadrao() {
+  return TODAS_COLUNAS.map((c) => c.key);
+}
+
+function visiveisPadrao() {
+  return TODAS_COLUNAS.filter((c) => c.padrao).map((c) => c.key);
+}
+
+function carregarLayout() {
   try {
-    const raw = localStorage.getItem(COLUNAS_STORAGE_KEY);
-    if (raw) {
-      const arr = JSON.parse(raw);
-      if (Array.isArray(arr) && arr.length) {
-        colunasVisiveis = new Set(arr);
+    const raw = localStorage.getItem(getLayoutStorageKey());
+    if (!raw) {
+      // tenta migrar da chave antiga (só visibilidade)
+      const legado = localStorage.getItem("visya-carteira-colunas-visiveis");
+      if (legado) {
+        const arr = JSON.parse(legado);
+        if (Array.isArray(arr) && arr.length) {
+          colunasVisiveis = new Set(arr);
+        }
+      }
+      return;
+    }
+    const obj = JSON.parse(raw);
+    if (obj && typeof obj === "object") {
+      if (Array.isArray(obj.visiveis) && obj.visiveis.length) {
+        colunasVisiveis = new Set(obj.visiveis);
+      }
+      if (obj.larguras && typeof obj.larguras === "object") {
+        colunasLarguras = { ...obj.larguras };
+      }
+      if (Array.isArray(obj.ordem) && obj.ordem.length) {
+        // garante que toda key conhecida esteja presente (acrescenta novas no fim)
+        const set = new Set(obj.ordem);
+        const ordem = obj.ordem.filter((k) => TODAS_COLUNAS.some((c) => c.key === k));
+        TODAS_COLUNAS.forEach((c) => {
+          if (!set.has(c.key)) ordem.push(c.key);
+        });
+        colunasOrdem = ordem;
       }
     }
   } catch (e) {
-    console.warn("[CARTEIRA] erro ao ler colunas:", e);
+    console.warn("[CARTEIRA] erro ao ler layout:", e);
   }
 }
 
-function salvarColunasVisiveis() {
+function salvarLayout() {
   try {
-    localStorage.setItem(
-      COLUNAS_STORAGE_KEY,
-      JSON.stringify(Array.from(colunasVisiveis))
-    );
+    const payload = {
+      visiveis: Array.from(colunasVisiveis),
+      larguras: colunasLarguras,
+      ordem: colunasOrdem,
+    };
+    localStorage.setItem(getLayoutStorageKey(), JSON.stringify(payload));
   } catch (e) {
-    console.warn("[CARTEIRA] erro ao salvar colunas:", e);
+    console.warn("[CARTEIRA] erro ao salvar layout:", e);
   }
 }
+
+function resetarLayout() {
+  colunasVisiveis = new Set(visiveisPadrao());
+  colunasLarguras = {};
+  colunasOrdem = ordemPadrao();
+  salvarLayout();
+  reconstruirOrdemDOM();
+  aplicarLargurasColunas();
+  aplicarVisibilidadeColunas();
+  renderizarDropdownColunas();
+  mostrarToastCarteira("Layout restaurado ao padrão.");
+}
+
+// ================== APLICAR LARGURAS ==================
+
+function aplicarLargurasColunas() {
+  const table = document.getElementById("tblCarteira");
+  if (!table) return;
+  const cols = table.querySelectorAll("colgroup col");
+  cols.forEach((col) => {
+    const key = col.dataset.colKey;
+    if (!key) return;
+    if (colunasLarguras[key]) {
+      col.style.width = colunasLarguras[key] + "px";
+    }
+  });
+}
+
+// ================== APLICAR ORDEM (reordena DOM conforme colunasOrdem) ==================
+
+function reconstruirOrdemDOM() {
+  const table = document.getElementById("tblCarteira");
+  if (!table) return;
+
+  const colgroup = table.querySelector("colgroup");
+  const headRow = table.querySelector("thead tr");
+  if (!colgroup || !headRow) return;
+
+  // mapeia key -> elementos atuais
+  const colByKey = {};
+  colgroup.querySelectorAll("col").forEach((col) => {
+    if (col.dataset.colKey) colByKey[col.dataset.colKey] = col;
+  });
+  const thByKey = {};
+  headRow.querySelectorAll("th").forEach((th) => {
+    if (th.dataset.col) thByKey[th.dataset.col] = th;
+  });
+
+  // reanexa na ordem desejada
+  colunasOrdem.forEach((key) => {
+    if (colByKey[key]) colgroup.appendChild(colByKey[key]);
+    if (thByKey[key]) headRow.appendChild(thByKey[key]);
+  });
+
+  // reordena também as células de cada linha do corpo já renderizado
+  const idxByKey = {};
+  colunasOrdem.forEach((key, i) => { idxByKey[key] = i; });
+
+  // como as linhas são montadas na ordem fixa de add(), elas estão na ordem
+  // ORIGINAL do array TODAS_COLUNAS; precisamos reordenar para colunasOrdem.
+  // Construímos um mapa de "posição original" -> key:
+  const ordemOriginal = TODAS_COLUNAS.map((c) => c.key);
+
+  table.querySelectorAll("tbody tr").forEach((tr) => {
+    const tds = Array.from(tr.children);
+    if (tds.length !== ordemOriginal.length) return; // linha de empty-state etc.
+    // cria fragmento na nova ordem
+    const frag = document.createDocumentFragment();
+    colunasOrdem.forEach((key) => {
+      const origIdx = ordemOriginal.indexOf(key);
+      if (origIdx >= 0 && tds[origIdx]) frag.appendChild(tds[origIdx]);
+    });
+    tr.appendChild(frag);
+  });
+}
+
+// ================== APLICAR VISIBILIDADE ==================
 
 function aplicarVisibilidadeColunas() {
   const table = document.getElementById("tblCarteira");
@@ -116,40 +243,31 @@ function aplicarVisibilidadeColunas() {
   cols.forEach((col) => {
     const key = col.dataset.colKey;
     if (!key) return;
-    if (colunasVisiveis.has(key)) {
-      col.classList.remove("col-hidden");
-    } else {
-      col.classList.add("col-hidden");
-    }
+    col.classList.toggle("col-hidden", !colunasVisiveis.has(key));
   });
 
   ths.forEach((th) => {
     const key = th.dataset.col;
     if (!key) return;
-    if (colunasVisiveis.has(key)) {
-      th.classList.remove("col-hidden");
-    } else {
-      th.classList.add("col-hidden");
-    }
+    th.classList.toggle("col-hidden", !colunasVisiveis.has(key));
   });
 
-  document
-    .querySelectorAll("#tblCarteira tbody tr")
-    .forEach((tr) => {
-      const tds = tr.querySelectorAll("td");
-      tds.forEach((td, idx) => {
-        const col = cols[idx];
-        if (!col) return;
-        const key = col.dataset.colKey;
-        if (!key) return;
-        if (colunasVisiveis.has(key)) {
-          td.classList.remove("col-hidden");
-        } else {
-          td.classList.add("col-hidden");
-        }
-      });
+  // para cada linha, esconde a célula cuja coluna (na posição visual atual)
+  // está oculta. Como col e td estão na MESMA ordem visual após
+  // reconstruirOrdemDOM, basta casar por índice.
+  const colKeysVisualOrder = Array.from(cols).map((c) => c.dataset.colKey);
+
+  table.querySelectorAll("tbody tr").forEach((tr) => {
+    const tds = tr.querySelectorAll("td");
+    tds.forEach((td, idx) => {
+      const key = colKeysVisualOrder[idx];
+      if (!key) return;
+      td.classList.toggle("col-hidden", !colunasVisiveis.has(key));
     });
+  });
 }
+
+// ================== DROPDOWN COLUNAS ==================
 
 function renderizarDropdownColunas() {
   const list = document.getElementById("colunasDropdownList");
@@ -185,7 +303,7 @@ function renderizarDropdownColunas() {
         } else {
           colunasVisiveis.delete(coluna.key);
         }
-        salvarColunasVisiveis();
+        salvarLayout();
         aplicarVisibilidadeColunas();
       });
 
@@ -238,14 +356,12 @@ function initColunasDropdown() {
     }
   });
 
-  // clique em qualquer parte da página fora do dropdown fecha
   document.addEventListener("mousedown", (e) => {
     if (dropdown.hidden) return;
     if (wrap.contains(e.target)) return;
     fecharDropdownColunas();
   });
 
-  // ESC fecha
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && !dropdown.hidden) {
       fecharDropdownColunas();
@@ -255,7 +371,7 @@ function initColunasDropdown() {
   if (btnTodas) {
     btnTodas.addEventListener("click", () => {
       colunasVisiveis = new Set(TODAS_COLUNAS.map((c) => c.key));
-      salvarColunasVisiveis();
+      salvarLayout();
       aplicarVisibilidadeColunas();
       renderizarDropdownColunas();
     });
@@ -263,10 +379,8 @@ function initColunasDropdown() {
 
   if (btnPadrao) {
     btnPadrao.addEventListener("click", () => {
-      colunasVisiveis = new Set(
-        TODAS_COLUNAS.filter((c) => c.padrao).map((c) => c.key)
-      );
-      salvarColunasVisiveis();
+      colunasVisiveis = new Set(visiveisPadrao());
+      salvarLayout();
       aplicarVisibilidadeColunas();
       renderizarDropdownColunas();
     });
@@ -275,7 +389,7 @@ function initColunasDropdown() {
   if (btnNenhuma) {
     btnNenhuma.addEventListener("click", () => {
       colunasVisiveis = new Set(["CODPARC", "NOME_CLIENTE"]);
-      salvarColunasVisiveis();
+      salvarLayout();
       aplicarVisibilidadeColunas();
       renderizarDropdownColunas();
     });
@@ -988,7 +1102,11 @@ function renderizarMaisLinhas(qtd) {
       }
 
       const full = raw == null ? "" : String(raw);
-      td.textContent = trunc40(full);
+      // mostra o texto completo; o CSS (text-overflow: ellipsis) corta
+      // visualmente conforme a largura da coluna, e o usuário pode
+      // redimensionar a coluna para ver mais. O title mantém o texto
+      // completo no tooltip ao passar o mouse.
+      td.textContent = full;
       td.title = full === "-" ? "" : full;
       tr.appendChild(td);
     }
@@ -1088,7 +1206,37 @@ function renderizarMaisLinhas(qtd) {
   }
 
   linhasRenderizadas = fim;
+
+  // aplica ordem visual, larguras e visibilidade nas linhas recém-criadas
+  reordenarLinhasNovas();
   aplicarVisibilidadeColunas();
+}
+
+// reordena as células das linhas conforme colunasOrdem (usado após render lazy)
+function reordenarLinhasNovas() {
+  const table = document.getElementById("tblCarteira");
+  if (!table) return;
+  const ordemOriginal = TODAS_COLUNAS.map((c) => c.key);
+
+  // se a ordem atual == ordem original, não precisa reordenar
+  let igual = colunasOrdem.length === ordemOriginal.length;
+  if (igual) {
+    for (let i = 0; i < colunasOrdem.length; i++) {
+      if (colunasOrdem[i] !== ordemOriginal[i]) { igual = false; break; }
+    }
+  }
+  if (igual) return;
+
+  table.querySelectorAll("tbody tr").forEach((tr) => {
+    const tds = Array.from(tr.children);
+    if (tds.length !== ordemOriginal.length) return;
+    const frag = document.createDocumentFragment();
+    colunasOrdem.forEach((key) => {
+      const origIdx = ordemOriginal.indexOf(key);
+      if (origIdx >= 0 && tds[origIdx]) frag.appendChild(tds[origIdx]);
+    });
+    tr.appendChild(frag);
+  });
 }
 
 // ================== MODAL CULTURAS ==================
@@ -1625,58 +1773,81 @@ async function exportarTabelaParaExcel() {
   }
 }
 
-// ================== RESIZE / DRAG ==================
+// ================== RESIZE DE COLUNA ==================
+// Grava a largura no <col> (que é quem controla a largura em table-layout:fixed),
+// não no <th>. Persiste por usuário em colunasLarguras.
+
+function getColPorTh(th) {
+  const table = document.getElementById("tblCarteira");
+  if (!table) return null;
+  const key = th.dataset.col;
+  if (!key) return null;
+  return table.querySelector(`colgroup col[data-col-key="${CSS.escape(key)}"]`);
+}
 
 function initColumnResize() {
   const ths = document.querySelectorAll("#tblCarteira thead th");
   ths.forEach((th) => {
+    // evita duplicar handle se reinicializado
+    if (th.querySelector(".col-resize-handle")) return;
+
     const handle = document.createElement("div");
     handle.className = "col-resize-handle";
     th.appendChild(handle);
 
     let startX;
     let startWidth;
+    let col;
 
     handle.addEventListener("mousedown", (e) => {
       e.preventDefault();
       e.stopPropagation();
       startX = e.pageX;
-      startWidth = th.offsetWidth;
+      col = getColPorTh(th);
+      startWidth = col ? col.offsetWidth : th.offsetWidth;
       th.classList.add("resizing");
+      document.body.style.userSelect = "none";
 
       function onMouseMove(ev) {
         const delta = ev.pageX - startX;
-        const newWidth = Math.max(60, startWidth + delta);
-        th.style.width = newWidth + "px";
-        th.style.minWidth = newWidth + "px";
-
-        const idx = Array.from(th.parentNode.children).indexOf(th);
-        const tds = document.querySelectorAll(
-          `#tblCarteira tbody tr td:nth-child(${idx + 1})`
-        );
-        tds.forEach((td) => {
-          td.style.width = newWidth + "px";
-          td.style.minWidth = newWidth + "px";
-        });
+        const newWidth = Math.max(50, startWidth + delta);
+        if (col) {
+          col.style.width = newWidth + "px";
+        }
       }
 
       function onMouseUp() {
         document.removeEventListener("mousemove", onMouseMove);
         document.removeEventListener("mouseup", onMouseUp);
         th.classList.remove("resizing");
+        document.body.style.userSelect = "";
+
+        // persiste a largura final por chave de coluna
+        if (col && col.dataset.colKey) {
+          const w = col.offsetWidth;
+          colunasLarguras[col.dataset.colKey] = w;
+          salvarLayout();
+        }
       }
 
       document.addEventListener("mousemove", onMouseMove);
       document.addEventListener("mouseup", onMouseUp);
     });
+
+    // impede que o mousedown no handle inicie o drag de reordenação
+    handle.addEventListener("dragstart", (e) => e.preventDefault());
   });
 }
 
-function initColumnDrag() {
-  const ths = document.querySelectorAll("#tblCarteira thead th");
-  let dragSrcIndex = null;
+// ================== DRAG / REORDENAR COLUNA ==================
+// Move <col>, <th> e as <td> de cada linha juntos, e persiste a ordem.
 
-  ths.forEach((th, index) => {
+function initColumnDrag() {
+  const headRow = document.querySelector("#tblCarteira thead tr");
+  if (!headRow) return;
+  let dragSrcKey = null;
+
+  headRow.querySelectorAll("th").forEach((th) => {
     th.draggable = true;
 
     th.addEventListener("dragstart", (e) => {
@@ -1684,9 +1855,10 @@ function initColumnDrag() {
         e.preventDefault();
         return;
       }
-      dragSrcIndex = index;
+      dragSrcKey = th.dataset.col;
       th.classList.add("drag-source");
       e.dataTransfer.effectAllowed = "move";
+      try { e.dataTransfer.setData("text/plain", dragSrcKey || ""); } catch (_) {}
     });
 
     th.addEventListener("dragover", (e) => {
@@ -1701,54 +1873,58 @@ function initColumnDrag() {
     th.addEventListener("drop", (e) => {
       e.preventDefault();
       th.classList.remove("drag-over");
-      const destIndex = Array.from(th.parentNode.children).indexOf(th);
-      if (dragSrcIndex === null || dragSrcIndex === destIndex) return;
+      const destKey = th.dataset.col;
+      if (!dragSrcKey || !destKey || dragSrcKey === destKey) return;
 
-      moveTableColumn(dragSrcIndex, destIndex);
-      const oldSrc = dragSrcIndex;
-      dragSrcIndex = null;
-      document
-        .querySelectorAll("#tblCarteira thead th")
-        .forEach((th2) => th2.classList.remove("drag-source"));
+      moverColunaPorKey(dragSrcKey, destKey);
+      dragSrcKey = null;
 
-      if (sortState.colIndex !== null) {
-        if (sortState.colIndex === oldSrc) {
-          sortState.colIndex = destIndex;
-        } else if (
-          sortState.colIndex > oldSrc &&
-          sortState.colIndex <= destIndex
-        ) {
-          sortState.colIndex -= 1;
-        } else if (
-          sortState.colIndex < oldSrc &&
-          sortState.colIndex >= destIndex
-        ) {
-          sortState.colIndex += 1;
-        }
-      }
+      headRow
+        .querySelectorAll("th")
+        .forEach((th2) => th2.classList.remove("drag-source", "drag-over"));
+
+      salvarLayout();
     });
 
     th.addEventListener("dragend", () => {
-      dragSrcIndex = null;
-      ths.forEach((th2) =>
+      dragSrcKey = null;
+      headRow.querySelectorAll("th").forEach((th2) =>
         th2.classList.remove("drag-source", "drag-over")
       );
     });
   });
 }
 
-function moveTableColumn(fromIndex, toIndex) {
-  const table = document.getElementById("tblCarteira");
-  if (!table) return;
+// Move a coluna de origem para a posição da coluna de destino,
+// atualizando colunasOrdem e o DOM (col + th + tds de cada linha).
+function moverColunaPorKey(srcKey, destKey) {
+  const fromIdx = colunasOrdem.indexOf(srcKey);
+  const toIdx = colunasOrdem.indexOf(destKey);
+  if (fromIdx < 0 || toIdx < 0) return;
 
-  const rows = table.rows;
-  for (let i = 0; i < rows.length; i++) {
-    const cells = rows[i].cells;
-    if (toIndex < fromIndex) {
-      rows[i].insertBefore(cells[fromIndex], cells[toIndex]);
-    } else {
-      rows[i].insertBefore(cells[fromIndex], cells[toIndex + 1]);
-    }
+  // atualiza o array de ordem
+  colunasOrdem.splice(fromIdx, 1);
+  colunasOrdem.splice(toIdx, 0, srcKey);
+
+  // guarda o índice de sort (por key) pra restaurar depois
+  const sortKeyAtual = (() => {
+    if (sortState.colIndex == null) return null;
+    const ths = document.querySelectorAll("#tblCarteira thead th");
+    const th = ths[sortState.colIndex];
+    return th ? th.dataset.col : null;
+  })();
+
+  // reconstrói o DOM inteiro na nova ordem
+  reconstruirOrdemDOM();
+
+  // recalcula o índice de sort pela nova posição da key
+  if (sortKeyAtual) {
+    const ths = document.querySelectorAll("#tblCarteira thead th");
+    let novoIdx = null;
+    ths.forEach((th, i) => {
+      if (th.dataset.col === sortKeyAtual) novoIdx = i;
+    });
+    sortState.colIndex = novoIdx;
   }
 }
 
@@ -1776,12 +1952,16 @@ window.addEventListener("DOMContentLoaded", async () => {
   if (nomeEl) nomeEl.textContent = user.nome || "Usuário VISYA";
   if (emailEl) emailEl.textContent = user.email || "";
 
-  carregarColunasVisiveis();
+  // carrega layout do usuário e aplica ordem/largura/visibilidade
+  carregarLayout();
+  reconstruirOrdemDOM();
+  aplicarLargurasColunas();
   aplicarVisibilidadeColunas();
 
   const btnAplicar = document.getElementById("btnAplicarCart");
   const btnLimpar = document.getElementById("btnLimparCart");
   const btnExport = document.getElementById("btnExportExcelCart");
+  const btnReset = document.getElementById("btnResetLayout");
   const btnCloseModal = document.getElementById("btnCloseCulturasModal");
   const modal = document.getElementById("culturasModal");
   const btnClosePropModal = document.getElementById("btnClosePropriedadesModal");
@@ -1795,6 +1975,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     });
   }
   if (btnExport) btnExport.addEventListener("click", exportarTabelaParaExcel);
+  if (btnReset) btnReset.addEventListener("click", resetarLayout);
 
   if (btnCloseModal) {
     btnCloseModal.addEventListener("click", fecharModalCulturas);
@@ -1864,7 +2045,10 @@ window.addEventListener("DOMContentLoaded", async () => {
     .forEach((th, idx) => {
       th.addEventListener("click", (e) => {
         if (e.target.classList.contains("col-resize-handle")) return;
-        sortByColumn(idx);
+        // calcula índice atual da th (a ordem pode ter mudado)
+        const ths = Array.from(document.querySelectorAll("#tblCarteira thead th"));
+        const realIdx = ths.indexOf(th);
+        sortByColumn(realIdx);
       });
     });
 

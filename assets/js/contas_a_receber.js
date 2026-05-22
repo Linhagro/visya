@@ -12,6 +12,9 @@ let heatLayer = null;
 let debugMarkerLayer = null;
 let ultimoDashboardData = null;
 
+// Vista do mapa: "heat" | "pins"
+let vistaMapa = "heat";
+
 const pontoIcon = L.icon({
   iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
   iconSize: [25, 41],
@@ -34,12 +37,6 @@ function debounce(fn, delay) {
 function getUsuarioObrigatorioCR() {
   const user =
     typeof getUsuarioAtual === "function" ? getUsuarioAtual() : null;
-  console.log("[CR][getUsuarioObrigatorio] user:", user && {
-    email: user.email,
-    nome: user.nome,
-    tipo: user.tipo,
-    perfis: user.perfis
-  });
 
   if (!user) {
     console.warn("[CR][getUsuarioObrigatorio] Sem usuário, redirecionando.");
@@ -57,7 +54,6 @@ function getUsuarioObrigatorioCR() {
 function getAuthHeadersCR() {
   const user = getUsuarioObrigatorioCR();
   if (!user) {
-    console.warn("[CR][getAuthHeadersCR] Sem usuário, retornando headers mínimos.");
     return { "Content-Type": "application/json" };
   }
 
@@ -72,8 +68,6 @@ function getAuthHeadersCR() {
         (window.sessionStorage && sessionStorage.getItem("authToken")) || null;
       if (token) {
         headers["Authorization"] = "Bearer " + token;
-      } else {
-        console.warn("[CR][getAuthHeadersCR] authToken ausente no sessionStorage.");
       }
     } catch (e) {
       console.warn("[CR][getAuthHeadersCR] Erro ao ler authToken:", e);
@@ -81,28 +75,17 @@ function getAuthHeadersCR() {
   }
 
   headers["x-usuario-email"] = user.email;
-
-  const safe = { ...headers };
-  if (safe.Authorization) safe.Authorization = "Bearer ****";
-  console.log("[CR][getAuthHeadersCR] Headers finais:", safe);
-
   return headers;
 }
 
 async function apiGetCR(path) {
   const base = getApiBaseCR();
   if (!base) {
-    console.error("[CR][apiGetCR] API base não definida.");
     throw new Error("API base não configurada");
   }
 
   const url = base + path;
-  console.log("[CR][apiGetCR] URL:", url);
-
   const headers = getAuthHeadersCR();
-  const safe = { ...headers };
-  if (safe.Authorization) safe.Authorization = "Bearer ****";
-  console.log("[CR][apiGetCR] Headers enviados:", safe);
 
   let resp;
   try {
@@ -112,8 +95,6 @@ async function apiGetCR(path) {
     throw new Error("Falha na comunicação com o servidor (contas a receber)");
   }
 
-  console.log("[CR][apiGetCR] HTTP status:", resp.status);
-
   if (!resp.ok) {
     let body = "";
     try {
@@ -122,16 +103,11 @@ async function apiGetCR(path) {
       console.warn("[CR][apiGetCR] Erro ao ler corpo:", e);
     }
     console.error("[CR][apiGetCR] Resposta não OK:", "status=", resp.status, "body=", body);
-    if (resp.status === 401) {
-      console.warn("[CR][apiGetCR] 401 - não autorizado.");
-    }
     throw new Error("HTTP " + resp.status + " ao chamar " + path);
   }
 
   try {
-    const json = await resp.json();
-    console.log("[CR][apiGetCR] JSON recebido:", json);
-    return json;
+    return await resp.json();
   } catch (e) {
     console.error("[CR][apiGetCR] Erro ao fazer parse JSON:", e);
     throw new Error("Erro ao interpretar resposta JSON");
@@ -159,12 +135,10 @@ function hideLoader() {
 // =====================
 
 window.addEventListener("DOMContentLoaded", () => {
-  console.log("[CR] DOMContentLoaded");
-
   const user = getUsuarioObrigatorioCR();
   if (!user) return;
 
-   const crUserNome = document.getElementById("crUserNome");
+  const crUserNome = document.getElementById("crUserNome");
   const crUserEmail = document.getElementById("crUserEmail");
   if (crUserNome) crUserNome.textContent = user.nome || user.email || "";
   if (crUserEmail) crUserEmail.textContent = user.email || "";
@@ -193,7 +167,6 @@ window.addEventListener("DOMContentLoaded", () => {
 
   if (btnAplicar) {
     btnAplicar.addEventListener("click", () => {
-      console.log("[CR][FILTRO] Botão Aplicar clicado");
       if (!anoValidoOuVazio()) return;
       atualizarTudo();
     });
@@ -201,7 +174,6 @@ window.addEventListener("DOMContentLoaded", () => {
 
   if (btnLimpar) {
     btnLimpar.addEventListener("click", () => {
-      console.log("[CR][FILTRO] Botão Limpar clicado");
       limparFiltros();
       atualizarTudo();
     });
@@ -217,22 +189,15 @@ window.addEventListener("DOMContentLoaded", () => {
   ];
 
   const debouncedAtualizar = debounce(() => {
-    if (!anoValidoOuVazio()) {
-      console.log("[CR][FILTRO] Ano inválido, não atualiza");
-      return;
-    }
+    if (!anoValidoOuVazio()) return;
     atualizarTudo();
   }, 400);
 
   inputsAuto.forEach(id => {
     const el = document.getElementById(id);
-    if (!el) {
-      console.warn(`[CR][INIT] Campo de filtro ${id} não encontrado`);
-      return;
-    }
+    if (!el) return;
     const evt = el.tagName === "SELECT" ? "change" : "input";
     el.addEventListener(evt, () => {
-      console.log("[CR][FILTRO] Campo alterado:", id, "valor:", el.value);
       debouncedAtualizar();
     });
   });
@@ -242,7 +207,6 @@ window.addEventListener("DOMContentLoaded", () => {
     fClienteNome.addEventListener(
       "input",
       debounce(() => {
-        console.log("[CR][FILTRO] Cliente (nome) input:", fClienteNome.value);
         buscarClientePorNome();
       }, 300)
     );
@@ -260,6 +224,20 @@ window.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // Toggle do mapa (Calor / Pinos)
+  document.querySelectorAll(".map-toggle-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      vistaMapa = btn.dataset.vista || "heat";
+      document.querySelectorAll(".map-toggle-btn").forEach(b => {
+        b.classList.toggle("is-active", b === btn);
+      });
+      // Re-renderiza o mapa com os clientes atuais
+      if (ultimoDashboardData) {
+        montarHeatmapAPartirClientes(ultimoDashboardData.clientes || []);
+      }
+    });
+  });
+
   inicializarModalClientes();
   atualizarTudo();
 });
@@ -268,11 +246,12 @@ window.addEventListener("DOMContentLoaded", () => {
 // TOAST / ANO
 // =====================
 
-function mostrarToastAno(msg) {
+function mostrarToastAno(msg, ok = false) {
   const toast = document.getElementById("toastAno");
   const span = document.getElementById("toastAnoMsg");
   if (!toast || !span) return;
   span.textContent = msg;
+  toast.classList.toggle("toast-ano-ok", !!ok);
   toast.classList.add("toast-ano-visible");
   toast.setAttribute("aria-hidden", "false");
   setTimeout(() => {
@@ -308,8 +287,6 @@ function anoValidoOuVazio() {
 }
 
 function limparFiltros() {
-  console.log("[CR][FILTRO] limparFiltros executado");
-
   const anoAtual = new Date().getFullYear();
   const fAno = document.getElementById("fAno");
   if (fAno) fAno.value = anoAtual < 2020 ? 2020 : anoAtual;
@@ -376,7 +353,6 @@ function getFiltrosQueryString(extra = {}) {
   });
 
   const qs = params.toString();
-  console.log("[CR][FILTRO] QueryString gerada:", qs);
   return qs ? "?" + qs : "";
 }
 
@@ -417,12 +393,10 @@ async function carregarDashboard() {
   const pathInad = `/inadimplencia/dashboard${qs}`;
   const pathVend = `/vendas/dashboard${qs}`;
 
-  console.log("[CR][DASHBOARD] Paths:", pathInad, pathVend);
-
   const cardReceita = document.getElementById("cardReceitaTotal");
   const cardInad = document.getElementById("cardInad");
   const cardClientes = document.getElementById("cardClientesInad");
-    const cardTicket = document.getElementById("cardTicket");
+  const cardTicket = document.getElementById("cardTicket");
 
   if (cardReceita) cardReceita.textContent = "…";
   if (cardInad) cardInad.textContent = "…";
@@ -469,7 +443,8 @@ async function initLeafletMap() {
     zoomControl: true
   }).setView([-15, -50], 4);
 
-  L.tileLayer("https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png", {
+  // Tile escuro CartoDB (padrão VISYA)
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
     maxZoom: 19
   }).addTo(leafletMap);
 
@@ -496,14 +471,17 @@ function montarHeatmapAPartirClientes(clientes) {
         !isNaN(c.lng)
     );
 
-  if (!pontos.length) {
-    if (heatLayer) heatLayer.setLatLngs([]);
-    if (debugMarkerLayer) debugMarkerLayer.clearLayers();
-    return;
+  // Limpa camadas antes de redesenhar
+  if (debugMarkerLayer) debugMarkerLayer.clearLayers();
+  if (heatLayer) {
+    leafletMap.removeLayer(heatLayer);
+    heatLayer = null;
   }
 
-  if (debugMarkerLayer) {
-    debugMarkerLayer.clearLayers();
+  if (!pontos.length) return;
+
+  // Vista PINOS: mostra marcadores
+  if (vistaMapa === "pins") {
     pontos.forEach(p => {
       const marker = L.marker([p.lat, p.lng], { icon: pontoIcon }).bindPopup(
         `Cliente: ${p.nome_cliente || p.codparc}<br>` +
@@ -512,17 +490,16 @@ function montarHeatmapAPartirClientes(clientes) {
       );
       debugMarkerLayer.addLayer(marker);
     });
-  }
+  } else {
+    // Vista CALOR (heatmap)
+    const valores = pontos.map(c => c.valor_inadimplencia);
+    const maxValor = Math.max(...valores, 0.0001);
+    const heatData = pontos.map(c => {
+      const intensidadeBruta = c.valor_inadimplencia / maxValor;
+      const intensidade = Math.max(Math.min(intensidadeBruta, 1), 0.3);
+      return [c.lat, c.lng, intensidade];
+    });
 
-  const valores = pontos.map(c => c.valor_inadimplencia);
-  const maxValor = Math.max(...valores, 0.0001);
-  const heatData = pontos.map(c => {
-    const intensidadeBruta = c.valor_inadimplencia / maxValor;
-    const intensidade = Math.max(Math.min(intensidadeBruta, 1), 0.3);
-    return [c.lat, c.lng, intensidade];
-  });
-
-  if (!heatLayer) {
     heatLayer = L.heatLayer(heatData, {
       minOpacity: 0.4,
       maxZoom: 10,
@@ -530,15 +507,13 @@ function montarHeatmapAPartirClientes(clientes) {
       radius: 35,
       blur: 22,
       gradient: {
-        0.0: "#22c55e",
-        0.3: "#84cc16",
-        0.5: "#eab308",
-        0.7: "#f97316",
-        1.0: "#ef4444"
+        0.0: "#3d8c5e",
+        0.3: "#7cb342",
+        0.5: "#d4a056",
+        0.7: "#e07b39",
+        1.0: "#c25450"
       }
     }).addTo(leafletMap);
-  } else {
-    heatLayer.setLatLngs(heatData);
   }
 
   const brasilBounds = L.latLngBounds(
@@ -689,7 +664,7 @@ async function buscarClientePorNome() {
         const vendedor = c.nome_vendedor || "Sem vendedor";
         const valor = fmtValor(c.valor_inadimplencia || 0);
         return `
-          >
+          <li>
             <span class="nome">${nome}</span>
             <span class="vendedor">${vendedor}</span>
             <span class="valor">${valor}</span>
@@ -772,7 +747,7 @@ function abrirModalClientes({ origem, titulo, clientes }) {
           <td>${nomeCliente}</td>
           <td>${nomeVendedor}</td>
           <td>${regiao}</td>
-          <td>${valor}</td>
+          <td class="num">${valor}</td>
         </tr>
       `;
     });
@@ -795,17 +770,15 @@ function fecharModalClientes() {
 // =====================
 
 async function atualizarTudo() {
-  console.log("========== [CR][ATUALIZAR TUDO] ==========");
   showLoader();
   try {
     const dataDash = await carregarDashboard();
     await initLeafletMap();
     montarHeatmapAPartirClientes(dataDash.clientes || []);
     montarRankingAPartirClientes(dataDash.clientes || []);
-    console.log("[CR][ATUALIZAR TUDO] Concluído com sucesso");
   } catch (e) {
     console.error("[CR][ATUALIZAR TUDO] Erro:", e);
-    alert("Erro ao carregar dados: " + e.message);
+    mostrarToastAno("Erro ao carregar dados: " + e.message);
   } finally {
     hideLoader();
   }

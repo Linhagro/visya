@@ -5,10 +5,10 @@
   <title>VISYA - Estoque</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <!-- Mesma fonte do sidebar -->
+  <!-- Fontes padrão VISYA -->
   <link
     rel="stylesheet"
-    href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
   />
 
   <!-- CSS específico Estoque -->
@@ -137,11 +137,38 @@
         <strong class="resumo-valor" id="cardQtdeGrupos">0</strong>
         <span class="resumo-legenda">Por filtro atual</span>
       </div>
+
+      <div class="resumo-card resumo-card-valor">
+        <div class="resumo-valor-head">
+          <span class="resumo-label">Valor em estoque</span>
+          <button
+            type="button"
+            class="btn-valores-eye"
+            id="btnVerValores"
+            title="Ver valores (senha necessária)"
+          >
+            👁
+          </button>
+        </div>
+        <strong class="resumo-valor" id="cardValorEstoque">R$ ***</strong>
+        <span class="resumo-legenda">Estoque × Preço (filtrado)</span>
+      </div>
+
+      <div class="resumo-card resumo-card-valor">
+        <span class="resumo-label">Valor disponível</span>
+        <strong class="resumo-valor" id="cardValorDisponivel">R$ ***</strong>
+        <span class="resumo-legenda">Disponível × Preço (filtrado)</span>
+      </div>
     </section>
 
     <!-- TABELA -->
     <section class="estoque-tabela-bloco">
       <div class="estoque-tabela-header">
+        <div class="toggle-estoque-grupo">
+          <button type="button" class="toggle-estoque-btn is-active" data-filtro="todos">Todos</button>
+          <button type="button" class="toggle-estoque-btn" data-filtro="com">Em estoque</button>
+          <button type="button" class="toggle-estoque-btn" data-filtro="sem">Sem estoque</button>
+        </div>
         <span id="infoRegistros">Mostrando 0 de 0 registros</span>
       </div>
 

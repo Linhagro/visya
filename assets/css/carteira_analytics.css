@@ -925,9 +925,11 @@ body.light-theme .table-wrapper::-webkit-scrollbar-thumb:hover {
   border-spacing: 0;
   font-size: 11px;
   color: var(--text-0);
-  width: 5320px;
-  min-width: 5320px;
-  max-width: 5320px;
+  /* largura automática: a tabela soma as larguras das colunas (das classes
+     .w-* e dos col.style.width gravados pelo resize). NÃO fixar em 5320px,
+     senão o navegador redistribui as colunas e o resize "não pega". */
+  width: max-content;
+  min-width: 100%;
 }
 
 body.light-theme .carteira-table {
@@ -1487,57 +1489,60 @@ body.light-theme .loader-overlay {
 }
 
 /* ============ LARGURAS DAS COLUNAS ============ */
+/* IMPORTANTE: sem max-width — o max-width travava o redimensionamento de
+   coluna (resize). O resize grava col.style.width inline, que sobrepõe estes
+   valores-base. O min-width baixo (50px) só garante um piso para a coluna
+   não desaparecer ao arrastar. */
 
-.w-cod-vendedor { width: 95px; min-width: 95px; max-width: 95px; }
-.w-nome-vendedor { width: 190px; min-width: 190px; max-width: 190px; }
-.w-cod-cliente { width: 95px; min-width: 95px; max-width: 95px; }
-.w-nome-cliente { width: 220px; min-width: 220px; max-width: 220px; }
-.w-propriedades { width: 110px; min-width: 110px; max-width: 110px; }
+.w-cod-vendedor { width: 95px; min-width: 50px; }
+.w-nome-vendedor { width: 190px; min-width: 50px; }
+.w-cod-cliente { width: 95px; min-width: 50px; }
+.w-nome-cliente { width: 220px; min-width: 50px; }
+.w-propriedades { width: 110px; min-width: 50px; }
 
-.w-end-comp { width: 160px; min-width: 160px; max-width: 160px; }
-.w-end-num { width: 80px; min-width: 80px; max-width: 80px; }
-.w-end-logradouro { width: 230px; min-width: 230px; max-width: 230px; }
-.w-end-bairro { width: 160px; min-width: 160px; max-width: 160px; }
-.w-end-cidade { width: 170px; min-width: 170px; max-width: 170px; }
-.w-end-cidade-cod { width: 100px; min-width: 100px; max-width: 100px; }
-.w-end-uf { width: 60px; min-width: 60px; max-width: 60px; }
-.w-end-cep { width: 95px; min-width: 95px; max-width: 95px; }
+.w-end-comp { width: 160px; min-width: 50px; }
+.w-end-num { width: 80px; min-width: 50px; }
+.w-end-logradouro { width: 230px; min-width: 50px; }
+.w-end-bairro { width: 160px; min-width: 50px; }
+.w-end-cidade { width: 170px; min-width: 50px; }
+.w-end-cidade-cod { width: 100px; min-width: 50px; }
+.w-end-uf { width: 60px; min-width: 50px; }
+.w-end-cep { width: 95px; min-width: 50px; }
 
-.w-cultura-qtde { width: 95px; min-width: 95px; max-width: 95px; }
-.w-cultura-resumo { width: 260px; min-width: 260px; max-width: 260px; }
-.w-cultura-detalhe { width: 90px; min-width: 90px; max-width: 90px; }
+.w-cultura-qtde { width: 95px; min-width: 50px; }
+.w-cultura-resumo { width: 260px; min-width: 50px; }
+.w-cultura-detalhe { width: 90px; min-width: 50px; }
 
-.w-telefone { width: 130px; min-width: 130px; max-width: 130px; }
-.w-email { width: 220px; min-width: 220px; max-width: 220px; }
+.w-telefone { width: 130px; min-width: 50px; }
+.w-email { width: 220px; min-width: 50px; }
 
-.w-lat { width: 110px; min-width: 110px; max-width: 110px; }
-.w-lng { width: 110px; min-width: 110px; max-width: 110px; }
+.w-lat { width: 110px; min-width: 50px; }
+.w-lng { width: 110px; min-width: 50px; }
 
-.w-cod-emp { width: 90px; min-width: 90px; max-width: 90px; }
-.w-dtlim { width: 110px; min-width: 110px; max-width: 110px; }
-.w-limcred { width: 130px; min-width: 130px; max-width: 130px; }
+.w-cod-emp { width: 90px; min-width: 50px; }
+.w-dtlim { width: 110px; min-width: 50px; }
+.w-limcred { width: 130px; min-width: 50px; }
 
-.w-nrounico { width: 100px; min-width: 100px; max-width: 100px; }
-.w-numnota { width: 95px; min-width: 95px; max-width: 95px; }
-.w-dtvenda { width: 110px; min-width: 110px; max-width: 110px; }
-.w-valortotal { width: 130px; min-width: 130px; max-width: 130px; }
-.w-vv-cod { width: 115px; min-width: 115px; max-width: 115px; }
-.w-vv-nome { width: 180px; min-width: 180px; max-width: 180px; }
-.w-vv-cargo { width: 140px; min-width: 140px; max-width: 140px; }
+.w-nrounico { width: 100px; min-width: 50px; }
+.w-numnota { width: 95px; min-width: 50px; }
+.w-dtvenda { width: 110px; min-width: 50px; }
+.w-valortotal { width: 130px; min-width: 50px; }
+.w-vv-cod { width: 115px; min-width: 50px; }
+.w-vv-nome { width: 180px; min-width: 50px; }
+.w-vv-cargo { width: 140px; min-width: 50px; }
 
-.w-atv-id { width: 100px; min-width: 100px; max-width: 100px; }
-.w-atv-lanc { width: 120px; min-width: 120px; max-width: 120px; }
-.w-atv-visita { width: 135px; min-width: 135px; max-width: 135px; }
-.w-atv-assunto { width: 220px; min-width: 220px; max-width: 220px; }
-.w-atv-obs { width: 280px; min-width: 280px; max-width: 280px; }
+.w-atv-id { width: 100px; min-width: 50px; }
+.w-atv-lanc { width: 120px; min-width: 50px; }
+.w-atv-visita { width: 135px; min-width: 50px; }
+.w-atv-assunto { width: 220px; min-width: 50px; }
+.w-atv-obs { width: 280px; min-width: 50px; }
 
 .w-total-2024,
 .w-total-2025,
 .w-total-2026,
 .w-ltv {
   width: 130px;
-  min-width: 130px;
-  max-width: 130px;
+  min-width: 50px;
 }
 
 /* ============ RESPONSIVE ============ */

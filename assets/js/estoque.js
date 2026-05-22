@@ -22,6 +22,16 @@ let precoSenhaValidada = false;
 let estoqueBruto = [];
 let itensFiltrados = [];
 
+// Filtro de estoque: "todos" | "com" | "sem"
+let filtroEstoque = "todos";
+
+// Guarda os valores calculados (pra alternar entre mascarado/revelado)
+let valoresCalc = {
+  valorEstoque: 0,
+  valorDisponivel: 0,
+};
+let valoresMascarados = true;
+
 const loaderOverlay = document.getElementById("loaderOverlay");
 let loaderTimerId = null;
 
@@ -171,6 +181,21 @@ window.addEventListener("DOMContentLoaded", () => {
     .getElementById("fProdCod")
     ?.addEventListener("input", aplicarFiltroLocal);
 
+  // Botões toggle de filtro de estoque
+  document.querySelectorAll(".toggle-estoque-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      filtroEstoque = btn.dataset.filtro || "todos";
+      document.querySelectorAll(".toggle-estoque-btn").forEach((b) => {
+        b.classList.toggle("is-active", b === btn);
+      });
+      aplicarFiltroLocal();
+    });
+  });
+
+  // Botão de olho dos cards de valor
+  const btnVerValores = document.getElementById("btnVerValores");
+  if (btnVerValores) btnVerValores.addEventListener("click", onClickVerValores);
+
   initPrecoModal();
   window.addEventListener("resize", ajustarAlturaTabela);
 
@@ -189,6 +214,12 @@ function limparFiltros() {
   if (grupoNome) grupoNome.value = "";
   if (prodCod) prodCod.value = "";
   if (prodNome) prodNome.value = "";
+
+  // Reseta o toggle pra "todos"
+  filtroEstoque = "todos";
+  document.querySelectorAll(".toggle-estoque-btn").forEach((b) => {
+    b.classList.toggle("is-active", b.dataset.filtro === "todos");
+  });
 
   carregarEstoque();
 }
@@ -249,6 +280,8 @@ async function carregarEstoque() {
       if (cardReservadoTotal) cardReservadoTotal.textContent = "0,00";
       if (cardDisponivelTotal) cardDisponivelTotal.textContent = "0,00";
       if (cardQtdeGrupos) cardQtdeGrupos.textContent = "0";
+      valoresCalc = { valorEstoque: 0, valorDisponivel: 0 };
+      atualizarCardsValor();
       if (infoRegistros)
         infoRegistros.textContent = "Mostrando 0 de 0 registros";
       return;
@@ -269,6 +302,8 @@ async function carregarEstoque() {
     if (cardReservadoTotal) cardReservadoTotal.textContent = "—";
     if (cardDisponivelTotal) cardDisponivelTotal.textContent = "—";
     if (cardQtdeGrupos) cardQtdeGrupos.textContent = "—";
+    valoresCalc = { valorEstoque: 0, valorDisponivel: 0 };
+    atualizarCardsValor();
     if (infoRegistros) {
       infoRegistros.textContent =
         "Erro ao carregar (detalhes no console do navegador)";
@@ -301,8 +336,6 @@ function aplicarFiltroLocal() {
 
   const grupoCodFiltro = grupoCodFiltroRaw || null;
   const prodCodFiltro = prodCodFiltroRaw || null;
-
-  const somenteReservado = false;
 
   let itens = estoqueBruto.slice();
 
@@ -350,10 +383,16 @@ function aplicarFiltroLocal() {
     });
   }
 
-  if (somenteReservado) {
+  // Filtro de estoque (toggle): com / sem estoque
+  if (filtroEstoque === "com") {
     itens = itens.filter((r) => {
-      const reservado = Number(r.RESERVADO ?? r.reservado ?? 0);
-      return reservado > 0;
+      const estoque = Number(r.ESTOQUE ?? r.estoque ?? 0);
+      return estoque > 0;
+    });
+  } else if (filtroEstoque === "sem") {
+    itens = itens.filter((r) => {
+      const estoque = Number(r.ESTOQUE ?? r.estoque ?? 0);
+      return estoque <= 0;
     });
   }
 
@@ -371,6 +410,8 @@ function aplicarFiltroLocal() {
     if (cardReservadoTotal) cardReservadoTotal.textContent = "0,00";
     if (cardDisponivelTotal) cardDisponivelTotal.textContent = "0,00";
     if (cardQtdeGrupos) cardQtdeGrupos.textContent = "0";
+    valoresCalc = { valorEstoque: 0, valorDisponivel: 0 };
+    atualizarCardsValor();
     if (infoRegistros)
       infoRegistros.textContent = "Mostrando 0 de 0 registros";
     return;
@@ -379,18 +420,29 @@ function aplicarFiltroLocal() {
   let html = "";
   let totalEstoque = 0;
   let totalReservado = 0;
+  let totalValorEstoque = 0;
+  let totalValorDisponivel = 0;
   const gruposSet = new Set();
 
+  // Primeiro passo: totais (incluindo valores)
   for (const r of itensFiltrados) {
     const estoque = Number(r.ESTOQUE ?? r.estoque ?? 0);
     const reservado = Number(r.RESERVADO ?? r.reservado ?? 0);
+    const disponivel = Number(
+      r.EstoqueDisponivel ?? r.estoquedisponivel ?? estoque - reservado
+    );
+    const preco = Number(r.PrecoVenda ?? r.precoVenda ?? 0);
+
     totalEstoque += estoque;
     totalReservado += reservado;
-    const grupoNomeFull =
-      r.NomeGrupoProduto ?? r.nomeGrupoProduto ?? "";
+    totalValorEstoque += estoque * preco;
+    totalValorDisponivel += disponivel * preco;
+
+    const grupoNomeFull = r.NomeGrupoProduto ?? r.nomeGrupoProduto ?? "";
     if (grupoNomeFull) gruposSet.add(grupoNomeFull);
   }
 
+  // Segundo passo: linhas da tabela
   for (const r of itensFiltrados) {
     const estoque = Number(r.ESTOQUE ?? r.estoque ?? 0);
     const reservado = Number(r.RESERVADO ?? r.reservado ?? 0);
@@ -481,10 +533,73 @@ function aplicarFiltroLocal() {
   if (cardDisponivelTotal)
     cardDisponivelTotal.textContent = formatNumber(totalDisponivel);
   if (cardQtdeGrupos) cardQtdeGrupos.textContent = String(gruposSet.size);
+
+  // Guarda os valores calculados e atualiza os cards de valor (respeitando máscara)
+  valoresCalc = {
+    valorEstoque: totalValorEstoque,
+    valorDisponivel: totalValorDisponivel,
+  };
+  atualizarCardsValor();
+
   if (infoRegistros) {
     infoRegistros.textContent =
       "Total filtrado: " + itensFiltrados.length + " registros";
   }
+}
+
+// ================== CARDS DE VALOR (OCULTOS) ==================
+
+function formatMoeda(v) {
+  const n = Number(v || 0);
+  return (
+    "R$ " +
+    n.toLocaleString("pt-BR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })
+  );
+}
+
+function atualizarCardsValor() {
+  const cardValorEstoque = document.getElementById("cardValorEstoque");
+  const cardValorDisponivel = document.getElementById("cardValorDisponivel");
+  const btnVerValores = document.getElementById("btnVerValores");
+
+  // Se a senha já foi validada e o usuário pediu pra revelar, mostra
+  const revelar = precoSenhaValidada && !valoresMascarados;
+
+  if (cardValorEstoque) {
+    cardValorEstoque.textContent = revelar
+      ? formatMoeda(valoresCalc.valorEstoque)
+      : "R$ ***";
+  }
+  if (cardValorDisponivel) {
+    cardValorDisponivel.textContent = revelar
+      ? formatMoeda(valoresCalc.valorDisponivel)
+      : "R$ ***";
+  }
+  if (btnVerValores) {
+    btnVerValores.textContent = revelar ? "🙈" : "👁";
+    btnVerValores.title = revelar
+      ? "Ocultar valores"
+      : "Ver valores (senha necessária)";
+  }
+}
+
+function onClickVerValores() {
+  // Se ainda não validou a senha, abre o modal
+  if (!precoSenhaValidada) {
+    abrirPrecoModal(() => {
+      // callback após validar senha: revela
+      valoresMascarados = false;
+      atualizarCardsValor();
+    });
+    return;
+  }
+
+  // Já validou: só alterna
+  valoresMascarados = !valoresMascarados;
+  atualizarCardsValor();
 }
 
 // ================== VISUAL / UTILS ==================
@@ -526,6 +641,8 @@ function escapeHtml(str) {
 
 // ================== MODAL SENHA / PREÇO ==================
 
+let precoModalCallback = null;
+
 function initPrecoModal() {
   const modal = document.getElementById("precoSenhaModal");
   const input = document.getElementById("precoSenhaInput");
@@ -542,6 +659,7 @@ function initPrecoModal() {
     modal.style.display = "none";
     input.value = "";
     erroEl.textContent = "";
+    precoModalCallback = null;
   });
 
   btnConfirmar.addEventListener("click", () => {
@@ -551,6 +669,12 @@ function initPrecoModal() {
       modal.style.display = "none";
       input.value = "";
       erroEl.textContent = "";
+      // Executa callback se houver (ex: revelar valores)
+      if (typeof precoModalCallback === "function") {
+        const cb = precoModalCallback;
+        precoModalCallback = null;
+        cb();
+      }
     } else {
       erroEl.textContent = "Senha inválida.";
       precoSenhaValidada = false;
@@ -566,11 +690,12 @@ function initPrecoModal() {
   });
 }
 
-function abrirPrecoModal() {
+function abrirPrecoModal(callback) {
   const modal = document.getElementById("precoSenhaModal");
   const input = document.getElementById("precoSenhaInput");
   const erroEl = document.getElementById("precoSenhaErro");
   if (!modal || !input || !erroEl) return;
+  precoModalCallback = typeof callback === "function" ? callback : null;
   erroEl.textContent = "";
   input.value = "";
   modal.style.display = "flex";

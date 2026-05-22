@@ -5,17 +5,30 @@ if (!window.API_BASE) {
     "https://org-dash-api-e4epa4anfpguandz.canadacentral-01.azurewebsites.net/api/v1";
 }
 
-let permissoesAtuais = []; // array MERGEADO: 1 item por tela
+let usuariosCache = [];        // lista completa de usuários
 let usuarioSelecionadoId = null;
+let permissoesAtuais = [];     // array mergeado: 1 item por tela { idTela, modulo, nomeTela, nivelAcesso... }
+let modulosAbertos = new Set(); // módulos expandidos
 
 const loaderOverlay = document.getElementById("loaderOverlay");
 let loaderTimerId = null;
+
+// ================== TOAST ==================
+
+function toastRegras(msg, tipo = "") {
+  const t = document.getElementById("regrasToast");
+  if (!t) return;
+  t.textContent = msg;
+  t.className = "regras-toast is-visible" + (tipo ? " is-" + tipo : "");
+  setTimeout(() => {
+    t.classList.remove("is-visible");
+  }, 3000);
+}
 
 // ================== LOADER ==================
 
 function setLoadingRegras(isLoading) {
   if (!loaderOverlay) return;
-
   if (isLoading) {
     if (loaderTimerId !== null) clearTimeout(loaderTimerId);
     loaderTimerId = setTimeout(() => {
@@ -35,7 +48,6 @@ function setLoadingRegras(isLoading) {
 function getUsuarioObrigatorioRegras() {
   const user =
     typeof getUsuarioAtual === "function" ? getUsuarioAtual() : null;
-
   if (!user || !user.email) {
     window.location.href = "/index.html";
     return null;
@@ -68,7 +80,6 @@ function getAuthHeadersRegras() {
 async function apiGetRegras(path) {
   const base = window.API_BASE;
   if (!base) throw new Error("API base não configurada");
-
   const url = base + path;
   const headers = getAuthHeadersRegras();
 
@@ -85,14 +96,12 @@ async function apiGetRegras(path) {
     console.error("[REGRAS][GET] HTTP", resp.status, txt);
     throw new Error("HTTP " + resp.status + " ao chamar " + path);
   }
-
   return resp.json();
 }
 
 async function apiPutRegras(path, bodyObj) {
   const base = window.API_BASE;
   if (!base) throw new Error("API base não configurada");
-
   const url = base + path;
   const headers = getAuthHeadersRegras();
 
@@ -113,7 +122,6 @@ async function apiPutRegras(path, bodyObj) {
     console.error("[REGRAS][PUT] HTTP", resp.status, txt);
     throw new Error("HTTP " + resp.status + " ao chamar " + path);
   }
-
   return resp.json();
 }
 
@@ -128,98 +136,138 @@ window.addEventListener("DOMContentLoaded", () => {
   if (nomeEl) nomeEl.textContent = user.nome || "Usuário VISYA";
   if (emailEl) emailEl.textContent = user.email || "";
 
-  const selectUsuario = document.getElementById("fUsuario");
-  const btnRecarregar = document.getElementById("btnRecarregarPermissoes");
-  const btnSalvar = document.getElementById("btnSalvarPermissoes");
-  const btnSelecionarTodos = document.getElementById("btnSelecionarTodos");
-  const moduloFiltroEl = document.getElementById("fModulo");
-
-  if (selectUsuario) {
-    selectUsuario.addEventListener("change", () => {
-      usuarioSelecionadoId = selectUsuario.value || null;
-      if (usuarioSelecionadoId) carregarPermissoes();
-      else limparTabelaPermissoes();
+  // Busca de usuários
+  const buscaUsuario = document.getElementById("buscaUsuario");
+  if (buscaUsuario) {
+    buscaUsuario.addEventListener("input", () => {
+      renderListaUsuarios(buscaUsuario.value.trim().toLowerCase());
     });
   }
 
+  // Busca de telas/módulos
+  const buscaTela = document.getElementById("buscaTela");
+  if (buscaTela) {
+    buscaTela.addEventListener("input", () => {
+      filtrarTelas(buscaTela.value.trim().toLowerCase());
+    });
+  }
+
+  // Botões da toolbar
+  const btnRecarregar = document.getElementById("btnRecarregar");
   if (btnRecarregar) {
     btnRecarregar.addEventListener("click", () => {
       if (usuarioSelecionadoId) carregarPermissoes();
     });
   }
 
-  if (btnSalvar) {
-    btnSalvar.addEventListener("click", salvarPermissoes);
-  }
+  const btnSalvar = document.getElementById("btnSalvar");
+  if (btnSalvar) btnSalvar.addEventListener("click", salvarPermissoes);
 
-  if (btnSelecionarTodos) {
-    btnSelecionarTodos.addEventListener("click", selecionarTodos);
-  }
+  const btnExpandir = document.getElementById("btnExpandirTodos");
+  if (btnExpandir) btnExpandir.addEventListener("click", toggleExpandirTodos);
 
-  if (moduloFiltroEl) {
-    moduloFiltroEl.addEventListener("input", () => {
-      syncPillFromText();
-      if (usuarioSelecionadoId) carregarPermissoes();
-    });
-  }
+  const btnMarcar = document.getElementById("btnMarcarTodos");
+  if (btnMarcar) btnMarcar.addEventListener("click", () => marcarTodos(true));
 
-  initModulosStrip();
-  carregarUsuariosParaSelect();
+  const btnLimpar = document.getElementById("btnLimparTodos");
+  if (btnLimpar) btnLimpar.addEventListener("click", () => marcarTodos(false));
+
+  carregarUsuarios();
 });
 
 // ================== CARREGAR USUÁRIOS ==================
 
-async function carregarUsuariosParaSelect() {
-  const selectUsuario = document.getElementById("fUsuario");
-  if (!selectUsuario) return;
-
+async function carregarUsuarios() {
   setLoadingRegras(true);
   try {
     const data = await apiGetRegras("/usuarios");
-    const usuarios = Array.isArray(data.usuarios) ? data.usuarios : [];
-
-    selectUsuario.innerHTML =
-      '<option value="">Selecione um usuário...</option>';
-
-    usuarios.forEach((u) => {
-      const id = u.Id;
-      const nome = u.Nome;
-      const email = u.Email;
-
-      const opt = document.createElement("option");
-      opt.value = id != null ? String(id) : "";
-      opt.textContent = `${nome}${email ? " (" + email + ")" : ""}`;
-      opt.dataset.email = email || "";
-      selectUsuario.appendChild(opt);
-    });
+    usuariosCache = Array.isArray(data.usuarios) ? data.usuarios : [];
+    renderListaUsuarios("");
   } catch (e) {
     console.error("[REGRAS][carregarUsuarios] Erro:", e);
-    alert("Erro ao carregar lista de usuários.");
+    const lista = document.getElementById("usuariosLista");
+    if (lista) {
+      lista.innerHTML =
+        '<div class="usuarios-empty">Erro ao carregar usuários.</div>';
+    }
+    toastRegras("Erro ao carregar lista de usuários.", "error");
   } finally {
     setLoadingRegras(false);
   }
 }
 
-// ================== CARREGAR TELAS + PERMISSÕES (MERGE) ==================
+function iniciaisDoNome(nome) {
+  const partes = String(nome || "").trim().split(/\s+/);
+  if (!partes.length || !partes[0]) return "?";
+  if (partes.length === 1) return partes[0].slice(0, 2);
+  return (partes[0][0] || "") + (partes[partes.length - 1][0] || "");
+}
+
+function renderListaUsuarios(filtro) {
+  const lista = document.getElementById("usuariosLista");
+  if (!lista) return;
+
+  let usuarios = usuariosCache.slice();
+  if (filtro) {
+    usuarios = usuarios.filter((u) => {
+      const nome = String(u.Nome || "").toLowerCase();
+      const email = String(u.Email || "").toLowerCase();
+      return nome.includes(filtro) || email.includes(filtro);
+    });
+  }
+
+  if (!usuarios.length) {
+    lista.innerHTML =
+      '<div class="usuarios-empty">Nenhum usuário encontrado.</div>';
+    return;
+  }
+
+  let html = "";
+  usuarios.forEach((u) => {
+    const id = u.Id != null ? String(u.Id) : "";
+    const nome = u.Nome || "Sem nome";
+    const email = u.Email || "";
+    const ativo = id === String(usuarioSelecionadoId) ? "is-active" : "";
+    html += `
+      <div class="usuario-item ${ativo}" data-id="${escapeHtml(id)}" data-nome="${escapeHtml(nome)}" data-email="${escapeHtml(email)}">
+        <div class="usuario-avatar">${escapeHtml(iniciaisDoNome(nome))}</div>
+        <div class="usuario-dados">
+          <span class="usuario-nome">${escapeHtml(nome)}</span>
+          <span class="usuario-email">${escapeHtml(email)}</span>
+        </div>
+      </div>
+    `;
+  });
+  lista.innerHTML = html;
+
+  lista.querySelectorAll(".usuario-item").forEach((item) => {
+    item.addEventListener("click", () => {
+      usuarioSelecionadoId = item.dataset.id || null;
+      const nome = item.dataset.nome || "—";
+
+      lista.querySelectorAll(".usuario-item").forEach((i) =>
+        i.classList.toggle("is-active", i === item)
+      );
+
+      const nomeEl = document.getElementById("permUsuarioNome");
+      if (nomeEl) nomeEl.textContent = nome;
+
+      if (usuarioSelecionadoId) carregarPermissoes();
+    });
+  });
+}
+
+// ================== CARREGAR PERMISSÕES (MERGE) ==================
 
 async function carregarPermissoes() {
-  const tbody = document.getElementById("tbodyPermissoes");
-  const info = document.getElementById("infoRegistrosRegras");
-  const moduloFiltroEl = document.getElementById("fModulo");
-  if (!tbody || !usuarioSelecionadoId) return;
+  if (!usuarioSelecionadoId) return;
 
-  const moduloFiltro = (moduloFiltroEl?.value || "").trim().toUpperCase();
+  const vazio = document.getElementById("permissoesVazio");
+  const conteudo = document.getElementById("permissoesConteudo");
+  if (vazio) vazio.style.display = "none";
+  if (conteudo) conteudo.style.display = "flex";
 
   setLoadingRegras(true);
-  tbody.innerHTML = `
-    <tr>
-      <td colspan="3" class="regras-empty">
-        Carregando permissões...
-      </td>
-    </tr>
-  `;
-  if (info) info.textContent = "Carregando permissões...";
-
   try {
     const respTelas = await apiGetRegras("/telas");
     const telas = Array.isArray(respTelas.telas) ? respTelas.telas : [];
@@ -232,73 +280,49 @@ async function carregarPermissoes() {
       : [];
 
     const mapaPerm = new Map();
-    permissoesUsuario.forEach((p) => {
-      mapaPerm.set(p.idTela, p);
-    });
+    permissoesUsuario.forEach((p) => mapaPerm.set(p.idTela, p));
 
-    let merged = telas.map((t) => {
+    permissoesAtuais = telas.map((t) => {
       const perm = mapaPerm.get(t.Id);
       const nivelAcesso = perm ? (perm.nivelAcesso || "N") : "N";
-      const podeVer = perm ? !!perm.podeVer : false;
-      const descricaoNivelAcesso = perm
-        ? perm.descricaoNivelAcesso
-        : "Nenhum acesso";
-
       return {
         idTela: t.Id,
-        modulo: t.Modulo,
-        nomeTela: t.NomeTela,
+        modulo: t.Modulo || "SEM MÓDULO",
+        nomeTela: t.NomeTela || "",
         codigoTela: t.CodigoTela,
         rota: t.Rota,
         nivelAcesso,
-        podeVer,
-        descricaoNivelAcesso,
       };
     });
 
-    if (moduloFiltro) {
-      merged = merged.filter((p) =>
-        String(p.modulo || "").toUpperCase().includes(moduloFiltro)
-      );
-    }
-
-    permissoesAtuais = merged;
-    renderTabelaPermissoes();
+    renderModulos();
   } catch (e) {
     console.error("[REGRAS][carregarPermissoes] Erro:", e);
-    tbody.innerHTML = `
-      <tr>
-        <td colspan="3" class="regras-empty">
-          Erro ao carregar permissões. Tente novamente.
-        </td>
-      </tr>
-    `;
-    if (info) info.textContent = "Erro ao carregar permissões (veja console).";
+    const modulosLista = document.getElementById("modulosLista");
+    if (modulosLista) {
+      modulosLista.innerHTML =
+        '<div class="usuarios-empty">Erro ao carregar permissões.</div>';
+    }
+    toastRegras("Erro ao carregar permissões.", "error");
   } finally {
     setLoadingRegras(false);
   }
 }
 
-// ================== RENDER TABELA EM CASCATA ==================
+// ================== RENDER MÓDULOS (ACCORDION + SWITCHES) ==================
 
-function renderTabelaPermissoes() {
-  const tbody = document.getElementById("tbodyPermissoes");
-  const info = document.getElementById("infoRegistrosRegras");
-  if (!tbody) return;
+function renderModulos() {
+  const cont = document.getElementById("modulosLista");
+  if (!cont) return;
 
   if (!permissoesAtuais.length) {
-    tbody.innerHTML = `
-      <tr>
-        <td colspan="3" class="regras-empty">
-          Nenhuma tela encontrada para este usuário.
-        </td>
-      </tr>
-    `;
-    if (info) info.textContent = "Nenhuma tela encontrada para este usuário.";
-    atualizarResumoPermissoes();
+    cont.innerHTML =
+      '<div class="usuarios-empty">Nenhuma tela encontrada.</div>';
+    atualizarStats();
     return;
   }
 
+  // Agrupa por módulo
   const grupos = new Map();
   permissoesAtuais.forEach((p) => {
     if (!grupos.has(p.modulo)) grupos.set(p.modulo, []);
@@ -306,287 +330,244 @@ function renderTabelaPermissoes() {
   });
 
   let html = "";
-
   grupos.forEach((telas, modulo) => {
     const total = telas.length;
-    const comAcesso = telas.filter(
-      (p) => p.nivelAcesso === "R" || p.nivelAcesso === "W"
-    ).length;
-
-    const todosMarcados = comAcesso === total && total > 0;
-    const nenhumMarcado = comAcesso === 0;
-    const estadoModulo = todosMarcados
-      ? "all"
-      : nenhumMarcado
-      ? "none"
-      : "mixed";
-
-    const moduloId = `mod-${escapeHtml(String(modulo))}`.replace(/\s+/g, "-");
+    const comAcesso = telas.filter((t) => t.nivelAcesso !== "N").length;
+    const aberto = modulosAbertos.has(modulo) ? "is-open" : "";
+    const moduloKey = encodeURIComponent(modulo);
 
     html += `
-      <tr class="linha-modulo" data-modulo="${escapeHtml(modulo)}">
-        <td colspan="2" class="modulo-cell" data-target="${moduloId}">
-          <span class="modulo-title">${escapeHtml(modulo || "SEM MÓDULO")}</span>
-        </td>
-        <td style="text-align:center;">
-          <input
-            type="checkbox"
-            class="modulo-checkbox"
-            data-modulo="${escapeHtml(modulo)}"
-            data-estado="${estadoModulo}"
-            ${todosMarcados ? "checked" : ""}
-          />
-        </td>
-      </tr>
-      <tr class="grupo-telas" id="${moduloId}" style="display:none;">
-        <td colspan="3">
-          <table class="subtabela-telas">
-            <tbody>
+      <div class="modulo-card ${aberto}" data-modulo="${escapeHtml(modulo)}">
+        <div class="modulo-card-head" data-toggle="${escapeHtml(modulo)}">
+          <span class="modulo-seta"><svg class="vicon vicon-sm" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg></span>
+          <span class="modulo-nome">${escapeHtml(modulo)}</span>
+          <span class="modulo-contador ${comAcesso > 0 ? "tem-acesso" : ""}" data-contador="${escapeHtml(modulo)}">
+            ${comAcesso}/${total}
+          </span>
+          <label class="switch" onclick="event.stopPropagation()">
+            <input type="checkbox" class="switch-modulo" data-modulo-key="${moduloKey}" />
+            <span class="switch-slider"></span>
+          </label>
+        </div>
+        <div class="modulo-card-body">
     `;
 
-    telas.forEach((p) => {
-      const temAcesso = p.nivelAcesso === "R" || p.nivelAcesso === "W";
+    telas.forEach((t) => {
+      const checked = t.nivelAcesso !== "N" ? "checked" : "";
       html += `
-        <tr>
-          <td style="width:30%;"></td>
-          <td>${escapeHtml(p.nomeTela || "")}</td>
-          <td style="text-align:center;">
+        <div class="tela-item" data-tela-nome="${escapeHtml((t.nomeTela || "").toLowerCase())}">
+          <span class="tela-nome">${escapeHtml(t.nomeTela || "")}</span>
+          <label class="switch">
             <input
               type="checkbox"
-              class="nivel-checkbox"
-              data-tela-id="${p.idTela}"
-              data-modulo="${escapeHtml(p.modulo || "")}"
-              ${temAcesso ? "checked" : ""}
+              class="switch-tela"
+              data-tela-id="${t.idTela}"
+              data-modulo-key="${moduloKey}"
+              ${checked}
             />
-          </td>
-        </tr>
+            <span class="switch-slider"></span>
+          </label>
+        </div>
       `;
     });
 
     html += `
-            </tbody>
-          </table>
-        </td>
-      </tr>
+        </div>
+      </div>
     `;
   });
 
-  tbody.innerHTML = html;
+  cont.innerHTML = html;
 
-  // clique no módulo abre/fecha
-  tbody.querySelectorAll(".modulo-cell").forEach((cell) => {
-    cell.addEventListener("click", () => {
-      const id = cell.dataset.target;
-      const grupo = document.getElementById(id);
-      if (!grupo) return;
-      const isHidden = grupo.style.display === "none";
-      grupo.style.display = isHidden ? "" : "none";
-      cell.parentElement.classList.toggle("linha-modulo-aberta", isHidden);
+  // Toggle accordion
+  cont.querySelectorAll(".modulo-card-head").forEach((head) => {
+    head.addEventListener("click", () => {
+      const modulo = head.dataset.toggle;
+      const card = head.closest(".modulo-card");
+      if (!card) return;
+      const abrindo = !card.classList.contains("is-open");
+      card.classList.toggle("is-open", abrindo);
+      if (abrindo) modulosAbertos.add(modulo);
+      else modulosAbertos.delete(modulo);
     });
   });
 
-  // checkbox do módulo controla filhos
-  tbody.querySelectorAll(".modulo-checkbox").forEach((chk) => {
-    chk.addEventListener("change", () => {
-      const modulo = chk.dataset.modulo;
-      const marcar = chk.checked;
-      tbody
-        .querySelectorAll(
-          `.nivel-checkbox[data-modulo="${CSS.escape(modulo)}"]`
-        )
-        .forEach((filho) => {
-          filho.checked = marcar;
+  // Switch de tela individual
+  cont.querySelectorAll(".switch-tela").forEach((sw) => {
+    sw.addEventListener("change", () => {
+      const idTela = parseInt(sw.dataset.telaId, 10);
+      const item = permissoesAtuais.find((p) => p.idTela === idTela);
+      if (item) item.nivelAcesso = sw.checked ? "W" : "N";
+      atualizarModuloSwitch(sw.dataset.moduloKey);
+      atualizarStats();
+    });
+  });
+
+  // Switch de módulo (controla todas as telas dele)
+  cont.querySelectorAll(".switch-modulo").forEach((sw) => {
+    sw.addEventListener("change", () => {
+      const moduloKey = sw.dataset.moduloKey;
+      const modulo = decodeURIComponent(moduloKey);
+      const marcar = sw.checked;
+      cont
+        .querySelectorAll(`.switch-tela[data-modulo-key="${CSS.escape(moduloKey)}"]`)
+        .forEach((telaSw) => {
+          telaSw.checked = marcar;
+          const idTela = parseInt(telaSw.dataset.telaId, 10);
+          const item = permissoesAtuais.find((p) => p.idTela === idTela);
+          if (item) item.nivelAcesso = marcar ? "W" : "N";
         });
-      atualizarEstadoModulos();
-      atualizarResumoPermissoes();
+      atualizarContadorModulo(modulo);
+      atualizarStats();
     });
   });
 
-  // checkbox das telas atualiza módulo
-  tbody.querySelectorAll(".nivel-checkbox").forEach((chk) => {
-    chk.addEventListener("change", () => {
-      atualizarEstadoModulos();
-      atualizarResumoPermissoes();
-    });
+  // Sincroniza estado inicial dos switches de módulo
+  grupos.forEach((telas, modulo) => {
+    atualizarModuloSwitch(encodeURIComponent(modulo));
   });
 
-  if (info) {
-    info.textContent = "Total de telas: " + String(permissoesAtuais.length);
-  }
-
-  atualizarEstadoModulos();
-  atualizarResumoPermissoes();
+  atualizarStats();
 }
 
-// ================== ESTADO DOS MÓDULOS ==================
+// Atualiza o switch do módulo (checked/indeterminate) e o contador
+function atualizarModuloSwitch(moduloKey) {
+  const cont = document.getElementById("modulosLista");
+  if (!cont) return;
 
-function atualizarEstadoModulos() {
-  const tbody = document.getElementById("tbodyPermissoes");
-  if (!tbody) return;
+  const filhos = Array.from(
+    cont.querySelectorAll(`.switch-tela[data-modulo-key="${CSS.escape(moduloKey)}"]`)
+  );
+  const total = filhos.length;
+  const marcados = filhos.filter((f) => f.checked).length;
 
-  const modulos = new Set();
-  tbody.querySelectorAll(".nivel-checkbox").forEach((chk) => {
-    modulos.add(chk.dataset.modulo);
-  });
-
-  modulos.forEach((modulo) => {
-    const filhos = Array.from(
-      tbody.querySelectorAll(
-        `.nivel-checkbox[data-modulo="${CSS.escape(modulo)}"]`
-      )
-    );
-    const total = filhos.length;
-    const marcados = filhos.filter((f) => f.checked).length;
-
-    const chkModulo = tbody.querySelector(
-      `.modulo-checkbox[data-modulo="${CSS.escape(modulo)}"]`
-    );
-    if (!chkModulo) return;
-
+  const swModulo = cont.querySelector(
+    `.switch-modulo[data-modulo-key="${CSS.escape(moduloKey)}"]`
+  );
+  if (swModulo) {
     if (marcados === 0) {
-      chkModulo.checked = false;
-      chkModulo.indeterminate = false;
-      chkModulo.dataset.estado = "none";
+      swModulo.checked = false;
+      swModulo.indeterminate = false;
     } else if (marcados === total) {
-      chkModulo.checked = true;
-      chkModulo.indeterminate = false;
-      chkModulo.dataset.estado = "all";
+      swModulo.checked = true;
+      swModulo.indeterminate = false;
     } else {
-      chkModulo.checked = false;
-      chkModulo.indeterminate = true;
-      chkModulo.dataset.estado = "mixed";
+      swModulo.checked = false;
+      swModulo.indeterminate = true;
+    }
+  }
+
+  atualizarContadorModulo(decodeURIComponent(moduloKey));
+}
+
+function atualizarContadorModulo(modulo) {
+  const cont = document.getElementById("modulosLista");
+  if (!cont) return;
+  const contador = cont.querySelector(
+    `[data-contador="${CSS.escape(modulo)}"]`
+  );
+  if (!contador) return;
+
+  const doModulo = permissoesAtuais.filter((p) => p.modulo === modulo);
+  const total = doModulo.length;
+  const comAcesso = doModulo.filter((p) => p.nivelAcesso !== "N").length;
+  contador.textContent = `${comAcesso}/${total}`;
+  contador.classList.toggle("tem-acesso", comAcesso > 0);
+}
+
+// ================== STATS (CABEÇALHO) ==================
+
+function atualizarStats() {
+  const statsEl = document.getElementById("permStats");
+  if (!statsEl) return;
+  const total = permissoesAtuais.length;
+  const comAcesso = permissoesAtuais.filter((p) => p.nivelAcesso !== "N").length;
+  statsEl.innerHTML = `<strong>${comAcesso}</strong> de ${total} telas com acesso`;
+}
+
+// ================== BUSCA DE TELAS ==================
+
+function filtrarTelas(termo) {
+  const cont = document.getElementById("modulosLista");
+  if (!cont) return;
+
+  cont.querySelectorAll(".modulo-card").forEach((card) => {
+    const itens = Array.from(card.querySelectorAll(".tela-item"));
+    let visiveis = 0;
+
+    itens.forEach((item) => {
+      const nome = item.dataset.telaNome || "";
+      const modulo = (card.dataset.modulo || "").toLowerCase();
+      const bate = !termo || nome.includes(termo) || modulo.includes(termo);
+      item.classList.toggle("tela-hidden", !bate);
+      if (bate) visiveis++;
+    });
+
+    // Esconde o card inteiro se nenhuma tela bate
+    card.classList.toggle("modulo-hidden", visiveis === 0);
+
+    // Abre automaticamente os que têm match durante a busca
+    if (termo && visiveis > 0) {
+      card.classList.add("is-open");
+    } else if (!termo) {
+      const modulo = card.dataset.modulo;
+      card.classList.toggle("is-open", modulosAbertos.has(modulo));
     }
   });
 }
 
-// ================== RESUMO ==================
+// ================== AÇÕES EM MASSA ==================
 
-function atualizarResumoPermissoes() {
-  const cardComAcesso = document.getElementById("cardTelasComAcesso");
-  const cardLeitura = document.getElementById("cardTelasLeitura");
-  const cardEscrita = document.getElementById("cardTelasEscrita");
-  const cardNenhum = document.getElementById("cardTelasNenhum");
+function toggleExpandirTodos() {
+  const cont = document.getElementById("modulosLista");
+  const btn = document.getElementById("btnExpandirTodos");
+  if (!cont) return;
 
-  let nComAcesso = 0;
-  let nNenhum = 0;
+  const cards = Array.from(cont.querySelectorAll(".modulo-card"));
+  const todosAbertos = cards.length > 0 && cards.every((c) => c.classList.contains("is-open"));
+  const abrir = !todosAbertos;
 
-  const tbody = document.getElementById("tbodyPermissoes");
-  if (tbody) {
-    tbody.querySelectorAll(".nivel-checkbox").forEach((chk) => {
-      if (chk.checked) nComAcesso++;
-      else nNenhum++;
+  cards.forEach((card) => {
+    card.classList.toggle("is-open", abrir);
+    const modulo = card.dataset.modulo;
+    if (abrir) modulosAbertos.add(modulo);
+    else modulosAbertos.delete(modulo);
+  });
+
+  if (btn) btn.textContent = abrir ? "Recolher tudo" : "Expandir tudo";
+}
+
+function marcarTodos(marcar) {
+  if (!permissoesAtuais.length) return;
+  permissoesAtuais.forEach((p) => {
+    p.nivelAcesso = marcar ? "W" : "N";
+  });
+
+  const cont = document.getElementById("modulosLista");
+  if (cont) {
+    cont.querySelectorAll(".switch-tela").forEach((sw) => {
+      sw.checked = marcar;
+    });
+    cont.querySelectorAll(".switch-modulo").forEach((sw) => {
+      atualizarModuloSwitch(sw.dataset.moduloKey);
     });
   }
-
-  if (cardComAcesso) cardComAcesso.textContent = String(nComAcesso);
-  if (cardLeitura) cardLeitura.textContent = "0"; // não diferenciamos R/W
-  if (cardEscrita) cardEscrita.textContent = "0";
-  if (cardNenhum) cardNenhum.textContent = String(nNenhum);
-
-  const btn = document.getElementById("btnSelecionarTodos");
-  if (btn && tbody) {
-    const checks = Array.from(tbody.querySelectorAll(".nivel-checkbox"));
-    const total = checks.length;
-    const marcados = checks.filter((c) => c.checked).length;
-    const tudoMarcado = total > 0 && marcados === total;
-    btn.textContent = tudoMarcado ? "Desmarcar todos" : "Selecionar todos";
-  }
+  atualizarStats();
+  toastRegras(marcar ? "Todas as telas marcadas." : "Todas as telas desmarcadas.");
 }
 
-// ================== SELECIONAR / DESMARCAR TODOS ==================
-
-function selecionarTodos() {
-  const tbody = document.getElementById("tbodyPermissoes");
-  const btn = document.getElementById("btnSelecionarTodos");
-  if (!tbody || !btn) return;
-
-  const checkboxes = Array.from(tbody.querySelectorAll(".nivel-checkbox"));
-  const total = checkboxes.length;
-  const marcados = checkboxes.filter((c) => c.checked).length;
-  const tudoMarcado = total > 0 && marcados === total;
-
-  const novoValor = !tudoMarcado;
-
-  checkboxes.forEach((chk) => {
-    chk.checked = novoValor;
-  });
-
-  atualizarEstadoModulos();
-  atualizarResumoPermissoes();
-}
-
-// ================== FAIXA DE MÓDULOS (PÍLULAS) ==================
-
-function initModulosStrip() {
-  const strip = document.getElementById("modulosStrip");
-  const moduloFiltroEl = document.getElementById("fModulo");
-  if (!strip || !moduloFiltroEl) return;
-
-  strip.querySelectorAll(".modulo-pill").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      strip.querySelectorAll(".modulo-pill").forEach((b) =>
-        b.classList.remove("active")
-      );
-      btn.classList.add("active");
-
-      const modulo = (btn.dataset.modulo || "").toUpperCase();
-      moduloFiltroEl.value = modulo;
-
-      if (usuarioSelecionadoId) {
-        carregarPermissoes();
-      }
-    });
-  });
-}
-
-// quando o usuário digita manualmente no campo de módulo, sincroniza pill
-function syncPillFromText() {
-  const strip = document.getElementById("modulosStrip");
-  const moduloFiltroEl = document.getElementById("fModulo");
-  if (!strip || !moduloFiltroEl) return;
-
-  const valor = (moduloFiltroEl.value || "").trim().toUpperCase();
-  let alguma = false;
-
-  strip.querySelectorAll(".modulo-pill").forEach((btn) => {
-    const modulo = (btn.dataset.modulo || "").toUpperCase();
-    if (valor && modulo === valor) {
-      btn.classList.add("active");
-      alguma = true;
-    } else if (!valor && !modulo) {
-      btn.classList.add("active");
-      alguma = true;
-    } else {
-      btn.classList.remove("active");
-    }
-  });
-
-  if (!alguma) {
-    strip
-      .querySelectorAll(".modulo-pill")
-      .forEach((b) => b.classList.remove("active"));
-  }
-}
-
-// ================== SALVAR PERMISSÕES ==================
+// ================== SALVAR ==================
 
 async function salvarPermissoes() {
   if (!usuarioSelecionadoId) {
-    alert("Selecione um usuário antes de salvar.");
+    toastRegras("Selecione um usuário antes de salvar.", "error");
     return;
   }
 
-  const tbody = document.getElementById("tbodyPermissoes");
-  if (!tbody) return;
-
-  const permissoes = [];
-  tbody.querySelectorAll(".nivel-checkbox").forEach((chk) => {
-    const telaId = parseInt(chk.dataset.telaId, 10);
-    const nivelAcesso = chk.checked ? "W" : "N"; // marcado = W, desmarcado = N
-    if (!Number.isNaN(telaId)) {
-      permissoes.push({ telaId, nivelAcesso });
-    }
-  });
+  const permissoes = permissoesAtuais.map((p) => ({
+    telaId: p.idTela,
+    nivelAcesso: p.nivelAcesso === "N" ? "N" : "W",
+  }));
 
   setLoadingRegras(true);
   try {
@@ -594,35 +575,17 @@ async function salvarPermissoes() {
       `/usuarios/${usuarioSelecionadoId}/telas-permissoes`,
       { permissoes }
     );
-    alert("Permissões salvas com sucesso.");
+    toastRegras("Permissões salvas com sucesso.", "success");
     await carregarPermissoes();
   } catch (e) {
     console.error("[REGRAS][salvarPermissoes] Erro:", e);
-    alert("Erro ao salvar permissões. Veja o console para detalhes.");
+    toastRegras("Erro ao salvar permissões. Veja o console.", "error");
   } finally {
     setLoadingRegras(false);
   }
 }
 
 // ================== UTILS ==================
-
-function limparTabelaPermissoes() {
-  const tbody = document.getElementById("tbodyPermissoes");
-  const info = document.getElementById("infoRegistrosRegras");
-  if (tbody) {
-    tbody.innerHTML = `
-      <tr>
-        <td colspan="3" class="regras-empty">
-          Selecione um usuário para começar.
-        </td>
-      </tr>
-    `;
-  }
-  if (info) {
-    info.textContent = "Selecione um usuário para ver as permissões.";
-  }
-  atualizarResumoPermissoes();
-}
 
 function escapeHtml(str) {
   return String(str || "")

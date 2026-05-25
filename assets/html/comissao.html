@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VISYA - Relatório de Comissão</title>
+
+  <link rel="icon" type="image/x-icon" href="../logo/favicon.ico" />
+
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20,300,0,0"
+  />
+
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+  />
+
+  <link rel="stylesheet" href="../css/loader.css" />
+  <link rel="stylesheet" href="../css/comissao.css" />
+</head>
+<body>
+  <!-- BLOQUEIO POR SENHA -->
+  <div class="com-lock" id="comLock">
+    <div class="com-lock-card">
+      <div class="com-lock-icon">
+        <span class="material-symbols-rounded">lock</span>
+      </div>
+      <p class="com-lock-kicker">Acesso restrito</p>
+      <h2 class="com-lock-title">Relatório de Comissão</h2>
+      <p class="com-lock-sub">Informe a senha para visualizar os dados.</p>
+      <input
+        type="password"
+        id="comLockInput"
+        class="com-lock-input"
+        placeholder="Senha"
+        autocomplete="off"
+      />
+      <p class="com-lock-erro" id="comLockErro"></p>
+      <button type="button" id="comLockBtn" class="com-lock-btn">Desbloquear</button>
+    </div>
+  </div>
+
+  <main class="comissao-page">
+    <!-- HEADER -->
+    <header class="dash-header">
+      <div class="dash-header-left">
+        <span class="dash-kicker">Vendedores</span>
+        <h1 class="dash-title">Relatório de <span>Comissão</span></h1>
+      </div>
+      <div class="dash-header-right">
+        <div class="cr-user-info">
+          <span class="cr-user-nome" id="comissaoUserNome">—</span>
+          <span class="cr-user-email" id="comissaoUserEmail">—</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- FILTROS -->
+    <section class="comissao-filtros">
+      <div class="filtro-campo">
+        <label for="fEmpresaCom">Empresa</label>
+        <select id="fEmpresaCom">
+          <option value="">Todas</option>
+        </select>
+      </div>
+
+      <div class="filtro-campo">
+        <label for="fVendedorCom">Vendedor</label>
+        <select id="fVendedorCom">
+          <option value="">Todos</option>
+        </select>
+      </div>
+
+      <div class="filtro-campo">
+        <label for="fCompInicioCom">Competência início (MM/AAAA)</label>
+        <input type="text" id="fCompInicioCom" placeholder="01/2024" maxlength="7" />
+      </div>
+
+      <div class="filtro-campo">
+        <label for="fCompFimCom">Competência fim (MM/AAAA)</label>
+        <input type="text" id="fCompFimCom" placeholder="12/2024" maxlength="7" />
+      </div>
+
+      <div class="filtro-acoes">
+        <button class="btn-filtro btn-filtro-primary" type="button" id="btnAplicarCom">
+          <span>Aplicar</span>
+        </button>
+        <button class="btn-filtro" type="button" id="btnLimparCom">
+          <span>Limpar</span>
+        </button>
+        <button class="btn-filtro" type="button" id="btnExportCom">
+          <span>Excel</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- CARDS DE RESUMO -->
+    <section class="comissao-cards">
+      <div class="kpi-card">
+        <span class="kpi-label">Total de comissão</span>
+        <span class="kpi-valor" id="kpiTotal">R$ 0,00</span>
+        <span class="kpi-sub" id="kpiTotalSub">no período filtrado</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">Vendedores</span>
+        <span class="kpi-valor" id="kpiVendedores">0</span>
+        <span class="kpi-sub">com comissão no período</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">Registros</span>
+        <span class="kpi-valor" id="kpiRegistros">0</span>
+        <span class="kpi-sub">linhas (empresa × vendedor × mês)</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">Maior comissão</span>
+        <span class="kpi-valor" id="kpiMaior">R$ 0,00</span>
+        <span class="kpi-sub" id="kpiMaiorSub">—</span>
+      </div>
+    </section>
+
+    <!-- TABELA -->
+    <section class="dash-content">
+      <div class="table-toolbar">
+        <span class="table-header-info" id="comissaoTableInfo">Carregando...</span>
+        <div class="seg-control" id="segVisao">
+          <button type="button" data-visao="resumo" class="is-active">Resumo por vendedor</button>
+          <button type="button" data-visao="detalhado">Detalhado</button>
+        </div>
+      </div>
+
+      <div class="table-wrapper">
+        <table class="comissao-table" id="tblComissao">
+          <thead id="comissaoThead"></thead>
+          <tbody id="comissaoTbody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- MODAL DE DETALHES DO VENDEDOR -->
+  <div class="com-modal" id="comModal" aria-hidden="true">
+    <div class="com-modal-backdrop" id="comModalBackdrop"></div>
+    <div class="com-modal-content" role="dialog" aria-modal="true">
+      <div class="com-modal-header">
+        <div>
+          <p class="com-modal-kicker">Detalhamento</p>
+          <h2 class="com-modal-title" id="comModalTitulo">Vendedor</h2>
+          <p class="com-modal-sub" id="comModalSub">—</p>
+        </div>
+        <button class="com-modal-close" type="button" id="comModalClose" aria-label="Fechar">✕</button>
+      </div>
+      <div class="com-modal-body" id="comModalBody">
+        <div class="com-modal-loading">Carregando...</div>
+      </div>
+      <div class="com-modal-footer">
+        <span id="comModalQtde">—</span>
+        <span class="com-modal-total" id="comModalTotal">R$ 0,00</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOADER -->
+  <div class="loader-overlay" id="loaderOverlay" aria-hidden="true">
+    <iframe src="loader.html" class="loader-frame" frameborder="0" scrolling="no"></iframe>
+  </div>
+
+  <!-- TOAST -->
+  <div class="toast-comissao" id="toastComissao"></div>
+
+  <script src="../js/global.js"></script>
+  <script src="../js/comissao.js"></script>
+</body>
+</html>

@@ -1018,7 +1018,10 @@ body.light-theme .carteira-table th:hover {
   border-top: 5px solid var(--accent);
 }
 
-/* primeiras 4 colunas sticky horizontalmente */
+/* primeiras 4 colunas sticky horizontalmente.
+   O valor de "left" de cada uma é calculado dinamicamente pelo JS
+   (atualizarStickyOffsets) somando as larguras reais das colunas à
+   esquerda — assim acompanham resize/reorder/ocultar sem deixar vão. */
 
 .carteira-table th:nth-child(1),
 .carteira-table td:nth-child(1) {
@@ -1031,7 +1034,7 @@ body.light-theme .carteira-table th:hover {
 .carteira-table th:nth-child(2),
 .carteira-table td:nth-child(2) {
   position: sticky;
-  left: 95px;
+  left: var(--sticky-left-2, 95px);
   z-index: 1;
   background: var(--bg-1);
 }
@@ -1039,7 +1042,7 @@ body.light-theme .carteira-table th:hover {
 .carteira-table th:nth-child(3),
 .carteira-table td:nth-child(3) {
   position: sticky;
-  left: 285px;
+  left: var(--sticky-left-3, 285px);
   z-index: 1;
   background: var(--bg-1);
 }
@@ -1047,7 +1050,7 @@ body.light-theme .carteira-table th:hover {
 .carteira-table th:nth-child(4),
 .carteira-table td:nth-child(4) {
   position: sticky;
-  left: 380px;
+  left: var(--sticky-left-4, 380px);
   z-index: 1;
   background: var(--bg-1);
   border-right: 2px solid var(--line-strong);
@@ -1494,55 +1497,55 @@ body.light-theme .loader-overlay {
    valores-base. O min-width baixo (50px) só garante um piso para a coluna
    não desaparecer ao arrastar. */
 
-.w-cod-vendedor { width: 95px; min-width: 50px; }
-.w-nome-vendedor { width: 190px; min-width: 50px; }
-.w-cod-cliente { width: 95px; min-width: 50px; }
-.w-nome-cliente { width: 220px; min-width: 50px; }
-.w-propriedades { width: 110px; min-width: 50px; }
+.w-cod-vendedor { width: 95px; min-width: 30px; }
+.w-nome-vendedor { width: 190px; min-width: 30px; }
+.w-cod-cliente { width: 95px; min-width: 30px; }
+.w-nome-cliente { width: 220px; min-width: 30px; }
+.w-propriedades { width: 110px; min-width: 30px; }
 
-.w-end-comp { width: 160px; min-width: 50px; }
-.w-end-num { width: 80px; min-width: 50px; }
-.w-end-logradouro { width: 230px; min-width: 50px; }
-.w-end-bairro { width: 160px; min-width: 50px; }
-.w-end-cidade { width: 170px; min-width: 50px; }
-.w-end-cidade-cod { width: 100px; min-width: 50px; }
-.w-end-uf { width: 60px; min-width: 50px; }
-.w-end-cep { width: 95px; min-width: 50px; }
+.w-end-comp { width: 160px; min-width: 30px; }
+.w-end-num { width: 80px; min-width: 30px; }
+.w-end-logradouro { width: 230px; min-width: 30px; }
+.w-end-bairro { width: 160px; min-width: 30px; }
+.w-end-cidade { width: 170px; min-width: 30px; }
+.w-end-cidade-cod { width: 100px; min-width: 30px; }
+.w-end-uf { width: 60px; min-width: 30px; }
+.w-end-cep { width: 95px; min-width: 30px; }
 
-.w-cultura-qtde { width: 95px; min-width: 50px; }
-.w-cultura-resumo { width: 260px; min-width: 50px; }
-.w-cultura-detalhe { width: 90px; min-width: 50px; }
+.w-cultura-qtde { width: 95px; min-width: 30px; }
+.w-cultura-resumo { width: 260px; min-width: 30px; }
+.w-cultura-detalhe { width: 90px; min-width: 30px; }
 
-.w-telefone { width: 130px; min-width: 50px; }
-.w-email { width: 220px; min-width: 50px; }
+.w-telefone { width: 130px; min-width: 30px; }
+.w-email { width: 220px; min-width: 30px; }
 
-.w-lat { width: 110px; min-width: 50px; }
-.w-lng { width: 110px; min-width: 50px; }
+.w-lat { width: 110px; min-width: 30px; }
+.w-lng { width: 110px; min-width: 30px; }
 
-.w-cod-emp { width: 90px; min-width: 50px; }
-.w-dtlim { width: 110px; min-width: 50px; }
-.w-limcred { width: 130px; min-width: 50px; }
+.w-cod-emp { width: 90px; min-width: 30px; }
+.w-dtlim { width: 110px; min-width: 30px; }
+.w-limcred { width: 130px; min-width: 30px; }
 
-.w-nrounico { width: 100px; min-width: 50px; }
-.w-numnota { width: 95px; min-width: 50px; }
-.w-dtvenda { width: 110px; min-width: 50px; }
-.w-valortotal { width: 130px; min-width: 50px; }
-.w-vv-cod { width: 115px; min-width: 50px; }
-.w-vv-nome { width: 180px; min-width: 50px; }
-.w-vv-cargo { width: 140px; min-width: 50px; }
+.w-nrounico { width: 100px; min-width: 30px; }
+.w-numnota { width: 95px; min-width: 30px; }
+.w-dtvenda { width: 110px; min-width: 30px; }
+.w-valortotal { width: 130px; min-width: 30px; }
+.w-vv-cod { width: 115px; min-width: 30px; }
+.w-vv-nome { width: 180px; min-width: 30px; }
+.w-vv-cargo { width: 140px; min-width: 30px; }
 
-.w-atv-id { width: 100px; min-width: 50px; }
-.w-atv-lanc { width: 120px; min-width: 50px; }
-.w-atv-visita { width: 135px; min-width: 50px; }
-.w-atv-assunto { width: 220px; min-width: 50px; }
-.w-atv-obs { width: 280px; min-width: 50px; }
+.w-atv-id { width: 100px; min-width: 30px; }
+.w-atv-lanc { width: 120px; min-width: 30px; }
+.w-atv-visita { width: 135px; min-width: 30px; }
+.w-atv-assunto { width: 220px; min-width: 30px; }
+.w-atv-obs { width: 280px; min-width: 30px; }
 
 .w-total-2024,
 .w-total-2025,
 .w-total-2026,
 .w-ltv {
   width: 130px;
-  min-width: 50px;
+  min-width: 30px;
 }
 
 /* ============ RESPONSIVE ============ */

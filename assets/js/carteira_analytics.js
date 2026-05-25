@@ -161,8 +161,20 @@ function resetarLayout() {
   colunasLarguras = {};
   colunasOrdem = ordemPadrao();
   salvarLayout();
+
+  // limpa larguras inline dos cols e da tabela para voltar ao padrão
+  // definido pelas classes .w-* no CSS
+  const table = document.getElementById("tblCarteira");
+  if (table) {
+    table.querySelectorAll("colgroup col").forEach((col) => {
+      col.style.width = "";
+    });
+    table.style.width = "";
+    table.style.minWidth = "";
+    table.style.maxWidth = "";
+  }
+
   reconstruirOrdemDOM();
-  aplicarLargurasColunas();
   aplicarVisibilidadeColunas();
   renderizarDropdownColunas();
   mostrarToastCarteira("Layout restaurado ao padrão.");
@@ -181,6 +193,60 @@ function aplicarLargurasColunas() {
       col.style.width = colunasLarguras[key] + "px";
     }
   });
+  recalcularLarguraTabela();
+}
+
+// Fixa largura explícita em todos os cols visíveis e ajusta a largura da
+// tabela para a soma exata. Necessário para que table-layout:fixed respeite
+// 100% a largura de cada coluna (inclusive ao encolher bem pequeno) — sem
+// isso o navegador redistribui o espaço e a coluna não chega ao mínimo.
+function recalcularLarguraTabela() {
+  const table = document.getElementById("tblCarteira");
+  if (!table) return;
+  const cols = table.querySelectorAll("colgroup col");
+  let soma = 0;
+  cols.forEach((col) => {
+    if (col.classList.contains("col-hidden")) return;
+    // garante largura explícita (usa a atual se ainda não tiver inline)
+    let w = parseFloat(col.style.width);
+    if (!w || Number.isNaN(w)) {
+      w = col.offsetWidth || 100;
+      col.style.width = w + "px";
+    }
+    soma += w;
+  });
+  if (soma > 0) {
+    table.style.width = soma + "px";
+    table.style.minWidth = "0";
+    table.style.maxWidth = "none";
+  }
+  // após mudar larguras, reposiciona as colunas fixas (sticky)
+  atualizarStickyOffsets();
+}
+
+// Quantidade de colunas fixas (sticky) à esquerda.
+const QTD_COLUNAS_STICKY = 4;
+
+// Calcula o "left" de cada uma das primeiras QTD_COLUNAS_STICKY colunas
+// VISÍVEIS somando as larguras reais das colunas anteriores, e grava em
+// variáveis CSS na tabela (--sticky-left-1..4). O CSS usa essas variáveis,
+// então th e td (inclusive linhas criadas depois pelo lazy scroll) seguem
+// automaticamente, sem deixar vão preto ao redimensionar/reordenar/ocultar.
+function atualizarStickyOffsets() {
+  const table = document.getElementById("tblCarteira");
+  if (!table) return;
+
+  const cols = Array.from(table.querySelectorAll("colgroup col")).filter(
+    (c) => !c.classList.contains("col-hidden")
+  );
+
+  let acc = 0;
+  for (let i = 0; i < QTD_COLUNAS_STICKY; i++) {
+    table.style.setProperty(`--sticky-left-${i + 1}`, acc + "px");
+    const col = cols[i];
+    const w = col ? (parseFloat(col.style.width) || col.offsetWidth || 0) : 0;
+    acc += w;
+  }
 }
 
 // ================== APLICAR ORDEM (reordena DOM conforme colunasOrdem) ==================
@@ -229,6 +295,9 @@ function reconstruirOrdemDOM() {
     });
     tr.appendChild(frag);
   });
+
+  // a ordem mudou -> recalcula posições das colunas fixas
+  atualizarStickyOffsets();
 }
 
 // ================== APLICAR VISIBILIDADE ==================
@@ -265,6 +334,9 @@ function aplicarVisibilidadeColunas() {
       td.classList.toggle("col-hidden", !colunasVisiveis.has(key));
     });
   });
+
+  // colunas ocultas mudam a soma das larguras -> reajusta a tabela
+  recalcularLarguraTabela();
 }
 
 // ================== DROPDOWN COLUNAS ==================
@@ -1688,15 +1760,20 @@ async function exportarTabelaParaExcel() {
     (document.getElementById("fVendedorCart")?.value || "").trim();
   const vendedorNomeSelecionado = getMultiVendedorSelecionados();
 
-  if (!vendedorCod && !vendedorNomeSelecionado.length) {
-    mostrarToastCarteira("Para exportar, informe código ou selecione vendedor.");
-    return;
-  }
+  // Sem vendedor selecionado: exporta a carteira GERAL, respeitando os demais
+  // filtros da tela (cidade, cultura, cód. cliente e busca geral). O
+  // getFiltrosCarteiraQS() já inclui esses filtros na consulta à API, e a
+  // busca geral é aplicada localmente em aplicarFiltroBuscaGeralLocal.
+  const exportandoTudo = !vendedorCod && !vendedorNomeSelecionado.length;
 
   const table = document.getElementById("tblCarteira");
   if (!table) return;
 
   setLoadingCarteira(true);
+
+  if (exportandoTudo) {
+    mostrarToastCarteira("Exportando carteira geral, isso pode levar alguns segundos...");
+  }
 
   try {
     const { registros, totalCount } = await apiGetCarteiraTodasPaginas(
@@ -1808,11 +1885,17 @@ function initColumnResize() {
       th.classList.add("resizing");
       document.body.style.userSelect = "none";
 
+      // pré-fixa larguras explícitas em todos os cols visíveis para que o
+      // table-layout:fixed respeite o encolhimento até o mínimo (sem isso o
+      // navegador redistribui e a coluna trava antes do mínimo).
+      recalcularLarguraTabela();
+
       function onMouseMove(ev) {
         const delta = ev.pageX - startX;
-        const newWidth = Math.max(50, startWidth + delta);
+        const newWidth = Math.max(30, startWidth + delta);
         if (col) {
           col.style.width = newWidth + "px";
+          recalcularLarguraTabela();
         }
       }
 
@@ -2007,12 +2090,11 @@ window.addEventListener("DOMContentLoaded", async () => {
   });
 
   function atualizarEstadoBotaoExport() {
-    const vendedorCod =
-      (document.getElementById("fVendedorCart")?.value || "").trim();
-    const habilita = !!(vendedorCod || getMultiVendedorSelecionados().length);
+    // O botão Excel fica SEMPRE habilitado: com vendedor exporta o vendedor,
+    // sem vendedor exporta a carteira geral (respeitando os demais filtros).
     if (btnExport) {
-      btnExport.disabled = !habilita;
-      btnExport.classList.toggle("btn-disabled", !habilita);
+      btnExport.disabled = false;
+      btnExport.classList.remove("btn-disabled");
     }
   }
 

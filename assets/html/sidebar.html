@@ -47,7 +47,7 @@
       <p class="nav-section-label">Navegação</p>
       <ul class="nav-list primary-nav">
         <li class="nav-item" id="menu-inicio">
-          
+          <a
             href="inicio.html"
             class="nav-link"
             data-modulo="INICIO"
@@ -59,7 +59,7 @@
         </li>
 
         <li class="nav-item">
-          
+          <a
             href="atividades.html"
             class="nav-link"
             data-modulo="ATIVIDADES"
@@ -71,7 +71,7 @@
         </li>
 
         <li class="nav-item">
-          
+          <a
             href="carteira.html"
             class="nav-link"
             data-modulo="COMERCIAL"
@@ -92,7 +92,7 @@
           </a>
           <ul class="dropdown-menu" id="submenu-estoque">
             <li class="nav-item">
-              
+              <a
                 href="estoque.html"
                 class="nav-link dropdown-link"
                 data-modulo="ESTOQUE"
@@ -105,7 +105,7 @@
         </li>
 
         <li class="nav-item">
-          
+          <a
             href="financeiro.html"
             class="nav-link"
             data-modulo="FINANCEIRO"
@@ -126,7 +126,7 @@
           </a>
           <ul class="dropdown-menu" id="submenu-logistica">
             <li class="nav-item">
-              
+              <a
                 href="rota.html"
                 class="nav-link dropdown-link"
                 data-modulo="LOGISTICA"
@@ -139,7 +139,7 @@
         </li>
 
         <li class="nav-item">
-          
+          <a
             href="regras-negocio.html"
             class="nav-link"
             data-modulo="EXTRAS"
@@ -185,10 +185,10 @@
           </ul>
         </li>
         <li class="nav-item">
-          <a href="../../index.html" class="nav-link">
+          <button type="button" id="btnSairSidebar" class="nav-link">
             <span class="material-symbols-rounded">logout</span>
             <span class="nav-label">Sair</span>
-          </a>
+          </button>
         </li>
       </ul>
     </nav>
@@ -221,11 +221,40 @@
     (function enforceAuth() {
       const usuario = getUsuarioLogadoSidebar();
       if (!usuario) {
-        window.location.href = "/index.html";
+        // sem sessão: manda a janela do topo para o login (sai do shell)
+        const topWin = window.top || window;
+        topWin.location.href = "/index.html";
       } else {
         window.USUARIO_LOGADO = usuario;
       }
     })();
+
+    // ================== LOGOUT ==================
+    // Limpa a sessão e redireciona a JANELA DO TOPO para o login. Sem o
+    // window.top, o login carregaria dentro do iframe e a sidebar continuaria
+    // aparecendo em volta (bug "login com sidebar").
+    function deslogarSidebar() {
+      try {
+        if (window.sessionStorage) sessionStorage.clear();
+        if (window.localStorage) localStorage.clear();
+      } catch (e) {
+        console.error("[SIDEBAR] erro ao limpar sessão:", e);
+      }
+      try {
+        const topWin = window.top || window;
+        topWin.location.href = "/index.html";
+      } catch (e) {
+        window.location.href = "/index.html";
+      }
+    }
+
+    const btnSair = document.getElementById("btnSairSidebar");
+    if (btnSair) {
+      btnSair.addEventListener("click", function (e) {
+        e.preventDefault();
+        deslogarSidebar();
+      });
+    }
 
     const sidebarElement = document.querySelector(".sidebar");
     const togglerButton = document.querySelector(".sidebar-toggler");

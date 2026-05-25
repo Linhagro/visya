@@ -100,8 +100,16 @@ function deslogar() {
     console.error(e);
   }
 
-  // Sempre volta para o index da raiz da aplicação
-  window.location.href = "/index.html";
+  // Sai completamente do shell (sidebar + iframe): redireciona a janela do
+  // TOPO para o login. Sem window.top, o login carregaria dentro do iframe,
+  // deixando a sidebar visível em volta da tela de login.
+  try {
+    const topWin = window.top || window;
+    topWin.location.href = "/index.html";
+  } catch (e) {
+    // fallback se não conseguir acessar o topo (cross-origin etc.)
+    window.location.href = "/index.html";
+  }
 }
 
 // ================== CONFIG E HELPERS DE API ==================
